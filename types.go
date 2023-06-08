@@ -23,8 +23,7 @@ type Instance struct {
 		Stores what database management tool instance is in
 		This value is used as a key for command retrieval later
 	*/
-	dbms   dbms_t
-	dbname string
+	dbms dbms_t
 
 	/*
 		Login credentials
@@ -35,8 +34,15 @@ type Instance struct {
 
 	/*
 		Required to access database
+		defaults to {
+			port 3306
+			host 127.0.0.1
+			dbname ndx
+		}
 		Reminder: localhost is host := 127.0.0.1
 	*/
 	port int
-	host int
+	host string
+
+	dbname string
 }
