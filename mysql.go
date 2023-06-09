@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	fmt "fmt"
+	"math"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -46,7 +47,7 @@ func setParameters(db *sql.DB) {
 Unwrap instance into db pointer
 */
 func launchInstance(instance Instance) *sql.DB {
-	db, err := sql.Open("sql", instance.user+":"+string(instance.pass)+"@tcp("+fmt.Sprint(instance.host)+":"+fmt.Sprint(instance.port)+")/"+instance.dbname)
+	db, err := sql.Open("mysql", instance.user+":"+string(instance.pass)+"@tcp("+fmt.Sprint(instance.host)+":"+fmt.Sprint(instance.port)+")/"+instance.dbname)
 	if err != nil {
 		panic(err)
 	}
@@ -57,41 +58,46 @@ func launchInstance(instance Instance) *sql.DB {
 /*
 Retrieves uptime of database and returns it formatted.
 */
-func getUptime(db *sql.DB) time.Duration {
-	/*
-		Execute the query to retrieve the current time from the database server
-	*/
-	rows, err := db.Query("SELECT NOW()")
-	if err != nil {
+func getUptime(db *sql.DB) float64 {
+	var (
+		uptime  float64
+		discard string
+	)
+	query := "SHOW GLOBAL STATUS LIKE 'Uptime'"
+	if err := db.QueryRow(query).Scan(&discard, &uptime); err != nil {
 		panic(err)
-	}
-	defer rows.Close()
-
-	var currentTimeStr string
-	for rows.Next() {
-		if err := rows.Scan(&currentTimeStr); err != nil {
-			panic(err)
-		}
-	}
-
-	/*
-		Parse the retrieved time string into a time.Time value
-	*/
-	currentTime, err := time.Parse("2006-01-02 15:04:05", currentTimeStr)
-	if err != nil {
-		panic(err)
-	}
-
-	/*
-		Calculate uptime
-	*/
-	uptime := time.Since(currentTime)
-	/*
-		Always return a positive value
-	*/
-	if uptime < 0 {
-		uptime *= -1
 	}
 
 	return uptime
+}
+
+func getQPS(db *sql.DB) float64 {
+	var (
+		queries,
+		uptime,
+		qps float64
+		discard string
+	)
+	query := "SHOW GLOBAL STATUS LIKE 'Queries'"
+
+	/*
+		Retrieve 'Queries' values from 'SHOW GLOBAL STATUS'
+		Retrieve 'Uptime' with similar method from getUptime
+	*/
+	if err := db.QueryRow(query).Scan(&discard, &queries); err != nil {
+		panic(err)
+	}
+
+	/*
+		Calculate QPS from uptime
+		Decrease queries by 2 to account for the queries required
+		to calculate QPS
+	*/
+	uptime = getUptime(db)
+	queries -= 2
+	if uptime > 0 {
+		qps = math.Round(queries / uptime)
+	}
+
+	return qps
 }

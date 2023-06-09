@@ -1,5 +1,11 @@
 package main
 
+import (
+	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
+)
+
 type dbms_t int
 
 const (
@@ -28,6 +34,7 @@ type Instance struct {
 	/*
 		Login credentials
 		Password stored securely
+		Note: find solution to store pass in config
 	*/
 	user string
 	pass []byte
@@ -45,4 +52,9 @@ type Instance struct {
 	host string
 
 	dbname string
+
+	/*
+		Database handle
+	*/
+	db *sql.DB
 }
