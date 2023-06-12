@@ -6,10 +6,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type dbms_t int
+type DBMS_t int
 
 const (
-	MYSQL dbms_t = iota
+	MYSQL DBMS_t = iota
 	ORACLE
 )
 
@@ -23,21 +23,21 @@ type Instance struct {
 		Stores index of instance
 		Note: hard code max
 	*/
-	ndx int
+	Ndx int
 
 	/*
 		Stores what database management tool instance is in
 		This value is used as a key for command retrieval later
 	*/
-	dbms dbms_t
+	DBMS DBMS_t
 
 	/*
 		Login credentials
 		Password stored securely
 		Note: find solution to store pass in config
 	*/
-	user string
-	pass []byte
+	User string
+	Pass []byte
 
 	/*
 		Required to access database
@@ -48,13 +48,13 @@ type Instance struct {
 		}
 		Reminder: localhost is host := 127.0.0.1
 	*/
-	port int
-	host string
+	Port int
+	Host string
 
-	dbname string
+	Dbname string
 
 	/*
 		Database handle
 	*/
-	db *sql.DB
+	DB *sql.DB
 }

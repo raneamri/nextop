@@ -6,11 +6,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"golang.org/x/term"
 )
 
 /*
@@ -20,14 +18,14 @@ View plugins
 
 func main() {
 
-	clearTerminal()
+	ClearTerminal()
 
 	/*
 		Slice to store all instances
 	*/
-	instances, err := readConfig()
+	instances, err := ReadConfig()
 	if err != nil {
-		catchConfigReadError(err, instances)
+		CatchConfigReadError(err, instances)
 	}
 
 	/*
@@ -52,7 +50,7 @@ func main() {
 		} else {
 			loadnew = "YES"
 		}
-		if fstr(loadnew) == "YES" {
+		if Fstr(loadnew) == "YES" {
 			inst := newInstance()
 			/*
 				Write to config conditionally
@@ -60,13 +58,13 @@ func main() {
 			var write string
 			fmt.Printf("Write to config?: [yes] ")
 			fmt.Scanf("%s", &write)
-			if fstr(write) == "YES" {
+			if Fstr(write) == "YES" {
 				/*
 					Writes instance to .conf
 				*/
-				inst.db = connections.launchInstance(inst)
-				instances = push_instance(instances, inst)
-				err := writeConfig(inst)
+				inst.DB = LaunchInstance(inst)
+				instances = PushInstance(instances, inst)
+				err := WriteConfig(inst)
 				/*
 					Program will attempt to heal config if error is thrown
 					on fail, config file will be reset to default
@@ -74,23 +72,23 @@ func main() {
 					Note: heal unimplemented
 				*/
 				if err != nil {
-					catchConfigWriteError(err, inst)
+					CatchConfigWriteError(err, inst)
 				}
 			}
 
 			/*
 				Add instance to slice
 			*/
-			instances = push_instance(instances, inst)
+			instances = PushInstance(instances, inst)
 		}
 	} else if len(os.Args) > 3 && len(os.Args) < 8 {
 		var inst Instance
 		/*
 			Unpack non-optional values
 		*/
-		inst.dbms = dbmsstr(os.Args[1])
-		inst.user = os.Args[2]
-		inst.pass = []byte(os.Args[3])
+		inst.DBMS = Dbmsstr(os.Args[1])
+		inst.User = os.Args[2]
+		inst.Pass = []byte(os.Args[3])
 
 		/*
 			Unpack optional values
@@ -115,19 +113,19 @@ func main() {
 					/*
 						Given arg. = port
 					*/
-					if os.Args[i] != string(inst.pass) && os.Args[i] != string(inst.user) {
+					if os.Args[i] != string(inst.Pass) && os.Args[i] != string(inst.User) {
 						num, err := strconv.Atoi(os.Args[i])
 						if err != nil {
-							throwArgError(os.Args)
+							ThrowArgError(os.Args)
 						}
-						inst.port = num
+						inst.Port = num
 						port = true
 					}
 				} else if strings.Contains(os.Args[i], ".") {
 					/*
 						Given arg. = host
 					*/
-					inst.host = os.Args[i]
+					inst.Host = os.Args[i]
 					host = true
 
 				} else {
@@ -135,7 +133,7 @@ func main() {
 						Given arg. = dbname
 						by deduction
 					*/
-					inst.dbname = os.Args[i]
+					inst.Dbname = os.Args[i]
 					dbname = true
 				}
 			}
@@ -145,24 +143,24 @@ func main() {
 			Set localhost to 127.0.0.1
 		*/
 		if !port {
-			inst.port = 3306
+			inst.Port = 3306
 		}
 		if !host {
-			inst.host = "127.0.0.1"
+			inst.Host = "127.0.0.1"
 		}
 		if !dbname {
-			inst.dbname = "none"
+			inst.Dbname = "none"
 		}
-		if inst.host == "localhost" {
-			inst.host = "127.0.0.1"
+		if inst.Host == "localhost" {
+			inst.Host = "127.0.0.1"
 		}
-		inst.db = launchInstance(inst)
+		inst.DB = LaunchInstance(inst)
 
-		instances = push_instance(instances, inst)
-		syncConfig(instances)
+		instances = PushInstance(instances, inst)
+		SyncConfig(instances)
 
 	} else {
-		throwArgError(os.Args)
+		ThrowArgError(os.Args)
 	}
 
 	/*
@@ -175,8 +173,8 @@ func main() {
 	fps = 60
 	interval = time.Duration(fps/60) * time.Second
 	for 1 == 1 {
-		clearTerminal()
-		dashboard := initDashboard(instances)
+		ClearTerminal()
+		dashboard := InitDashboard(instances)
 		fmt.Println(dashboard.String())
 
 		time.Sleep(interval)
@@ -185,103 +183,11 @@ func main() {
 }
 
 /*
-Prompts user to pick a DBMS
-*/
-func pickdbms() dbms_t {
-	var input string
-	fmt.Println("DBMS: ")
-	fmt.Scanf("%s", &input)
-	input = fstr(input)
-
-	if input == "MYSQL" {
-		return MYSQL
-	} else if input == "ORACLE" {
-		return ORACLE
-	}
-
-	fmt.Println("Unaccomodated/non-existant DBMS.")
-	os.Exit(1)
-	return -1
-}
-
-/*
-Takes dbms_t and returns the dbms name as string
-*/
-func strdbms(dbms dbms_t) string {
-	if dbms == MYSQL {
-		return "MYSQL"
-	} else if dbms == ORACLE {
-		return "ORACLE"
-	}
-
-	/*
-		Should never be reached considering previous checks
-	*/
-	return ""
-}
-
-/*
-Inverse function to strdbms
-Takes string and converts to dbms_t
-*/
-func dbmsstr(dbms string) dbms_t {
-	fstr(dbms)
-	if dbms == "MYSQL" {
-		return MYSQL
-	} else if dbms == "ORACLE" {
-		return ORACLE
-	}
-
-	return 0
-}
-
-/*
-Creates a new instance and returns it
-*/
-func newInstance() Instance {
-	var newInstance Instance
-	newInstance.dbms = pickdbms()
-
-	clearTerminal()
-	fmt.Println("Enter username: ")
-	fmt.Scanf("%s", &newInstance.user)
-
-	clearTerminal()
-	fmt.Print("Enter password: \n")
-	password, _ := term.ReadPassword(int(syscall.Stdin))
-	newInstance.pass = password
-
-	clearTerminal()
-	fmt.Println("Enter port (default:3306): ")
-	fmt.Scanf("%d", &newInstance.port)
-	if fmt.Sprint(newInstance.port) == "" {
-		newInstance.port = 3306
-	}
-
-	clearTerminal()
-	fmt.Println("Enter host (default:127.0.0.1): ")
-	fmt.Scanf("%s", &newInstance.host)
-	if newInstance.host == "" {
-		newInstance.host = "127.0.0.1"
-	}
-
-	clearTerminal()
-	fmt.Println("Enter database name (default:none): ")
-	fmt.Scanf("%s", &newInstance.dbname)
-	if newInstance.dbname == "" {
-		newInstance.dbname = "none"
-	}
-
-	clearTerminal()
-	return newInstance
-}
-
-/*
 Pushes an item to the top of a slice
 Also provides item with index
 */
-func push_instance(instances []Instance, pushing Instance) []Instance {
-	pushing.ndx = len(instances)
+func PushInstance(instances []Instance, pushing Instance) []Instance {
+	pushing.Ndx = len(instances)
 	instances = append(instances, pushing)
 	return instances
 }
@@ -290,10 +196,10 @@ func push_instance(instances []Instance, pushing Instance) []Instance {
 Removes an instance from []Instance by value
 Re-indexes slice
 */
-func pop_instance(instances []Instance, popping Instance) []Instance {
+func PopInstance(instances []Instance, popping Instance) []Instance {
 	var rm int = -1
 	for i, it := range instances {
-		if it.dbms == popping.dbms && it.host == popping.host && it.port == popping.port && it.user == popping.user {
+		if it.DBMS == popping.DBMS && it.Host == popping.Host && it.Port == popping.Port && it.User == popping.User {
 			rm = i
 		}
 	}
@@ -315,7 +221,7 @@ func pop_instance(instances []Instance, popping Instance) []Instance {
 		Re-index instances
 	*/
 	for i, it := range instances {
-		it.ndx = i
+		it.Ndx = i
 	}
 
 	return instances

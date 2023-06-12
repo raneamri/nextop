@@ -1,4 +1,4 @@
-package ui
+package main
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/alexeyco/simpletable"
 )
 
-func initDashboard(instances []Instance) *simpletable.Table {
+func InitDashboard(instances []Instance) *simpletable.Table {
 	table := simpletable.New()
 	/*
 		Set headers
@@ -25,9 +25,9 @@ func initDashboard(instances []Instance) *simpletable.Table {
 	*/
 	for _, instance := range instances {
 		row := []*simpletable.Cell{
-			{Text: instance.dbname},
-			{Text: ftime(getUptime(instance.db))},
-			{Text: fmt.Sprint(getQPS(instance.db))},
+			{Text: instance.Dbname},
+			{Text: Ftime(GetUptime(instance.DB))},
+			{Text: fmt.Sprint(GetQPS(instance.DB))},
 		}
 		table.Body.Cells = append(table.Body.Cells, row)
 	}

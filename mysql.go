@@ -1,8 +1,8 @@
-package connections
+package main
 
 import (
 	"database/sql"
-	"fmt"
+	fmt "fmt"
 	"math"
 	"time"
 
@@ -37,7 +37,7 @@ Quoting https://github.com/go-sql-driver/mysql#features:
 	want to close idle connections more rapidly, you can use .SetConnMaxIdleTime() since Go 1.15.
 	"
 */
-func setParameters(db *sql.DB) {
+func SetParameters(db *sql.DB) {
 	db.SetConnMaxLifetime(time.Minute * 3)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
@@ -46,8 +46,8 @@ func setParameters(db *sql.DB) {
 /*
 Unwrap instance into db pointer
 */
-func launchInstance(instance Instance) *sql.DB {
-	db, err := sql.Open("mysql", instance.user+":"+string(instance.pass)+"@tcp("+fmt.Sprint(instance.host)+":"+fmt.Sprint(instance.port)+")/"+instance.dbname)
+func LaunchInstance(instance Instance) *sql.DB {
+	db, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
 	if err != nil {
 		panic(err)
 	}
@@ -58,7 +58,7 @@ func launchInstance(instance Instance) *sql.DB {
 /*
 Retrieves uptime of database and returns it formatted.
 */
-func getUptime(db *sql.DB) float64 {
+func GetUptime(db *sql.DB) float64 {
 	var (
 		uptime  float64
 		discard string
@@ -71,7 +71,7 @@ func getUptime(db *sql.DB) float64 {
 	return uptime
 }
 
-func getQPS(db *sql.DB) float64 {
+func GetQPS(db *sql.DB) float64 {
 	var (
 		queries,
 		uptime,
@@ -93,7 +93,7 @@ func getQPS(db *sql.DB) float64 {
 		Decrease queries by 2 to account for the queries required
 		to calculate QPS
 	*/
-	uptime = getUptime(db)
+	uptime = GetUptime(db)
 	queries -= 2
 	if uptime > 0 {
 		qps = math.Round(queries / uptime)

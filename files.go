@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func writeConfig(instance Instance) error {
+func WriteConfig(instance Instance) error {
 	/*
 		Parse .conf to find connections section
 	*/
@@ -23,12 +23,12 @@ func writeConfig(instance Instance) error {
 	afterSection := string(parser[connEnd:])
 
 	var (
-		fdbms   string = "dbms=" + strdbms(instance.dbms) + " "
-		fuser   string = "user=" + instance.user + " "
-		fpass   string = "pass=" + string(instance.pass) + " "
-		fport   string = "port=" + fmt.Sprint(instance.port) + " "
-		fhost   string = "host=" + fmt.Sprint(instance.host) + " "
-		fdbname string = "database-name=" + instance.dbname
+		fdbms   string = "dbms=" + Strdbms(instance.DBMS) + " "
+		fuser   string = "user=" + instance.User + " "
+		fpass   string = "pass=" + string(instance.Pass) + " "
+		fport   string = "port=" + fmt.Sprint(instance.Port) + " "
+		fhost   string = "host=" + fmt.Sprint(instance.Host) + " "
+		fdbname string = "database-name=" + instance.Dbname
 
 		parsed []byte = []byte(beforeSection + fdbms + fuser + fpass + fport + fhost + fdbname + "\n" + afterSection)
 	)
@@ -44,7 +44,7 @@ func writeConfig(instance Instance) error {
 /*
 Heals a file by iterating through its content and finding irregularities
 */
-func healConfig() {
+func HealConfig() {
 	//fpath := "./gotop.conf"
 	//parser, err := ioutil.ReadFile(fpath)
 
@@ -53,7 +53,7 @@ func healConfig() {
 /*
 Deletes the config file and recreates it, then rewrites headers
 */
-func resetConfig() {
+func ResetConfig() {
 	fpath := "gotop.conf"
 	/*
 		Recreate file
@@ -73,7 +73,7 @@ func resetConfig() {
 /*
 Reads preset instances and puts them in slice by default
 */
-func readConfig() ([]Instance, error) {
+func ReadConfig() ([]Instance, error) {
 	var (
 		instances []Instance
 	)
@@ -122,21 +122,21 @@ func readConfig() ([]Instance, error) {
 
 			switch key {
 			case "dbms":
-				inst.dbms = dbmsstr(value)
+				inst.DBMS = Dbmsstr(value)
 			case "user":
-				inst.user = value
+				inst.User = value
 			case "pass":
-				inst.pass = []byte(value)
+				inst.Pass = []byte(value)
 			case "port":
-				inst.port, _ = strconv.Atoi(value)
+				inst.Port, _ = strconv.Atoi(value)
 			case "host":
-				inst.host = value
+				inst.Host = value
 			case "database-name":
-				inst.dbname = value
+				inst.Dbname = value
 			}
 		}
 
-		instances = push_instance(instances, inst)
+		instances = PushInstance(instances, inst)
 	}
 
 	return instances, err
@@ -145,7 +145,7 @@ func readConfig() ([]Instance, error) {
 /*
 Removes duplicates in config
 */
-func cleanConfig() {
+func CleanConfig() {
 	fpath := "gotop.conf"
 	parser, err := ioutil.ReadFile(fpath)
 	if err != nil {
@@ -197,19 +197,19 @@ func cleanConfig() {
 /*
 Syncs []Instance slice to config
 */
-func syncConfig(instances []Instance) {
+func SyncConfig(instances []Instance) {
 	/*
 		Write all instances in object to file
 	*/
 	for _, inst := range instances {
-		writeConfig(inst)
+		WriteConfig(inst)
 	}
 	/*
 		Remove duplicates accross object & file
 	*/
-	cleanConfig()
+	CleanConfig()
 	/*
 		Put instances back in
 	*/
-	instances, _ = readConfig()
+	instances, _ = ReadConfig()
 }

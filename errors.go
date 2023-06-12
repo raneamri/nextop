@@ -8,7 +8,7 @@ import (
 /*
 Specific error for incorrect arguments
 */
-func throwArgError(arguments []string) {
+func ThrowArgError(arguments []string) {
 	fmt.Println("Unknown argument(s)/flag(s).")
 	fmt.Println("Appropriate arguments: <dbms> <username> -w/ws<pass> <(default=3306)port> <(default=127.0.0.1)host> <(default=none)db-name> --s")
 	/*
@@ -19,23 +19,25 @@ func throwArgError(arguments []string) {
 	os.Exit(1)
 }
 
-func catchConfigReadError(err error, instances []Instance) {
+func CatchConfigReadError(err error, instances []Instance) {
 	fmt.Println("Config file broken. Attempting to heal...")
-	healConfig()
-	instances, err = readConfig()
-	if err != nil {
-		fmt.Println("Failed. Resetting config...")
-		resetConfig()
+	/*
+		healConfig()
 		instances, err = readConfig()
 		if err != nil {
-			fmt.Println("Fatal error: ")
-			panic(err)
+			fmt.Println("Failed. Resetting config...")
+			resetConfig()
+			instances, err = readConfig()
+			if err != nil {
+				fmt.Println("Fatal error: ")
+				panic(err)
+			} else {
+				fmt.Println("Success! Configurations fully reset & instance written to config")
+			}
 		} else {
-			fmt.Println("Success! Configurations fully reset & instance written to config")
+			fmt.Println("Success! Instance written to config.")
 		}
-	} else {
-		fmt.Println("Success! Instance written to config.")
-	}
+	*/
 }
 
 /*
@@ -45,14 +47,14 @@ by removing irregularities
 Step two is resetting the config file
 Step three is throwing the error
 */
-func catchConfigWriteError(err error, inst Instance) {
+func CatchConfigWriteError(err error, inst Instance) {
 	fmt.Println("Config file broken. Attempting to heal...")
-	healConfig()
-	err = writeConfig(inst)
+	HealConfig()
+	err = WriteConfig(inst)
 	if err != nil {
 		fmt.Println("Failed. Resetting config...")
-		resetConfig()
-		err := writeConfig(inst)
+		ResetConfig()
+		err := WriteConfig(inst)
 		if err != nil {
 			fmt.Println("Fatal error: ")
 			panic(err)
