@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/raneamri/gotop/types"
@@ -49,18 +50,30 @@ func SetParameters(db *sql.DB) {
 Unwrap instance into db pointer
 */
 func LaunchInstance(instance types.Instance) *sql.DB {
-	db, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
-	if err != nil {
-		panic(err)
+	var mutex sync.Mutex
+	mutex.Lock()
+	defer mutex.Unlock()
+	if instance.Driver == nil {
+		driver, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
+		if err != nil || driver == nil {
+			fmt.Println("Improper db connection. View:")
+			panic(err)
+		}
+		return driver
 	}
-
-	return db
+	return instance.Driver
 }
 
 /*
 Retrieves uptime of database and returns it formatted.
 */
 func GetUptime(db *sql.DB) float64 {
+	if db == nil {
+		return -1
+	}
+	var mutex sync.Mutex
+	mutex.Lock()
+	defer mutex.Unlock()
 	var (
 		uptime  float64
 		discard string
@@ -69,11 +82,16 @@ func GetUptime(db *sql.DB) float64 {
 	if err := db.QueryRow(query).Scan(&discard, &uptime); err != nil {
 		panic(err)
 	}
-
 	return uptime
 }
 
 func GetQPS(db *sql.DB) float64 {
+	if db == nil {
+		return -1
+	}
+	var mutex sync.Mutex
+	mutex.Lock()
+	defer mutex.Unlock()
 	var (
 		queries,
 		uptime,

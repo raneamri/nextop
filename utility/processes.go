@@ -2,10 +2,11 @@ package utility
 
 import (
 	"fmt"
-	"github.com/raneamri/gotop/types"
 	"os"
 	"os/exec"
 	"runtime"
+
+	"github.com/raneamri/gotop/types"
 
 	_ "github.com/go-sql-driver/mysql"
 )

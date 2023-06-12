@@ -56,5 +56,5 @@ type Instance struct {
 	/*
 		Database handle
 	*/
-	DB *sql.DB
+	Driver *sql.DB
 }

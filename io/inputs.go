@@ -3,6 +3,7 @@ package io
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"syscall"
 
 	"github.com/raneamri/gotop/types"
@@ -52,9 +53,12 @@ func NewInstance() types.Instance {
 
 	utility.ClearTerminal()
 	fmt.Println("Enter port (default:3306): ")
-	fmt.Scanf("%d", &newInstance.Port)
-	if fmt.Sprint(newInstance.Port) == "" {
+	var portIn string
+	fmt.Scanf("%d", &portIn)
+	if portIn == "" {
 		newInstance.Port = 3306
+	} else {
+		newInstance.Port, _ = strconv.Atoi(portIn)
 	}
 
 	utility.ClearTerminal()

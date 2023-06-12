@@ -46,6 +46,7 @@ func WriteConfig(instance types.Instance) error {
 
 /*
 Heals a file by iterating through its content and finding irregularities
+Note: complete
 */
 func HealConfig() {
 	//fpath := "./gotop.conf"
@@ -138,7 +139,7 @@ func ReadConfig() ([]types.Instance, error) {
 				inst.Dbname = value
 			}
 		}
-
+		inst.Driver = nil
 		instances = utility.PushInstance(instances, inst)
 	}
 
