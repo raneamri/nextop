@@ -16,6 +16,7 @@ import (
 /*
 View concurrencies
 View plugins
+View make file
 */
 
 func main() {
@@ -43,7 +44,6 @@ func main() {
 	/*
 		Merge .conf & input
 	*/
-	io.SyncConfig(instances)
 
 	/*
 		Temporary system in the form of "game loop"

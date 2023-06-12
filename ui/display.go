@@ -17,7 +17,7 @@ func InitDashboard(instances []types.Instance) *simpletable.Table {
 	*/
 	table.Header = &simpletable.Header{
 		Cells: []*simpletable.Cell{
-			{Text: "INSTANCE"},
+			{Text: "NAME"},
 			{Text: "UPTIME"},
 			{Text: "QPS"},
 		},
@@ -29,7 +29,7 @@ func InitDashboard(instances []types.Instance) *simpletable.Table {
 	*/
 	for _, instance := range instances {
 		if instance.Driver == nil {
-			fmt.Println("null driver!!!!")
+			fmt.Println("Null driver. Re-connecting...")
 			instance.Driver = services.LaunchInstance(instance)
 		}
 		row := []*simpletable.Cell{
