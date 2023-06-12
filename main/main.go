@@ -64,7 +64,7 @@ func main() {
 				/*
 					Writes instance to .conf
 				*/
-				inst.db = launchInstance(inst)
+				inst.db = connections.launchInstance(inst)
 				instances = push_instance(instances, inst)
 				err := writeConfig(inst)
 				/*
