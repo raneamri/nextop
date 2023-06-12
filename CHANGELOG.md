@@ -10,5 +10,6 @@
 - Default port equalling 0 fixed.
 - Hotfixed segfault in no arg. startup mode.
 - SQL drivers expire unexpectedly by when they reach InitDashboard() (Unresolved)
+- Added Makefile.
 
 # OFFICIAL PATCHES
