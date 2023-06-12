@@ -65,3 +65,7 @@ func main() {
 	}
 
 }
+
+func Version() string {
+	return "v0.0.0"
+}
