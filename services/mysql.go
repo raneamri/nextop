@@ -53,15 +53,16 @@ func LaunchInstance(instance types.Instance) *sql.DB {
 	var mutex sync.Mutex
 	mutex.Lock()
 	defer mutex.Unlock()
-	if instance.Driver == nil {
-		driver, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
-		if err != nil || driver == nil {
-			fmt.Println("Improper db connection. View:")
-			panic(err)
-		}
-		return driver
+	driver, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
+	if err != nil || driver == nil {
+		fmt.Println("Improper db connection. View:")
+		panic(err)
 	}
-	return instance.Driver
+	if err := driver.Ping(); err != nil {
+		driver.Close()
+		panic(err)
+	}
+	return driver
 }
 
 /*

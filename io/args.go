@@ -13,7 +13,7 @@ import (
 	"github.com/raneamri/gotop/utility"
 )
 
-func ReadArgs(instances []types.Instance) {
+func ReadArgs(instances []types.Instance) []types.Instance {
 	/*
 		If user doesn't specify arguments on run
 		prompt connection details and put in []Instance and/or .conf
@@ -60,7 +60,7 @@ func ReadArgs(instances []types.Instance) {
 				SyncConfig(instances)
 			}
 		} else {
-			return
+			return instances
 		}
 	} else if len(os.Args) > 3 && len(os.Args) < 8 {
 		var inst types.Instance
@@ -144,4 +144,6 @@ func ReadArgs(instances []types.Instance) {
 	} else {
 		errors.ThrowArgError(os.Args)
 	}
+
+	return instances
 }
