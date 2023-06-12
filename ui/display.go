@@ -1,12 +1,14 @@
-package main
+package ui
 
 import (
 	"fmt"
-
 	"github.com/alexeyco/simpletable"
+	"github.com/raneamri/gotop/services"
+	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/gotop/utility"
 )
 
-func InitDashboard(instances []Instance) *simpletable.Table {
+func InitDashboard(instances []types.Instance) *simpletable.Table {
 	table := simpletable.New()
 	/*
 		Set headers
@@ -26,8 +28,8 @@ func InitDashboard(instances []Instance) *simpletable.Table {
 	for _, instance := range instances {
 		row := []*simpletable.Cell{
 			{Text: instance.Dbname},
-			{Text: Ftime(GetUptime(instance.DB))},
-			{Text: fmt.Sprint(GetQPS(instance.DB))},
+			{Text: utility.Ftime(services.GetUptime(instance.DB))},
+			{Text: fmt.Sprint(services.GetQPS(instance.DB))},
 		}
 		table.Body.Cells = append(table.Body.Cells, row)
 	}

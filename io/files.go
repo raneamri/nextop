@@ -1,4 +1,4 @@
-package main
+package io
 
 import (
 	"fmt"
@@ -6,9 +6,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/gotop/utility"
 )
 
-func WriteConfig(instance Instance) error {
+func WriteConfig(instance types.Instance) error {
 	/*
 		Parse .conf to find connections section
 	*/
@@ -23,7 +26,7 @@ func WriteConfig(instance Instance) error {
 	afterSection := string(parser[connEnd:])
 
 	var (
-		fdbms   string = "dbms=" + Strdbms(instance.DBMS) + " "
+		fdbms   string = "dbms=" + utility.Strdbms(instance.DBMS) + " "
 		fuser   string = "user=" + instance.User + " "
 		fpass   string = "pass=" + string(instance.Pass) + " "
 		fport   string = "port=" + fmt.Sprint(instance.Port) + " "
@@ -73,9 +76,9 @@ func ResetConfig() {
 /*
 Reads preset instances and puts them in slice by default
 */
-func ReadConfig() ([]Instance, error) {
+func ReadConfig() ([]types.Instance, error) {
 	var (
-		instances []Instance
+		instances []types.Instance
 	)
 
 	/*
@@ -104,7 +107,7 @@ func ReadConfig() ([]Instance, error) {
 			continue
 		}
 
-		var inst Instance
+		var inst types.Instance
 		pairs := strings.Split(line, " ")
 		for _, pair := range pairs {
 			pair = strings.TrimSpace(pair)
@@ -122,7 +125,7 @@ func ReadConfig() ([]Instance, error) {
 
 			switch key {
 			case "dbms":
-				inst.DBMS = Dbmsstr(value)
+				inst.DBMS = utility.Dbmsstr(value)
 			case "user":
 				inst.User = value
 			case "pass":
@@ -136,7 +139,7 @@ func ReadConfig() ([]Instance, error) {
 			}
 		}
 
-		instances = PushInstance(instances, inst)
+		instances = utility.PushInstance(instances, inst)
 	}
 
 	return instances, err
@@ -197,7 +200,7 @@ func CleanConfig() {
 /*
 Syncs []Instance slice to config
 */
-func SyncConfig(instances []Instance) {
+func SyncConfig(instances []types.Instance) {
 	/*
 		Write all instances in object to file
 	*/

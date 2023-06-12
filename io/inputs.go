@@ -1,9 +1,12 @@
-package main
+package io
 
 import (
 	"fmt"
 	"os"
 	"syscall"
+
+	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/gotop/utility"
 
 	"golang.org/x/term"
 )
@@ -11,16 +14,16 @@ import (
 /*
 Prompts user to pick a DBMS
 */
-func PickDBMS() DBMS_t {
+func PickDBMS() types.DBMS_t {
 	var input string
 	fmt.Println("DBMS: ")
 	fmt.Scanf("%s", &input)
-	input = Fstr(input)
+	input = utility.Fstr(input)
 
 	if input == "MYSQL" {
-		return MYSQL
+		return types.MYSQL
 	} else if input == "ORACLE" {
-		return ORACLE
+		return types.ORACLE
 	}
 
 	fmt.Println("Unaccomodated/non-existant DBMS.")
@@ -34,40 +37,40 @@ func PickDBMS() DBMS_t {
 /*
 Creates a new instance and returns it
 */
-func newInstance() Instance {
-	var newInstance Instance
+func NewInstance() types.Instance {
+	var newInstance types.Instance
 	newInstance.DBMS = PickDBMS()
 
-	ClearTerminal()
+	utility.ClearTerminal()
 	fmt.Println("Enter username: ")
 	fmt.Scanf("%s", &newInstance.User)
 
-	ClearTerminal()
+	utility.ClearTerminal()
 	fmt.Print("Enter password: \n")
 	password, _ := term.ReadPassword(int(syscall.Stdin))
 	newInstance.Pass = password
 
-	ClearTerminal()
+	utility.ClearTerminal()
 	fmt.Println("Enter port (default:3306): ")
 	fmt.Scanf("%d", &newInstance.Port)
 	if fmt.Sprint(newInstance.Port) == "" {
 		newInstance.Port = 3306
 	}
 
-	ClearTerminal()
+	utility.ClearTerminal()
 	fmt.Println("Enter host (default:127.0.0.1): ")
 	fmt.Scanf("%s", &newInstance.Host)
 	if newInstance.Host == "" {
 		newInstance.Host = "127.0.0.1"
 	}
 
-	ClearTerminal()
+	utility.ClearTerminal()
 	fmt.Println("Enter database name (default:none): ")
 	fmt.Scanf("%s", &newInstance.Dbname)
 	if newInstance.Dbname == "" {
 		newInstance.Dbname = "none"
 	}
 
-	ClearTerminal()
+	utility.ClearTerminal()
 	return newInstance
 }

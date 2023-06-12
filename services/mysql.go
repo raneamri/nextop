@@ -1,10 +1,12 @@
-package main
+package services
 
 import (
 	"database/sql"
-	fmt "fmt"
+	"fmt"
 	"math"
 	"time"
+
+	"github.com/raneamri/gotop/types"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -46,7 +48,7 @@ func SetParameters(db *sql.DB) {
 /*
 Unwrap instance into db pointer
 */
-func LaunchInstance(instance Instance) *sql.DB {
+func LaunchInstance(instance types.Instance) *sql.DB {
 	db, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
 	if err != nil {
 		panic(err)

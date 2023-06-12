@@ -1,10 +1,12 @@
-package main
+package utility
 
 import (
 	"fmt"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/raneamri/gotop/types"
 )
 
 /*
@@ -48,10 +50,10 @@ func Ftime(duration float64) string {
 /*
 Takes dbms_t and returns the dbms name as string
 */
-func Strdbms(dbms DBMS_t) string {
-	if dbms == MYSQL {
+func Strdbms(dbms types.DBMS_t) string {
+	if dbms == types.MYSQL {
 		return "MYSQL"
-	} else if dbms == ORACLE {
+	} else if dbms == types.ORACLE {
 		return "ORACLE"
 	}
 
@@ -65,12 +67,12 @@ func Strdbms(dbms DBMS_t) string {
 Inverse function to strdbms
 Takes string and converts to dbms_t
 */
-func Dbmsstr(dbms string) DBMS_t {
+func Dbmsstr(dbms string) types.DBMS_t {
 	Fstr(dbms)
 	if dbms == "MYSQL" {
-		return MYSQL
+		return types.MYSQL
 	} else if dbms == "ORACLE" {
-		return ORACLE
+		return types.ORACLE
 	}
 
 	return 0

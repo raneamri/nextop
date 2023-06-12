@@ -8,6 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/raneamri/gotop/errors"
+	"github.com/raneamri/gotop/io"
+	"github.com/raneamri/gotop/services"
+	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/gotop/ui"
+	"github.com/raneamri/gotop/utility"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -18,14 +25,14 @@ View plugins
 
 func main() {
 
-	ClearTerminal()
+	utility.ClearTerminal()
 
 	/*
 		Slice to store all instances
 	*/
-	instances, err := ReadConfig()
+	instances, err := io.ReadConfig()
 	if err != nil {
-		CatchConfigReadError(err, instances)
+		errors.CatchConfigReadError(err, instances)
 	}
 
 	/*
@@ -50,21 +57,21 @@ func main() {
 		} else {
 			loadnew = "YES"
 		}
-		if Fstr(loadnew) == "YES" {
-			inst := newInstance()
+		if utility.Fstr(loadnew) == "YES" {
+			inst := io.NewInstance()
 			/*
 				Write to config conditionally
 			*/
 			var write string
 			fmt.Printf("Write to config?: [yes] ")
 			fmt.Scanf("%s", &write)
-			if Fstr(write) == "YES" {
+			if utility.Fstr(write) == "YES" {
 				/*
 					Writes instance to .conf
 				*/
-				inst.DB = LaunchInstance(inst)
-				instances = PushInstance(instances, inst)
-				err := WriteConfig(inst)
+				inst.DB = services.LaunchInstance(inst)
+				instances = utility.PushInstance(instances, inst)
+				err := io.WriteConfig(inst)
 				/*
 					Program will attempt to heal config if error is thrown
 					on fail, config file will be reset to default
@@ -72,21 +79,21 @@ func main() {
 					Note: heal unimplemented
 				*/
 				if err != nil {
-					CatchConfigWriteError(err, inst)
+					errors.CatchConfigWriteError(err, inst)
 				}
 			}
 
 			/*
 				Add instance to slice
 			*/
-			instances = PushInstance(instances, inst)
+			instances = utility.PushInstance(instances, inst)
 		}
 	} else if len(os.Args) > 3 && len(os.Args) < 8 {
-		var inst Instance
+		var inst types.Instance
 		/*
 			Unpack non-optional values
 		*/
-		inst.DBMS = Dbmsstr(os.Args[1])
+		inst.DBMS = utility.Dbmsstr(os.Args[1])
 		inst.User = os.Args[2]
 		inst.Pass = []byte(os.Args[3])
 
@@ -116,7 +123,7 @@ func main() {
 					if os.Args[i] != string(inst.Pass) && os.Args[i] != string(inst.User) {
 						num, err := strconv.Atoi(os.Args[i])
 						if err != nil {
-							ThrowArgError(os.Args)
+							errors.ThrowArgError(os.Args)
 						}
 						inst.Port = num
 						port = true
@@ -154,13 +161,13 @@ func main() {
 		if inst.Host == "localhost" {
 			inst.Host = "127.0.0.1"
 		}
-		inst.DB = LaunchInstance(inst)
+		inst.DB = services.LaunchInstance(inst)
 
-		instances = PushInstance(instances, inst)
-		SyncConfig(instances)
+		instances = utility.PushInstance(instances, inst)
+		io.SyncConfig(instances)
 
 	} else {
-		ThrowArgError(os.Args)
+		errors.ThrowArgError(os.Args)
 	}
 
 	/*
@@ -173,56 +180,11 @@ func main() {
 	fps = 60
 	interval = time.Duration(fps/60) * time.Second
 	for 1 == 1 {
-		ClearTerminal()
-		dashboard := InitDashboard(instances)
+		utility.ClearTerminal()
+		dashboard := ui.InitDashboard(instances)
 		fmt.Println(dashboard.String())
 
 		time.Sleep(interval)
 	}
 
-}
-
-/*
-Pushes an item to the top of a slice
-Also provides item with index
-*/
-func PushInstance(instances []Instance, pushing Instance) []Instance {
-	pushing.Ndx = len(instances)
-	instances = append(instances, pushing)
-	return instances
-}
-
-/*
-Removes an instance from []Instance by value
-Re-indexes slice
-*/
-func PopInstance(instances []Instance, popping Instance) []Instance {
-	var rm int = -1
-	for i, it := range instances {
-		if it.DBMS == popping.DBMS && it.Host == popping.Host && it.Port == popping.Port && it.User == popping.User {
-			rm = i
-		}
-	}
-
-	if rm != -1 {
-		/*
-			Create slice omitting rm element
-		*/
-		newinsts := make([]Instance, len(instances)-1)
-		copy(newinsts[:rm], instances[:rm])
-		copy(newinsts[rm:], instances[rm+1:])
-
-		instances = newinsts
-	} else {
-		fmt.Println("Instance to pop unfound.")
-	}
-
-	/*
-		Re-index instances
-	*/
-	for i, it := range instances {
-		it.Ndx = i
-	}
-
-	return instances
 }

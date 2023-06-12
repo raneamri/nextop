@@ -1,4 +1,4 @@
-module maps
+module github.com/raneamri/gotop
 
 go 1.20
 
@@ -15,4 +15,13 @@ require (
 require (
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/term v0.8.0
+)
+
+replace (
+	github.com/raneamri/gotop/errors => ./errors
+	github.com/raneamri/gotop/io => ./io
+	github.com/raneamri/gotop/services => ./services
+	github.com/raneamri/gotop/types => ./types
+	github.com/raneamri/gotop/ui => ./ui
+	github.com/raneamri/gotop/util => ./util
 )
