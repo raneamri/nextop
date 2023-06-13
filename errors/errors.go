@@ -21,6 +21,9 @@ func ThrowArgError(arguments []string) {
 	os.Exit(1)
 }
 
+/*
+Note: not fully implemented
+*/
 func CatchConfigReadError(err error, instances []types.Instance) {
 	fmt.Println("Config file broken. Attempting to heal...")
 	/*
@@ -48,6 +51,7 @@ Step one is attempting to heal the config file
 by removing irregularities
 Step two is resetting the config file
 Step three is throwing the error
+Note: not implemented fully
 */
 func CatchConfigWriteError(err error, inst types.Instance) {
 	fmt.Println("Config file broken. Attempting to heal...")

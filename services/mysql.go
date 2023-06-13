@@ -53,11 +53,7 @@ func LaunchInstance(instance types.Instance) *sql.DB {
 	var mutex sync.Mutex
 	mutex.Lock()
 	defer mutex.Unlock()
-	driver, err := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
-	if err != nil || driver == nil {
-		fmt.Println("Improper db connection. View:")
-		panic(err)
-	}
+	driver, _ := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
 	if err := driver.Ping(); err != nil {
 		driver.Close()
 		panic(err)
@@ -67,6 +63,7 @@ func LaunchInstance(instance types.Instance) *sql.DB {
 
 /*
 Retrieves uptime of database and returns it formatted.
+Note: adjust methods
 */
 func GetUptime(db *sql.DB) float64 {
 	if db == nil {

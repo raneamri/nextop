@@ -17,8 +17,8 @@ func Fstr(formattable string) string {
 	formattedWords := make([]string, len(words))
 
 	for i, word := range words {
-		upperCaseWord := strings.Map(unicode.ToUpper, word)             // Convert word to block capitals
-		formattedWords[i] = strings.ReplaceAll(upperCaseWord, " ", "_") // Replace spaces with underscores
+		upperCaseWord := strings.Map(unicode.ToUpper, word)
+		formattedWords[i] = strings.ReplaceAll(upperCaseWord, " ", "_")
 	}
 
 	return strings.Join(formattedWords, "_")

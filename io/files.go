@@ -46,7 +46,7 @@ func WriteConfig(instance types.Instance) error {
 
 /*
 Heals a file by iterating through its content and finding irregularities
-Note: complete
+Note: yet to be completed
 */
 func HealConfig() {
 	//fpath := "./gotop.conf"
@@ -77,11 +77,7 @@ func ResetConfig() {
 /*
 Reads preset instances and puts them in slice by default
 */
-func ReadConfig() ([]types.Instance, error) {
-	var (
-		instances []types.Instance
-	)
-
+func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 	/*
 		Same parsing as writeConfig
 	*/
@@ -158,7 +154,7 @@ func CleanConfig() {
 	config := string(parser)
 	lines := strings.Split(config, "\n")
 	uniquelines := make(map[string]struct{})
-	ordered := []string{} // Slice to preserve order of unique lines
+	ordered := []string{}
 
 	for _, line := range lines {
 		/*
@@ -181,7 +177,7 @@ func CleanConfig() {
 			Map line as unique
 		*/
 		uniquelines[line] = struct{}{}
-		ordered = append(ordered, line) // Add line to the uniqueOrder slice
+		ordered = append(ordered, line)
 	}
 
 	/*
@@ -215,5 +211,5 @@ func SyncConfig(instances []types.Instance) {
 	/*
 		Put instances back in
 	*/
-	instances, _ = ReadConfig()
+	instances, _ = ReadConfig(instances)
 }

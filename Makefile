@@ -20,7 +20,7 @@ genmac:
 
 # Build for Debug
 debug:
-	go build -gcflags="all=-N -l" .
+	go build -gcflags="all=-N -l -m" -o gotop
 .PHONY:debug
 
 # Build all executables

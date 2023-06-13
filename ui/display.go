@@ -31,6 +31,7 @@ func InitDashboard(instances []types.Instance) *simpletable.Table {
 		if instance.Driver == nil {
 			fmt.Println("Null driver. Re-connecting...")
 			instance.Driver = services.LaunchInstance(instance)
+			services.SetParameters(instance.Driver)
 		}
 		row := []*simpletable.Cell{
 			{Text: instance.Dbname},
