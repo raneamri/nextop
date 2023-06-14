@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -8,7 +9,10 @@ import (
 	"github.com/raneamri/gotop/utility"
 )
 
-func InterfaceLoop(instances []types.Instance) {
+func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
+	if cpool[0] == nil {
+		fmt.Println("nil driver in loop")
+	}
 	/*
 		Interface parameters
 	*/
@@ -19,7 +23,7 @@ func InterfaceLoop(instances []types.Instance) {
 
 	for 1 == 1 {
 		utility.ClearTerminal()
-		dashboard := InitDashboard(instances)
+		dashboard := InitDashboard(instances, cpool)
 		fmt.Println(dashboard.String())
 		time.Sleep(interval)
 	}

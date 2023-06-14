@@ -1,8 +1,6 @@
 package types
 
 import (
-	"database/sql"
-
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -52,9 +50,4 @@ type Instance struct {
 	Host string
 
 	Dbname string
-
-	/*
-		Database handle
-	*/
-	Driver *sql.DB
 }

@@ -136,8 +136,6 @@ func ReadArgs(instances []types.Instance) []types.Instance {
 			inst.Host = "127.0.0.1"
 		}
 
-		inst.Driver = nil
-
 		instances = utility.PushInstance(instances, inst)
 		SyncConfig(instances)
 

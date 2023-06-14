@@ -135,7 +135,7 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 				inst.Dbname = value
 			}
 		}
-		inst.Driver = nil
+
 		instances = utility.PushInstance(instances, inst)
 	}
 

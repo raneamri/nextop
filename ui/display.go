@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/alexeyco/simpletable"
@@ -10,7 +11,7 @@ import (
 	"github.com/raneamri/gotop/utility"
 )
 
-func InitDashboard(instances []types.Instance) *simpletable.Table {
+func InitDashboard(instances []types.Instance, cpool []*sql.DB) *simpletable.Table {
 	table := simpletable.New()
 	/*
 		Set headers
@@ -27,16 +28,15 @@ func InitDashboard(instances []types.Instance) *simpletable.Table {
 		Fill rows with data
 		Note: implement for loop to show data for all instances
 	*/
-	for _, instance := range instances {
-		if instance.Driver == nil {
+	for i, instance := range instances {
+		if cpool[i] == nil {
 			fmt.Println("Null driver. Re-connecting...")
-			instance.Driver = services.LaunchInstance(instance)
-			services.SetParameters(instance.Driver)
+			cpool[i] = services.LaunchInstance(instance)
 		}
 		row := []*simpletable.Cell{
 			{Text: instance.Dbname},
-			{Text: utility.Ftime(services.GetUptime(instance.Driver))},
-			{Text: fmt.Sprint(services.GetQPS(instance.Driver))},
+			{Text: utility.Ftime(services.GetUptime(cpool[i]))},
+			{Text: fmt.Sprint(services.GetQPS(cpool[i]))},
 		}
 		table.Body.Cells = append(table.Body.Cells, row)
 	}

@@ -54,6 +54,7 @@ func LaunchInstance(instance types.Instance) *sql.DB {
 	mutex.Lock()
 	defer mutex.Unlock()
 	driver, _ := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
+	SetParameters(driver)
 	if err := driver.Ping(); err != nil {
 		driver.Close()
 		panic(err)

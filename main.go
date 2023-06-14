@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -27,6 +28,7 @@ func main() {
 	*/
 	var (
 		instances []types.Instance
+		cpool     []*sql.DB
 		err       error
 	)
 	/*
@@ -41,17 +43,19 @@ func main() {
 	*/
 	instances = io.ReadArgs(instances)
 
-	for _, instance := range instances {
-		if instance.Driver == nil {
-			instance.Driver = services.LaunchInstance(instance)
-			services.SetParameters(instance.Driver)
-			if instance.Driver == nil {
+	for i, instance := range instances {
+		if len(cpool) <= i || cpool[i] == nil {
+			cpool = append(cpool, services.LaunchInstance(instance))
+			if cpool[i] == nil {
 				fmt.Println("Connection error.")
 			}
 		}
 	}
 
-	ui.InterfaceLoop(instances)
+	if cpool[0] == nil {
+		fmt.Println("nil driver b4 il")
+	}
+	ui.InterfaceLoop(instances, cpool)
 }
 
 func Version() string {
