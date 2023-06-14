@@ -23,7 +23,9 @@ Valid examples include:
 ```bash
     ./gotop mysql root mypass mydatabase
     ./gotop MySQL user pass 3306 127.0.0.1 databasename
+    ./gotop MySQL user pass dbname 3306 127.0.0.1
 ```
+note that the program does not accept 'localhost' as a host arg and specifically looks for a value with period(s).
 
 Upon successful TCP connection, instance will be written in config for easy access in the future.
 
