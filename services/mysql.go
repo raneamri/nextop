@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/gotop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -52,6 +53,8 @@ Unwrap instance into db pointer
 func LaunchInstance(instance types.Instance) *sql.DB {
 	var mutex sync.Mutex
 	mutex.Lock()
+	utility.LockOn("services/mysql.go/LaunchInstance->*sql.DB MUTEX ON")
+	defer utility.LockOff("services/mysql.go/LaunchInstance->*sql.DB MUTEX OFF")
 	defer mutex.Unlock()
 	driver, _ := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
 	SetParameters(driver)
@@ -72,6 +75,8 @@ func GetUptime(db *sql.DB) float64 {
 	}
 	var mutex sync.Mutex
 	mutex.Lock()
+	utility.LockOn("services/mysql.go/GetUptime->float64 MUTEX ON")
+	defer utility.LockOn("services/mysql.go/GetUptime->float64 MUTEX OFF")
 	defer mutex.Unlock()
 	var (
 		uptime  float64
@@ -90,6 +95,8 @@ func GetQPS(db *sql.DB) float64 {
 	}
 	var mutex sync.Mutex
 	mutex.Lock()
+	utility.LockOn("services/mysql.go/GetQPS->float64 MUTEX ON")
+	defer utility.LockOn("services/mysql.go/GetQPS->float64 MUTEX OFF")
 	defer mutex.Unlock()
 	var (
 		queries,

@@ -4,11 +4,32 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type DBMS_t int
+type (
+	DBMS_t  int
+	State_t int
+)
 
+/*
+DBMS types
+*/
 const (
 	MYSQL DBMS_t = iota
 	ORACLE
+)
+
+/*
+State machine tracking variables
+*/
+const (
+	MENU State_t = iota
+	PROCESSLIST
+	DB_DASHBOARD
+	MEM_DASHBOARD
+	ERR_LOG
+	LOCK_LOG
+	CONFIGS
+	HELP
+	QUIT
 )
 
 /*

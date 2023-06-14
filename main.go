@@ -24,6 +24,11 @@ func main() {
 	utility.ClearTerminal()
 
 	/*
+		Start logging locks
+	*/
+	utility.StartQueue()
+
+	/*
 		Slice to store all instances
 	*/
 	var (

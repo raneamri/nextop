@@ -12,4 +12,14 @@
 - SQL drivers expire unexpectedly by when they reach InitDashboard() (Unresolved)
 - Added Makefile.
 
+## Tue 13th Jun 2023:
+- Bugfixing.
+
+## Wed 14th Jun 2023:
+- More bugfixing, driver error patched.
+- State machine implementation.
+- QOL.
+- Lock management system implemented.
+- Repo set to private.
+
 # OFFICIAL PATCHES

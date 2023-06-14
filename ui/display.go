@@ -25,8 +25,7 @@ func InitDashboard(instances []types.Instance, cpool []*sql.DB) *simpletable.Tab
 	}
 
 	/*
-		Fill rows with data
-		Note: implement for loop to show data for all instances
+		Catch latent driver errors.
 	*/
 	for i, instance := range instances {
 		if cpool[i] == nil {
