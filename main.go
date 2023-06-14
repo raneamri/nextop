@@ -44,10 +44,14 @@ func main() {
 		errors.CatchConfigReadError(err, instances)
 	}
 	/*
-		Fetch configs from prompt/args
+		Fetch configs from args if any
 	*/
 	instances = io.ReadArgs(instances)
 
+	/*
+		Start connection pool
+		Note: add further mapping to tie instance to connection
+	*/
 	for i, instance := range instances {
 		if len(cpool) <= i || cpool[i] == nil {
 			cpool = append(cpool, services.LaunchInstance(instance))
@@ -57,9 +61,6 @@ func main() {
 		}
 	}
 
-	if cpool[0] == nil {
-		fmt.Println("nil driver b4 il")
-	}
 	ui.InterfaceLoop(instances, cpool)
 }
 

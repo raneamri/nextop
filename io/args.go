@@ -23,6 +23,7 @@ func ReadArgs(instances []types.Instance) []types.Instance {
 		If parsing fail, error is thrown
 
 		If user specifies wrong number of arguments, exit with code 1
+		Note: incorporate if1 into separate function and call at loop time
 	*/
 	if len(os.Args) == 1 {
 		var loadnew string

@@ -21,5 +21,6 @@
 - QOL.
 - Lock management system implemented.
 - Repo set to private.
+- Config file remanaged.
 
 # OFFICIAL PATCHES

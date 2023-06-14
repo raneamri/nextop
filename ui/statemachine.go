@@ -23,7 +23,15 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 
 	/*
 		Decide initial state
+		If no config found, force config state
+		Else, menu state
+		Note: change else to menu after testing is done
 	*/
+	if len(instances) == 0 {
+		state = types.CONFIGS
+	} else {
+		state = types.DB_DASHBOARD
+	}
 
 	for 1 == 1 {
 		utility.ClearTerminal()
