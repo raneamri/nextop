@@ -2,24 +2,26 @@ package ui
 
 import (
 	"database/sql"
-	"fmt"
-	"os"
-	"time"
 
+	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/raneamri/gotop/types"
-	"github.com/raneamri/gotop/utility"
+)
+
+var (
+	State     types.State_t
+	Laststate types.State_t
 )
 
 func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 	/*
 		Interface parameters
+		Open a tcell for the interface
 	*/
-	var (
-		state     types.State_t = types.DB_DASHBOARD
-		laststate types.State_t
-		fps       int           = 60
-		interval  time.Duration = time.Duration(fps/60) * time.Second
-	)
+	t, err := tcell.New()
+	defer t.Close()
+	if err != nil {
+		panic(err)
+	}
 
 	/*
 		Decide initial state
@@ -28,63 +30,61 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 		Note: change else to menu after testing is done
 	*/
 	if len(instances) == 0 {
-		state = types.CONFIGS
+		State = types.CONFIGS
 	} else {
-		state = types.DB_DASHBOARD
+		State = types.MENU
 	}
 
-	for 1 == 1 {
-		utility.ClearTerminal()
-		switch state {
+	for true {
+		switch State {
 		case types.MENU:
-
-			laststate = types.MENU
+			DrawMenu(t)
+			Laststate = types.MENU
 			break
 		case types.PROCESSLIST:
-
+			Laststate = types.PROCESSLIST
 			break
 		case types.DB_DASHBOARD:
-			dashboard := InitDashboard(instances, cpool)
-			fmt.Println(dashboard.String())
-			laststate = types.DB_DASHBOARD
+			Laststate = types.DB_DASHBOARD
 			break
 		case types.MEM_DASHBOARD:
-			laststate = types.MEM_DASHBOARD
+			Laststate = types.MEM_DASHBOARD
 			break
 		case types.ERR_LOG:
-			laststate = types.ERR_LOG
+			Laststate = types.ERR_LOG
 			break
 		case types.LOCK_LOG:
 			/*
 				Assuming this shows current locks in backend
 			*/
-			laststate = types.LOCK_LOG
+			Laststate = types.LOCK_LOG
 			break
 		case types.CONFIGS:
 			/*
 				Force user to this state if no configs are found and if launched w/o args.
 				Prompt user to connect to database
 			*/
-			laststate = types.CONFIGS
+			Laststate = types.CONFIGS
 			break
 		case types.HELP:
 			/*
 				Display help text and GitHub
 			*/
-			fmt.Println("https://github.com/raneamri/gotop")
-			fmt.Scanln()
-			state = laststate
-			laststate = types.HELP
+			DrawHelp(t)
+
+			State = Laststate
+			Laststate = types.HELP
 			break
 		case types.QUIT:
 			/*
-				Perform cleanup and clean program
+				Perform cleanup and close program
 			*/
+			//t.Close() fixes input buffer overflow ?
 			for _, conn := range cpool {
 				conn.Close()
 			}
-			os.Exit(1)
+			return
 		}
-		time.Sleep(interval)
 	}
+
 }

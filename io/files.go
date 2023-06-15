@@ -1,10 +1,8 @@
 package io
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/raneamri/gotop/types"
@@ -27,13 +25,10 @@ func WriteConfig(instance types.Instance) error {
 
 	var (
 		fdbms   string = "dbms=" + utility.Strdbms(instance.DBMS) + " "
-		fuser   string = "user=" + instance.User + " "
-		fpass   string = "pass=" + string(instance.Pass) + " "
-		fport   string = "port=" + fmt.Sprint(instance.Port) + " "
-		fhost   string = "host=" + fmt.Sprint(instance.Host) + " "
-		fdbname string = "database-name=" + instance.Dbname
+		fdsn    string = "dsn=" + instance.DSN + " "
+		fdbname string = "db-name=" + instance.Dbname
 
-		parsed []byte = []byte(beforeSection + fdbms + fuser + fpass + fport + fhost + fdbname + "\n" + afterSection)
+		parsed []byte = []byte(beforeSection + fdbms + fdsn + fdbname + "\n" + afterSection)
 	)
 
 	err = ioutil.WriteFile(fpath, parsed, 0644)
@@ -41,7 +36,7 @@ func WriteConfig(instance types.Instance) error {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 /*
@@ -123,15 +118,9 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 			switch key {
 			case "dbms":
 				inst.DBMS = utility.Dbmsstr(value)
-			case "user":
-				inst.User = value
-			case "pass":
-				inst.Pass = []byte(value)
-			case "port":
-				inst.Port, _ = strconv.Atoi(value)
-			case "host":
-				inst.Host = value
-			case "database-name":
+			case "dsn":
+				inst.DSN = value
+			case "db-name":
 				inst.Dbname = value
 			}
 		}
@@ -196,13 +185,17 @@ func CleanConfig() {
 
 /*
 Syncs []Instance slice to config
+Note: fix duplicates bug
 */
-func SyncConfig(instances []types.Instance) {
+func SyncConfig(instances []types.Instance) []types.Instance {
 	/*
 		Write all instances in object to file
 	*/
 	for _, inst := range instances {
-		WriteConfig(inst)
+		err := WriteConfig(inst)
+		if err != nil {
+			panic(err)
+		}
 	}
 	/*
 		Remove duplicates accross object & file
@@ -211,5 +204,6 @@ func SyncConfig(instances []types.Instance) {
 	/*
 		Put instances back in
 	*/
-	instances, _ = ReadConfig(instances)
+	syncedInstances, _ := ReadConfig(instances)
+	return syncedInstances
 }

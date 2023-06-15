@@ -3,13 +3,9 @@ package io
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"syscall"
 
 	"github.com/raneamri/gotop/types"
 	"github.com/raneamri/gotop/utility"
-
-	"golang.org/x/term"
 )
 
 /*
@@ -43,30 +39,8 @@ func NewInstance() types.Instance {
 	newInstance.DBMS = PickDBMS()
 
 	utility.ClearTerminal()
-	fmt.Println("Enter username: ")
-	fmt.Scanf("%s", &newInstance.User)
-
-	utility.ClearTerminal()
-	fmt.Print("Enter password: \n")
-	password, _ := term.ReadPassword(int(syscall.Stdin))
-	newInstance.Pass = password
-
-	utility.ClearTerminal()
-	fmt.Println("Enter port (default:3306): ")
-	var portIn string
-	fmt.Scanf("%d", &portIn)
-	if portIn == "" {
-		newInstance.Port = 3306
-	} else {
-		newInstance.Port, _ = strconv.Atoi(portIn)
-	}
-
-	utility.ClearTerminal()
-	fmt.Println("Enter host (default:127.0.0.1): ")
-	fmt.Scanf("%s", &newInstance.Host)
-	if newInstance.Host == "" {
-		newInstance.Host = "127.0.0.1"
-	}
+	fmt.Println("DSN: ")
+	fmt.Scanf("%s", &newInstance.DSN)
 
 	utility.ClearTerminal()
 	fmt.Println("Enter database name (default:none): ")
@@ -77,4 +51,36 @@ func NewInstance() types.Instance {
 
 	utility.ClearTerminal()
 	return newInstance
+}
+
+func NoArgStartup(instances []types.Instance) []types.Instance {
+	var loadnew string
+	/*
+		Prompt user if they want to use configged only if
+		config isn't empty
+	*/
+	if len(instances) != 0 {
+		fmt.Println("Load in with new instance?: [yes] ")
+		fmt.Scanf("%s", &loadnew)
+	} else {
+		loadnew = "YES"
+	}
+	if utility.Fstr(loadnew) == "YES" || utility.Fstr(loadnew) == "Y" {
+		inst := NewInstance()
+		/*
+			Write to config conditionally
+		*/
+		var write string
+		fmt.Printf("Write to config?: [yes] ")
+		fmt.Scanf("%s", &write)
+		if utility.Fstr(write) == "YES" {
+			/*
+				Store config in dynamic slice
+			*/
+			instances = utility.PushInstance(instances, inst)
+		}
+		return instances
+	} else {
+		return instances
+	}
 }

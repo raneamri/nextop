@@ -31,19 +31,17 @@ Pushes an item to the top of a slice
 Also provides item with index
 */
 func PushInstance(instances []types.Instance, pushing types.Instance) []types.Instance {
-	pushing.Ndx = len(instances)
 	instances = append(instances, pushing)
 	return instances
 }
 
 /*
-Removes an instance from []Instance by value
-Re-indexes slice
+Removes an instance from []Instance by DSN value
 */
 func PopInstance(instances []types.Instance, popping types.Instance) []types.Instance {
 	var rm int = -1
 	for i, it := range instances {
-		if it.DBMS == popping.DBMS && it.Host == popping.Host && it.Port == popping.Port && it.User == popping.User {
+		if it.DSN == popping.DSN {
 			rm = i
 		}
 	}
@@ -59,13 +57,6 @@ func PopInstance(instances []types.Instance, popping types.Instance) []types.Ins
 		instances = newinsts
 	} else {
 		fmt.Println("Instance to pop unfound.")
-	}
-
-	/*
-		Re-index instances
-	*/
-	for i, it := range instances {
-		it.Ndx = i
 	}
 
 	return instances

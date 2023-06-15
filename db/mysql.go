@@ -1,9 +1,10 @@
-package services
+package db
 
 import (
 	"database/sql"
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,13 +51,8 @@ func SetParameters(db *sql.DB) {
 /*
 Unwrap instance into db pointer
 */
-func LaunchInstance(instance types.Instance) *sql.DB {
-	var mutex sync.Mutex
-	mutex.Lock()
-	utility.LockOn("services/mysql.go/LaunchInstance->*sql.DB MUTEX ON")
-	defer utility.LockOff("services/mysql.go/LaunchInstance->*sql.DB MUTEX OFF")
-	defer mutex.Unlock()
-	driver, _ := sql.Open("mysql", instance.User+":"+string(instance.Pass)+"@tcp("+fmt.Sprint(instance.Host)+":"+fmt.Sprint(instance.Port)+")/"+instance.Dbname)
+func Connect(instance types.Instance) *sql.DB {
+	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), instance.DSN)
 	SetParameters(driver)
 	if err := driver.Ping(); err != nil {
 		driver.Close()
@@ -75,8 +71,6 @@ func GetUptime(db *sql.DB) float64 {
 	}
 	var mutex sync.Mutex
 	mutex.Lock()
-	utility.LockOn("services/mysql.go/GetUptime->float64 MUTEX ON")
-	defer utility.LockOn("services/mysql.go/GetUptime->float64 MUTEX OFF")
 	defer mutex.Unlock()
 	var (
 		uptime  float64
@@ -95,8 +89,6 @@ func GetQPS(db *sql.DB) float64 {
 	}
 	var mutex sync.Mutex
 	mutex.Lock()
-	utility.LockOn("services/mysql.go/GetQPS->float64 MUTEX ON")
-	defer utility.LockOn("services/mysql.go/GetQPS->float64 MUTEX OFF")
 	defer mutex.Unlock()
 	var (
 		queries,
@@ -126,4 +118,63 @@ func GetQPS(db *sql.DB) float64 {
 	}
 
 	return qps
+}
+
+func GetData(rows *sql.Rows) ([]string, [][]string, error) {
+	var result [][]string
+	defer rows.Close()
+
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		return nil, nil, err
+	}
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, nil, err
+	}
+	vals := make([]interface{}, len(cols))
+	for i := range cols {
+		vals[i] = new(sql.RawBytes)
+	}
+	for rows.Next() {
+		err = rows.Scan(vals...)
+		if err != nil {
+			return nil, nil, err
+		}
+		var resultRow []string
+		for i, col := range vals {
+			var value string
+			if col == nil {
+				value = "NULL"
+			} else {
+				switch colTypes[i].DatabaseTypeName() {
+				case "VARCHAR", "CHAR", "TEXT":
+					value = fmt.Sprintf("%s", col)
+				case "BIGINT":
+					value = fmt.Sprintf("%s", col)
+				case "INT":
+					value = fmt.Sprintf("%d", col)
+				case "DECIMAL":
+					value = fmt.Sprintf("%s", col)
+				default:
+					value = fmt.Sprintf("%s", col)
+				}
+			}
+			value = strings.Replace(value, "&", "", 1)
+			resultRow = append(resultRow, value)
+		}
+		result = append(result, resultRow)
+	}
+	return cols, result, nil
+}
+
+/*
+Performs a query given a connection and a statement
+*/
+func Query(db *sql.DB, stmt string) (*sql.Rows, error) {
+	rows, err := db.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
 }

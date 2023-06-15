@@ -52,9 +52,9 @@ Takes dbms_t and returns the dbms name as string
 */
 func Strdbms(dbms types.DBMS_t) string {
 	if dbms == types.MYSQL {
-		return "MYSQL"
+		return "mysql"
 	} else if dbms == types.ORACLE {
-		return "ORACLE"
+		return "oracle"
 	}
 
 	/*
@@ -68,12 +68,12 @@ Inverse function to strdbms
 Takes string and converts to dbms_t
 */
 func Dbmsstr(dbms string) types.DBMS_t {
-	Fstr(dbms)
+	dbms = Fstr(dbms)
 	if dbms == "MYSQL" {
 		return types.MYSQL
 	} else if dbms == "ORACLE" {
 		return types.ORACLE
 	}
 
-	return 0
+	return -1
 }

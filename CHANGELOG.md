@@ -19,8 +19,15 @@
 - More bugfixing, driver error patched.
 - State machine implementation.
 - QOL.
-- Lock management system implemented.
+- Lock management system implementation started.
 - Repo set to private.
 - Config file remanaged.
+
+## Thu 15th Jun 2023:
+- Simplified i/o.
+- Simplified data struct heavily.
+- Connection pooling implementation started.
+- Beginning UI implementation.
+- Processlist & lock acquirement done. (to parse still)
 
 # OFFICIAL PATCHES
