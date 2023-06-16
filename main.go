@@ -77,8 +77,6 @@ func main() {
 	}
 
 	utility.ClearTerminal()
-	cols, rows, _ := db.GetProcesslist(cpool[0])
-	db.DisplayData(cols, rows)
 	ui.InterfaceLoop(instances, cpool)
 	fmt.Println("Bye")
 }

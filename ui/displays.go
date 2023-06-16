@@ -39,7 +39,7 @@ func DrawMenu(t *tcell.Terminal) {
 		t,
 		container.ID("main_menu"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("GOTOP (? for help, ENTER for quickstart)"),
+		container.BorderTitle("GOTOP (? for help)"),
 	)
 	if err != nil {
 		panic(err)
@@ -118,13 +118,24 @@ Format of this display is:
 func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	header := fmt.Sprintf("%-7v %-5v %-5v %-7v %-25v %-20v %-12v %10v %10v %-65v\n",
+	pl_header := fmt.Sprintf("%-7v %-5v %-5v %-7v %-25v %-20v %-12v %10v %10v %-65v\n",
 		"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
+	tl_header := fmt.Sprintf("%-15v %-20v %-5v\n",
+		"Uptime", "QPS", "Threads")
 
 	_, data, _ := db.GetProcesslist(cpool[0])
+	uptime := db.GetUptime(cpool[0])
+	qps := db.GetUptime(cpool[0])
+
+	tl_table, _ := text.New()
+	if err := tl_table.Write(tl_header, text.WriteCellOpts(cell.Bold())); err != nil {
+		panic(err)
+	}
+	frow := fmt.Sprintf("%-15v %-20v %-5v", utility.Ftime(uptime), fmt.Sprint(qps), " ")
+	tl_table.Write(frow, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 
 	pl_table, _ := text.New()
-	if err := pl_table.Write(header, text.WriteCellOpts(cell.Bold())); err != nil {
+	if err := pl_table.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
 		panic(err)
 	}
 
@@ -147,12 +158,13 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		t,
 		container.ID("processlist"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("PROCESSLIST (? for help, b to go back, ,<- -> to navigate)"),
+		container.BorderTitle("GOTOP/PROCESSLIST (? for help, b to go back, ,<- -> to navigate)"),
 		container.SplitHorizontal(
 			container.Top(
 				container.SplitVertical(
 					container.Left(
 						container.Border(linestyle.Light),
+						container.PlaceWidget(tl_table),
 					),
 					container.Right(
 						container.SplitVertical(
@@ -194,7 +206,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		}
 	}
 
-	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(quitter), termdash.RedrawInterval(100*time.Millisecond)); err != nil {
+	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(quitter), termdash.RedrawInterval(1000*time.Millisecond)); err != nil {
 		panic(err)
 	}
 
