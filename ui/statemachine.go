@@ -2,6 +2,7 @@ package ui
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/raneamri/gotop/types"
@@ -10,6 +11,8 @@ import (
 var (
 	State     types.State_t
 	Laststate types.State_t
+	Interval  time.Duration = 500 * time.Millisecond
+	Ticker    *time.Ticker  = time.NewTicker(1 * time.Second)
 )
 
 func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
@@ -43,7 +46,6 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 			break
 		case types.PROCESSLIST:
 			DisplayProcesslist(t, cpool)
-			State = Laststate
 			Laststate = types.PROCESSLIST
 			break
 		case types.DB_DASHBOARD:
@@ -73,7 +75,6 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 				Display help text and GitHub
 			*/
 			DrawHelp(t)
-			State = Laststate
 			Laststate = types.HELP
 			break
 		case types.QUIT:
@@ -81,6 +82,7 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 				Perform cleanup and close program
 			*/
 			//t.Close() fixes input buffer overflow ?
+			Ticker.Stop()
 			for _, conn := range cpool {
 				conn.Close()
 			}

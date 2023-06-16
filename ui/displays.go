@@ -53,7 +53,11 @@ func DrawMenu(t *tcell.Terminal) {
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
+		case '?':
+			State = types.HELP
+			cancel()
 		case 'b', 'B':
+			State = Laststate
 			cancel()
 		case 'q', 'Q':
 			State = types.QUIT
@@ -95,6 +99,7 @@ func DrawHelp(t *tcell.Terminal) {
 			State = types.PROCESSLIST
 			cancel()
 		case 'b', 'B':
+			State = Laststate
 			cancel()
 		case 'q', 'Q':
 			State = types.QUIT
@@ -199,6 +204,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	quitter := func(k *terminalapi.Keyboard) {
 		switch k.Key {
 		case 'b', 'B':
+			State = Laststate
 			cancel()
 		case 'q', 'Q':
 			State = types.QUIT
@@ -206,8 +212,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		}
 	}
 
-	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(quitter), termdash.RedrawInterval(1000*time.Millisecond)); err != nil {
+	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(quitter), termdash.RedrawInterval(Interval)); err != nil {
 		panic(err)
 	}
-
 }
