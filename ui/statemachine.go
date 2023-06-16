@@ -42,6 +42,7 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 			Laststate = types.MENU
 			break
 		case types.PROCESSLIST:
+			DisplayProcesslist(t, cpool)
 			Laststate = types.PROCESSLIST
 			break
 		case types.DB_DASHBOARD:
@@ -86,5 +87,4 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 			return
 		}
 	}
-
 }

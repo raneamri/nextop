@@ -48,6 +48,38 @@ func Ftime(duration float64) string {
 }
 
 /*
+Formats time as int64 picoseconds to string ms
+*/
+func FpicoToMs(duration int64) string {
+	/*
+		int64 -> time.Duration
+	*/
+	ms := duration / int64(time.Millisecond)
+
+	/*
+		Format and concatenate
+	*/
+	ftime := fmt.Sprintf("%dms", ms)
+	return ftime
+}
+
+/*
+Same as FpicoToMs but to microseconds (µs)
+*/
+func FpicoToUs(duration int64) string {
+	/*
+		int64 -> time.Duration
+	*/
+	us := duration / int64(time.Microsecond)
+
+	/*
+		Format and concatenate
+	*/
+	ftime := fmt.Sprintf("%dµs", us)
+	return ftime
+}
+
+/*
 Takes dbms_t and returns the dbms name as string
 */
 func Strdbms(dbms types.DBMS_t) string {

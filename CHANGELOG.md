@@ -30,4 +30,10 @@
 - Beginning UI implementation.
 - Processlist & lock acquirement done. (to parse still)
 
+## Fri 16th Jun 2023:
+- Formatting processlist query output.
+- Formatting ps to us & ms.
+- Displaying processlist data.
+- Layout for processlist view done.
+
 # OFFICIAL PATCHES

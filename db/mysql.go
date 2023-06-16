@@ -168,6 +168,22 @@ func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 	return cols, result, nil
 }
 
+func DisplayData(cols []string, result [][]string) {
+	// Print column names
+	for _, col := range cols {
+		fmt.Printf("%s\t", col)
+	}
+	fmt.Println()
+
+	// Print data rows
+	for _, row := range result {
+		for _, val := range row {
+			fmt.Printf("%s\t", val)
+		}
+		fmt.Println()
+	}
+}
+
 /*
 Performs a query given a connection and a statement
 */
