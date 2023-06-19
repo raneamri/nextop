@@ -25,7 +25,7 @@ func WriteConfig(instance types.Instance) error {
 
 	var (
 		fdbms   string = "dbms=" + utility.Strdbms(instance.DBMS) + " "
-		fdsn    string = "dsn=" + instance.DSN + " "
+		fdsn    string = "dsn=" + string(instance.DSN) + " "
 		fdbname string = "db-name=" + instance.Dbname
 
 		parsed []byte = []byte(beforeSection + fdbms + fdsn + fdbname + "\n" + afterSection)
@@ -119,7 +119,7 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 			case "dbms":
 				inst.DBMS = utility.Dbmsstr(value)
 			case "dsn":
-				inst.DSN = value
+				inst.DSN = []byte(value)
 			case "db-name":
 				inst.Dbname = value
 			}

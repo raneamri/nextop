@@ -52,13 +52,28 @@ func SetParameters(db *sql.DB) {
 Unwrap instance into db pointer
 */
 func Connect(instance types.Instance) *sql.DB {
-	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), instance.DSN)
+	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
 	SetParameters(driver)
 	if err := driver.Ping(); err != nil {
 		driver.Close()
 		panic(err)
 	}
 	return driver
+}
+
+/*
+Attempts to connect using a dsn
+Returns true on success, false on fail
+Used to authentificate connections
+*/
+func Ping(instance types.Instance) bool {
+	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	if err := driver.Ping(); err != nil {
+		driver.Close()
+		return false
+	}
+	driver.Close()
+	return true
 }
 
 /*
@@ -100,7 +115,6 @@ func GetQPS(db *sql.DB) float64 {
 
 	/*
 		Retrieve 'Queries' values from 'SHOW GLOBAL STATUS'
-		Retrieve 'Uptime' with similar method from getUptime
 	*/
 	if err := db.QueryRow(query).Scan(&discard, &queries); err != nil {
 		panic(err)
@@ -118,6 +132,29 @@ func GetQPS(db *sql.DB) float64 {
 	}
 
 	return qps
+}
+
+func GetThreads(db *sql.DB) int {
+	if db == nil {
+		return -1
+	}
+	var mutex sync.Mutex
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	var (
+		threads int
+		discard string
+	)
+
+	query := "SHOW GLOBAL STATUS LIKE 'Threads_connected'"
+
+	if err := db.QueryRow(query).Scan(&discard, &threads); err != nil {
+		panic(err)
+	}
+
+	return threads
+
 }
 
 func GetData(rows *sql.Rows) ([]string, [][]string, error) {

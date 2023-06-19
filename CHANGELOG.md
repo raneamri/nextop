@@ -36,4 +36,13 @@
 - Displaying processlist data.
 - Layout for processlist view done.
 
+## Mon 19th Jun 2023:
+- Added data to Processlist page.
+- Added dynamic display. (dynamic.go)
+- Added connection authentification.
+- Small optimisiations within ui package.
+- Began writing keybinds and help page.
+- Began writing config page and taking input.
+- Set groundwork for all pages.
+
 # OFFICIAL PATCHES

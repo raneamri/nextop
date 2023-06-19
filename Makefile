@@ -3,6 +3,11 @@ build:
 	go build -o gotop
 .PHONY:build
 
+# Build and run (quickstart)
+run:
+	go build -o gotop && ./gotop
+.PHONY:run
+
 # Build Linux executable
 genlinux:
 	CGO_ENABLED=0 go build -o build/gotop-linux_static .

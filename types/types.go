@@ -47,7 +47,7 @@ type Instance struct {
 	/*
 
 	 */
-	DSN string
+	DSN []byte
 
 	Dbname string
 }

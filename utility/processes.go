@@ -41,7 +41,7 @@ Removes an instance from []Instance by DSN value
 func PopInstance(instances []types.Instance, popping types.Instance) []types.Instance {
 	var rm int = -1
 	for i, it := range instances {
-		if it.DSN == popping.DSN {
+		if string(it.DSN) == string(popping.DSN) {
 			rm = i
 		}
 	}

@@ -18,6 +18,10 @@ import (
 View concurrencies
 View plugins
 View make file
+Get queries
+Draw all interfaces
+Make dynamic
+Add filter & search
 */
 
 func main() {
@@ -51,7 +55,7 @@ func main() {
 		If user specifies wrong number of arguments, exit with code 1
 	*/
 	if len(os.Args) == 1 {
-		instances = io.NoArgStartup(instances)
+		//instances = io.NoArgStartup(instances)
 	} else if len(os.Args) > 2 {
 		instances = io.ReadArgs(instances)
 	}

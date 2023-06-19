@@ -17,7 +17,7 @@ or called with arguments:
 ```bash
     ./gotop <dbms> "<dsn>" <db-display-name>
 ```
-where the quotation marks around the DSN is necessary on Mac M1 and the last argument is completely optional.
+where the quotation marks around the DSN is necessary on Mac M1 zsh and the last argument is completely optional.
 
 Upon successful TCP connection, instance will be written in config for easy access in the future.
 
