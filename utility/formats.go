@@ -27,11 +27,11 @@ func Fstr(formattable string) string {
 /*
 Formats time as float64 seconds into hours mins secs
 */
-func Ftime(duration float64) string {
+func Ftime(duration int) string {
 	/*
 		float64 -> time.Duration
 	*/
-	fduration := time.Duration(duration * float64(time.Second))
+	fduration := time.Duration(duration * int(time.Second))
 
 	/*
 		Extract hours, minutes & seconds

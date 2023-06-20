@@ -45,4 +45,11 @@
 - Began writing config page and taking input.
 - Set groundwork for all pages.
 
+## Tue 20th Jun 2023:
+- Added InnoDB data retrieving and parsing.
+- Changed approach to data parsing.
+- Flipped processlist (it was upside down).
+- Fixed potential segfault.
+- Implemented line chart for queries.
+
 # OFFICIAL PATCHES

@@ -17,7 +17,7 @@ func StartQueue() {
 /*
 Check current locks
 */
-func GetLockData(driver *sql.DB) ([]string, [][]string, error) {
+func GetLocks(driver *sql.DB) ([]string, [][]string, error) {
 	statement := `SHOW OPEN TABLES WHERE In_use > 0;`
 
 	rows, err := Query(driver, statement)

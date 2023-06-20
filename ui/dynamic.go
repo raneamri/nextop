@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 Includes middleman functions that allow for display to dynamically update
 Note: add filter arg and rake frows
 */
-func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpool []*sql.DB) {
+func dynProcesslist(ctx context.Context, pl *text.Text, acc_pl []string, delay time.Duration, cpool []*sql.DB) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -31,7 +32,7 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpo
 		case <-ticker.C:
 			_, pldata, _ := db.GetProcesslist(cpool[0])
 
-			flip := 1
+			var frow string
 			for _, row := range pldata {
 				/*
 					Converting data to usable
@@ -41,24 +42,32 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpo
 				flocktime, _ := strconv.ParseInt(row[9], 10, 64)
 				row[9] = utility.FpicoToUs(flocktime)
 
-				frow := fmt.Sprintf("%-7v %-5v %-5v %-7v %-25v %-20v %-12v %10v %10v %-65v\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[8], row[9], row[7])
+				frow = fmt.Sprintf("%-7v %-5v %-5v %-7v %-25v %-20v %-12v %10v %10v %-65v\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[8], row[9], row[7])
+				acc_pl = append([]string{frow}, acc_pl...)
+			}
 
+			pl_header := fmt.Sprintf("%-7v %-5v %-5v %-7v %-25v %-20v %-12v %10v %10v %-65v\n",
+				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
+
+			pl.Reset()
+			if err := pl.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
+				panic(err)
+			}
+
+			for i, row := range acc_pl {
 				/*
 					Flipping digit to alternate row color
 				*/
-				if flip > 0 {
-					pl.Write(frow, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-				} else if flip < 0 {
-					pl.Write(frow, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+				if i%2 == 0 {
+					pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+				} else {
+					pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 				}
-				flip *= -1
 			}
-
 		case <-ctx.Done():
 			return
 		}
 	}
-
 }
 
 func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []*sql.DB) {
@@ -70,15 +79,17 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []
 			tl_header := fmt.Sprintf("%-15v %-20v %-5v\n",
 				"Uptime", "QPS", "Threads")
 
-			uptime := db.GetUptime(cpool[0])
-			qps := db.GetQPS(cpool[0])
+			parameters := []string{"uptime", "queries"}
+			variables := db.GetStatus(cpool[0], parameters)
+			uptime, _ := strconv.Atoi(variables[0])
+			qps := variables[1]
 			thrds := db.GetThreads(cpool[0])
 
 			tl.Reset()
 			if err := tl.Write(tl_header, text.WriteCellOpts(cell.Bold())); err != nil {
 				panic(err)
 			}
-			frow := fmt.Sprintf("%-15v %-20v %-5v", utility.Ftime(uptime), fmt.Sprint(qps), fmt.Sprint(thrds))
+			frow := fmt.Sprintf("%-15v %-20v %-5v", utility.Ftime(uptime), qps, fmt.Sprint(thrds))
 			tl.Write(frow, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 
 		case <-ctx.Done():
@@ -87,21 +98,25 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []
 	}
 }
 
-func dynQPH(ctx context.Context, lc *linechart.LineChart, delay time.Duration, cpool []*sql.DB) {
+func dynQPI(ctx context.Context, lc *linechart.LineChart, queries []float64, delay time.Duration, cpool []*sql.DB) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			/*
-				if err := lc.Series("first", qph,
-					linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
-					linechart.SeriesXLabels(map[int]string{
-						0: "0",
-					}),
-				); err != nil {
-					panic(err)
-				}*/
+			parameters := []string{"queries"}
+			variables := db.GetStatus(cpool[0], parameters)
+			qps, _ := strconv.ParseFloat(variables[0], 64)
+			queries = append(queries, math.Round(qps))
+
+			if err := lc.Series("first", queries,
+				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
+				linechart.SeriesXLabels(map[int]string{
+					0: "0",
+				}),
+			); err != nil {
+				panic(err)
+			}
 
 		case <-ctx.Done():
 			return

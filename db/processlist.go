@@ -6,10 +6,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Includes the processlist query statement and the processlist dashboard ui
-*/
-
 func GetProcesslist(driver *sql.DB) ([]string, [][]string, error) {
 	statement := `SELECT pps.PROCESSLIST_COMMAND AS command,
                                     pps.THREAD_ID AS thd_id, pps.PROCESSLIST_ID AS conn_id,

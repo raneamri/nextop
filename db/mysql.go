@@ -42,18 +42,14 @@ Quoting https://github.com/go-sql-driver/mysql#features:
 	want to close idle connections more rapidly, you can use .SetConnMaxIdleTime() since Go 1.15.
 	"
 */
-func SetParameters(db *sql.DB) {
-	db.SetConnMaxLifetime(time.Minute * 3)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
-}
-
 /*
 Unwrap instance into db pointer
 */
 func Connect(instance types.Instance) *sql.DB {
 	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
-	SetParameters(driver)
+	driver.SetConnMaxLifetime(time.Minute * 3)
+	driver.SetMaxOpenConns(10)
+	driver.SetMaxIdleConns(10)
 	if err := driver.Ping(); err != nil {
 		driver.Close()
 		panic(err)
@@ -74,6 +70,38 @@ func Ping(instance types.Instance) bool {
 	}
 	driver.Close()
 	return true
+}
+
+/*
+Establishes a connection to that database and finds the specified status
+*/
+func GetStatus(driver *sql.DB, parameters []string) []string {
+	var results []string
+
+	for _, param := range parameters {
+		query := `SHOW STATUS LIKE '` + param + `';`
+		rows, _ := Query(driver, query)
+		_, result, _ := GetData(rows)
+		results = append(results, result[0][1])
+	}
+
+	return results
+}
+
+/*
+Establishes a connection to that database and finds the specified variable
+*/
+func GetVariable(driver *sql.DB, parameters []string) []string {
+	var results []string
+
+	for _, param := range parameters {
+		query := `SHOW VARIABLE LIKE '` + param + `';`
+		rows, _ := Query(driver, query)
+		_, result, _ := GetData(rows)
+		results = append(results, result[0][2])
+	}
+
+	return results
 }
 
 /*
@@ -154,7 +182,6 @@ func GetThreads(db *sql.DB) int {
 	}
 
 	return threads
-
 }
 
 func GetData(rows *sql.Rows) ([]string, [][]string, error) {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -194,15 +196,14 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	/*
 		Processlist data (container-1)
 	*/
-	pl_header := fmt.Sprintf("%-7v %-5v %-5v %-7v %-25v %-20v %-12v %10v %10v %-65v\n",
-		"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
-
 	pl_table, _ := text.New()
-	if err := pl_table.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
-		panic(err)
-	}
 
-	go dynProcesslist(ctx, pl_table, Interval, cpool)
+	/*
+		Accumulated process list
+	*/
+	var acc_pl []string
+
+	go dynProcesslist(ctx, pl_table, acc_pl, Interval, cpool)
 
 	/*
 		QPS/Uptime data (container-2)
@@ -244,7 +245,14 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	/*
 		Queries per hour for the past n hours (container-4)
 	*/
+	var queries []float64
+
+	stmt := []string{"Queries"}
+	minl := db.GetStatus(cpool[0], stmt)
+	min, _ := strconv.ParseFloat(minl[0], 64)
+
 	lc, err := linechart.New(
+		linechart.YAxisCustomScale(min, min*2),
 		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorGreen)),
 		linechart.XLabelCellOpts(cell.FgColor(cell.ColorCyan)),
@@ -252,6 +260,8 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	if err != nil {
 		panic(err)
 	}
+
+	go dynQPI(ctx, lc, queries, Interval, cpool)
 
 	cont, err := container.New(
 		t,
@@ -353,22 +363,19 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 	dbmsin, err := textinput.New(
 		textinput.Label("DBMS ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
-		textinput.HighlightedColor(cell.ColorNumber(186)),
-		textinput.MaxWidthCells(20),
+		textinput.MaxWidthCells(35),
 		textinput.ExclusiveKeyboardOnFocus(),
 	)
 	dsnin, err := textinput.New(
 		textinput.Label("DSN  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
-		textinput.HighlightedColor(cell.ColorNumber(186)),
-		textinput.MaxWidthCells(20),
+		textinput.MaxWidthCells(35),
 		textinput.ExclusiveKeyboardOnFocus(),
 	)
 	namein, err := textinput.New(
 		textinput.Label("NAME ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
-		textinput.HighlightedColor(cell.ColorNumber(186)),
-		textinput.MaxWidthCells(20),
+		textinput.MaxWidthCells(35),
 		textinput.ExclusiveKeyboardOnFocus(),
 	)
 
@@ -376,7 +383,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 		t,
 		container.ID("configs_display"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("CONFIGS (? for help, ESC to go back, ,<- -> to navigate)"),
+		container.BorderTitle("CONFIGS (ESC to go back)"),
 		container.KeyFocusNext(keyboard.KeyTab),
 		container.KeyFocusGroupsNext(keyboard.KeyArrowDown, 1),
 		container.KeyFocusGroupsPrevious(keyboard.KeyArrowUp, 1),
@@ -475,29 +482,8 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 			instances = append(instances, inst)
 			instances = io.SyncConfig(instances)
 
-		case 'p', 'P':
-			State = types.PROCESSLIST
-			cancel()
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'm', 'M':
-			State = types.MEM_DASHBOARD
-			cancel()
-		case 'e', 'E':
-			State = types.ERR_LOG
-			cancel()
-		case 'l', 'L':
-			State = types.LOCK_LOG
-			cancel()
-		case '?':
-			State = types.HELP
-			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
-			cancel()
-		case 'q', 'Q':
-			State = types.QUIT
 			cancel()
 		}
 	}
@@ -510,11 +496,78 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	infoheader := fmt.Sprintf("%-13v %-16v %-8v %-16v %-16v %-20v %-12v %10v %10v\n",
+		"Buffer Pool Size\n", "Buffer Pool Instance\n", "Redo Log\n",
+		"InnoDB Logfile Size\n", "Num InnoDB Logfile\n", "Checkpoint Info\n",
+		"Checkpoint Age\n", "Adaptive Hash Index\n", "Num AHI Partitions")
+	infolabels, _ := text.New()
+	infolabels.Write(infoheader, text.WriteCellOpts(cell.Bold()))
+	infotext, _ := text.New()
+	var infodata []string
+
+	_, data, _ := db.GetInnodbInfo(cpool[0])
+
+	/*
+		Extract Buffer Pool Size & Buffer Pool Instance
+	*/
+	fdata := strings.Split(data[0][2], "\n")
+
+	for _, row := range fdata {
+		/*
+			Skip dividers (there's a lot)
+		*/
+		if strings.Contains(row, "---") {
+			continue
+		}
+		if strings.Contains(string(row), "Buffer pool size") {
+			frow := strings.Fields(row)
+			infodata = append(infodata, frow[len(frow)-1])
+		}
+		if strings.Contains(string(row), "Free buffers") {
+			frow := strings.Fields(row)
+			infodata = append(infodata, frow[len(frow)-1])
+		}
+		if strings.Contains(string(row), "Free buffers") {
+			frow := strings.Fields(row)
+			infodata = append(infodata, frow[len(frow)-1])
+		}
+	}
+
+	for _, item := range infodata {
+		infotext.Write(item + "\n")
+	}
+
 	cont, err := container.New(
 		t,
 		container.ID("db_dashboard"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("DATABASE (? for help)"),
+		container.BorderTitle("INNODB DASHBOARD (? for help)"),
+		container.SplitVertical(
+			container.Left(
+				container.Border(linestyle.Light),
+				container.SplitHorizontal(
+					container.Top(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Info"),
+						container.SplitVertical(
+							container.Left(
+								container.PlaceWidget(infolabels),
+							),
+							container.Right(
+								container.PlaceWidget(infotext),
+							),
+						),
+					),
+					container.Bottom(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Buffer Pool"),
+					),
+					container.SplitPercent(50),
+				),
+			),
+			container.Right(),
+			container.SplitPercent(50),
+		),
 	)
 	if err != nil {
 		panic(err)
