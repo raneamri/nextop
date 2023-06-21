@@ -52,4 +52,10 @@
 - Fixed potential segfault.
 - Implemented line chart for queries.
 
-# OFFICIAL PATCHES
+## Wed 21st Jun 2023:
+- Implementing InnoDB dashboard page.
+- Changed request method for ease of modulation.
+- Added long_queries.go
+- Added byte (int) to MiB (string) conversion.
+- Retrieved most data needed for InnoDB page.
+- Added barchart for selects etc.

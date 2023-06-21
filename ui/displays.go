@@ -3,9 +3,7 @@ package ui
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -216,12 +214,12 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		SEL/INS ... (container-3)
 	*/
 
-	achart, err := barchart.New(
+	bc, err := barchart.New(
 		barchart.BarColors([]cell.Color{
-			cell.ColorGreen,
-			cell.ColorNumber(31),
-			cell.ColorNumber(172),
-			cell.ColorRed,
+			cell.ColorNumber(25),
+			cell.ColorNumber(30),
+			cell.ColorNumber(35),
+			cell.ColorNumber(40),
 		}),
 		barchart.ValueColors([]cell.Color{
 			cell.ColorWhite,
@@ -229,8 +227,14 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 			cell.ColorWhite,
 			cell.ColorWhite,
 		}),
+		barchart.LabelColors([]cell.Color{
+			cell.ColorWhite,
+			cell.ColorWhite,
+			cell.ColorWhite,
+			cell.ColorWhite,
+		}),
 		barchart.ShowValues(),
-		barchart.BarWidth(4),
+		barchart.BarWidth(6),
 		barchart.Labels([]string{
 			"Sel",
 			"Ins",
@@ -261,7 +265,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		panic(err)
 	}
 
-	go dynQPI(ctx, lc, queries, Interval, cpool)
+	go dynGraphs(ctx, lc, bc, queries, Interval, cpool)
 
 	cont, err := container.New(
 		t,
@@ -279,7 +283,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 						container.SplitVertical(
 							container.Left(
 								container.Border(linestyle.Light),
-								container.PlaceWidget(achart),
+								container.PlaceWidget(bc),
 							),
 							container.Right(
 								container.Border(linestyle.Light),
@@ -493,49 +497,36 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 	}
 }
 
+/*
+container-1 (top left): InnoDB Info
+*/
 func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	infoheader := fmt.Sprintf("%-13v %-16v %-8v %-16v %-16v %-20v %-12v %10v %10v\n",
-		"Buffer Pool Size\n", "Buffer Pool Instance\n", "Redo Log\n",
-		"InnoDB Logfile Size\n", "Num InnoDB Logfile\n", "Checkpoint Info\n",
-		"Checkpoint Age\n", "Adaptive Hash Index\n", "Num AHI Partitions")
-	infolabels, _ := text.New()
-	infolabels.Write(infoheader, text.WriteCellOpts(cell.Bold()))
-	infotext, _ := text.New()
-	var infodata []string
-
-	_, data, _ := db.GetInnodbInfo(cpool[0])
-
 	/*
-		Extract Buffer Pool Size & Buffer Pool Instance
+		InnoDB info (container-1)
 	*/
-	fdata := strings.Split(data[0][2], "\n")
 
-	for _, row := range fdata {
-		/*
-			Skip dividers (there's a lot)
-		*/
-		if strings.Contains(row, "---") {
-			continue
-		}
-		if strings.Contains(string(row), "Buffer pool size") {
-			frow := strings.Fields(row)
-			infodata = append(infodata, frow[len(frow)-1])
-		}
-		if strings.Contains(string(row), "Free buffers") {
-			frow := strings.Fields(row)
-			infodata = append(infodata, frow[len(frow)-1])
-		}
-		if strings.Contains(string(row), "Free buffers") {
-			frow := strings.Fields(row)
-			infodata = append(infodata, frow[len(frow)-1])
-		}
+	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Redo Log\n",
+		"      InnoDB Logfile Size\n", "       Num InnoDB Logfile\n\n", "          Checkpoint Info\n",
+		"           Checkpoint Age\n\n", "      Adaptive Hash Index\n", "       Num AHI Partitions"}
+	infolabels, _ := text.New()
+	for _, header := range infoheader {
+		infolabels.Write(header, text.WriteCellOpts(cell.Bold()))
 	}
 
-	for _, item := range infodata {
-		infotext.Write(item + "\n")
+	bfpheader := []string{"\n\n            Read Requests\n", "           Write Requests\n\n", "               Dirty Data\n\n",
+		"            Pending Reads\n", "           Pending Writes\n\n", "    OS Log Pending Writes\n\n", "               Disk Reads\n\n",
+		"            Pending Fsync\n", "    OS Log Pending Fsyncs\n"}
+	bfplabels, _ := text.New()
+	for _, header := range bfpheader {
+		bfplabels.Write(header, text.WriteCellOpts(cell.Bold()))
 	}
+
+	infotext, _ := text.New()
+	bfptext, _ := text.New()
+
+	go dynDbDashboard(ctx, infotext, bfptext, Interval, cpool)
 
 	cont, err := container.New(
 		t,
@@ -551,16 +542,38 @@ func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 						container.BorderTitle("Info"),
 						container.SplitVertical(
 							container.Left(
-								container.PlaceWidget(infolabels),
+								container.SplitVertical(
+									container.Left(),
+									container.Right(
+										container.PlaceWidget(infolabels),
+									),
+									container.SplitPercent(30),
+								),
 							),
 							container.Right(
 								container.PlaceWidget(infotext),
 							),
+							container.SplitPercent(60),
 						),
 					),
 					container.Bottom(
 						container.Border(linestyle.Light),
 						container.BorderTitle("Buffer Pool"),
+						container.SplitVertical(
+							container.Left(
+								container.SplitVertical(
+									container.Left(),
+									container.Right(
+										container.PlaceWidget(bfplabels),
+									),
+									container.SplitPercent(30),
+								),
+							),
+							container.Right(
+								container.PlaceWidget(bfptext),
+							),
+							container.SplitPercent(60),
+						),
 					),
 					container.SplitPercent(50),
 				),

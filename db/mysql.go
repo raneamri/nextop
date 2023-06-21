@@ -3,9 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"math"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/raneamri/gotop/types"
@@ -80,7 +78,10 @@ func GetStatus(driver *sql.DB, parameters []string) []string {
 
 	for _, param := range parameters {
 		query := `SHOW STATUS LIKE '` + param + `';`
-		rows, _ := Query(driver, query)
+		rows, err := Query(driver, query)
+		if err != nil {
+			return []string{"-1"}
+		}
 		_, result, _ := GetData(rows)
 		results = append(results, result[0][1])
 	}
@@ -92,98 +93,58 @@ func GetStatus(driver *sql.DB, parameters []string) []string {
 Establishes a connection to that database and finds the specified variable
 */
 func GetVariable(driver *sql.DB, parameters []string) []string {
-	var results []string
+	var values []string
 
 	for _, param := range parameters {
-		query := `SHOW VARIABLE LIKE '` + param + `';`
-		rows, _ := Query(driver, query)
+		query := `SHOW VARIABLES LIKE '` + param + `';`
+		rows, err := Query(driver, query)
+		if err != nil {
+			values = append(values, "-1")
+		}
 		_, result, _ := GetData(rows)
-		results = append(results, result[0][2])
+		values = append(values, result[0][1])
 	}
 
-	return results
+	return values
 }
 
 /*
-Retrieves uptime of database and returns it formatted.
-Note: adjust methods
+Looks up variable in performance_schema
 */
-func GetUptime(db *sql.DB) float64 {
-	if db == nil {
-		return -1
+func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
+	var values []string
+
+	for _, param := range parameters {
+		query := `SELECT variable_name, variable_value
+					FROM performance_schema.global_status
+					WHERE variable_name LIKE '` + param + `';`
+		rows, err := Query(driver, query)
+		_, result, _ := GetData(rows)
+		if err != nil || len(result) == 0 {
+			values = append(values, "-1")
+		} else {
+			values = append(values, result[0][1])
+		}
 	}
-	var mutex sync.Mutex
-	mutex.Lock()
-	defer mutex.Unlock()
-	var (
-		uptime  float64
-		discard string
-	)
-	query := "SHOW GLOBAL STATUS LIKE 'Uptime'"
-	if err := db.QueryRow(query).Scan(&discard, &uptime); err != nil {
-		panic(err)
-	}
-	return uptime
+
+	return values
 }
 
-func GetQPS(db *sql.DB) float64 {
-	if db == nil {
-		return -1
-	}
-	var mutex sync.Mutex
-	mutex.Lock()
-	defer mutex.Unlock()
-	var (
-		queries,
-		uptime,
-		qps float64
-		discard string
-	)
-	query := "SHOW GLOBAL STATUS LIKE 'Queries'"
+func GetLongQuery(driver *sql.DB, query string) [][]string {
 
-	/*
-		Retrieve 'Queries' values from 'SHOW GLOBAL STATUS'
-	*/
-	if err := db.QueryRow(query).Scan(&discard, &queries); err != nil {
-		panic(err)
+	rows, err := Query(driver, query)
+	if err != nil {
+		return nil
 	}
+	_, result, _ := GetData(rows)
 
-	/*
-		Calculate QPS from uptime
-		Decrease queries by 2 to account for the queries required
-		to calculate QPS
-	*/
-	uptime = GetUptime(db)
-	queries -= 2
-	if uptime > 0 {
-		qps = math.Round(queries / uptime)
-	}
+	return result
 
-	return qps
 }
 
-func GetThreads(db *sql.DB) int {
-	if db == nil {
-		return -1
-	}
-	var mutex sync.Mutex
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	var (
-		threads int
-		discard string
-	)
-
-	query := "SHOW GLOBAL STATUS LIKE 'Threads_connected'"
-
-	if err := db.QueryRow(query).Scan(&discard, &threads); err != nil {
-		panic(err)
-	}
-
-	return threads
-}
-
+/*
+Curtesy of https://github.com/lefred
+*/
 func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 	var result [][]string
 	defer rows.Close()
@@ -233,13 +194,11 @@ func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 }
 
 func DisplayData(cols []string, result [][]string) {
-	// Print column names
 	for _, col := range cols {
 		fmt.Printf("%s\t", col)
 	}
 	fmt.Println()
 
-	// Print data rows
 	for _, row := range result {
 		for _, val := range row {
 			fmt.Printf("%s\t", val)
@@ -250,6 +209,7 @@ func DisplayData(cols []string, result [][]string) {
 
 /*
 Performs a query given a connection and a statement
+Helper function for other query-type functions
 */
 func Query(db *sql.DB, stmt string) (*sql.Rows, error) {
 	rows, err := db.Query(stmt)

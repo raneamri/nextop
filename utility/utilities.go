@@ -61,3 +61,13 @@ func PopInstance(instances []types.Instance, popping types.Instance) []types.Ins
 
 	return instances
 }
+
+func Max(slice []int) int {
+	var max int = 0
+	for _, num := range slice {
+		if num > max {
+			max = num
+		}
+	}
+	return max
+}

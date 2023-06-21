@@ -2,6 +2,7 @@ package utility
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -90,7 +91,7 @@ func Strdbms(dbms types.DBMS_t) string {
 	}
 
 	/*
-		Should never be reached considering previous checks
+		Remove warning
 	*/
 	return ""
 }
@@ -108,4 +109,39 @@ func Dbmsstr(dbms string) types.DBMS_t {
 	}
 
 	return -1
+}
+
+/*
+Converts bytes as one integer to MiB with prefix
+*/
+func BytesToMiB(bytes int) string {
+	mb := bytes / (1024 * 1024)
+	fmb := fmt.Sprint(mb) + " MiB"
+
+	return fmb
+}
+
+func Fnum(num int) string {
+	numStr := strconv.Itoa(num)
+	length := len(numStr)
+
+	if length <= 3 {
+		return numStr
+	}
+
+	var formattedNum strings.Builder
+
+	firstPartLength := length % 3
+	if firstPartLength == 0 {
+		firstPartLength = 3
+	}
+
+	formattedNum.WriteString(numStr[:firstPartLength])
+
+	for i := firstPartLength; i < length; i += 3 {
+		formattedNum.WriteByte(',')
+		formattedNum.WriteString(numStr[i : i+3])
+	}
+
+	return formattedNum.String()
 }
