@@ -365,18 +365,27 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 		textinput.TextColor(cell.ColorWhite),
 		textinput.MaxWidthCells(35),
 		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Ex. MySQL"),
 	)
 	dsnin, err := textinput.New(
 		textinput.Label("DSN  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
 		textinput.MaxWidthCells(35),
 		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" <user:pass@tcp(host:port)/name>"),
 	)
 	namein, err := textinput.New(
 		textinput.Label("NAME ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
 		textinput.MaxWidthCells(35),
 		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Optional"),
 	)
 
 	cont, err := container.New(
@@ -434,7 +443,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 					container.SplitPercent(70),
 				),
 			),
-			container.SplitPercent(20),
+			container.SplitPercent(40),
 		),
 	)
 	if err != nil {

@@ -12,7 +12,7 @@ var (
 	State       types.State_t
 	Laststate   types.State_t
 	Interval    time.Duration = 500 * time.Millisecond
-	ActiveConns []int         = []int{0, 1}
+	ActiveConns []int         = []int{0}
 )
 
 func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
