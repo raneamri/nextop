@@ -68,3 +68,4 @@
 - Fixed some aspect-ratios.
 - Added error logging to configs as well as fixed a potential segfault.
 - Fixed long lasting instance duplication error.
+- Configs interface improved.
