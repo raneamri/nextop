@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"database/sql"
-	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -196,12 +195,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	*/
 	pl_table, _ := text.New()
 
-	/*
-		Accumulated process list
-	*/
-	var acc_pl []string
-
-	go dynProcesslist(ctx, pl_table, acc_pl, Interval, cpool)
+	go dynProcesslist(ctx, pl_table, Interval*2, cpool)
 
 	/*
 		QPS/Uptime data (container-2)
@@ -251,15 +245,12 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	*/
 	var queries []float64
 
-	stmt := []string{"Queries"}
-	minl := db.GetStatus(cpool[0], stmt)
-	min, _ := strconv.ParseFloat(minl[0], 64)
-
 	lc, err := linechart.New(
-		linechart.YAxisCustomScale(min, min*2),
+		linechart.YAxisAdaptive(),
+		linechart.YAxisFormattedValues(linechart.ValueFormatterSuffix(0, "")),
 		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
-		linechart.YLabelCellOpts(cell.FgColor(cell.ColorGreen)),
-		linechart.XLabelCellOpts(cell.FgColor(cell.ColorCyan)),
+		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 	)
 	if err != nil {
 		panic(err)
@@ -350,19 +341,23 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
-		dbms  string
-		dsn   string
-		name  string
-		inerr string
-		insuc string
+		dbms    string
+		dsn     string
+		name    string
+		log_msg string
 	)
 
 	errlog, _ := text.New()
-	errlog.Write(insuc, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+	instlog, _ := text.New()
 
-	confdisp, _ := text.New()
-
-	go dynConfigs(ctx, errlog, confdisp, inerr, insuc, instances, Interval)
+	for _, inst := range instances {
+		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write(": " + utility.Strdbms(inst.DBMS))
+		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write(": " + string((inst.DSN)))
+		instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write(": " + string((inst.ConnName)))
+	}
 
 	dbmsin, err := textinput.New(
 		textinput.Label("DBMS ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
@@ -387,7 +382,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 		t,
 		container.ID("configs_display"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("CONFIGS (ESC to go back)"),
+		container.BorderTitle("CONFIGS (ESC to go back, ENTER to submit)"),
 		container.KeyFocusNext(keyboard.KeyTab),
 		container.KeyFocusGroupsNext(keyboard.KeyArrowDown, 1),
 		container.KeyFocusGroupsPrevious(keyboard.KeyArrowUp, 1),
@@ -416,8 +411,10 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 											container.Bottom(
 												container.PlaceWidget(namein),
 											),
+											container.SplitPercent(50),
 										),
 									),
+									container.SplitPercent(33),
 								),
 							),
 							container.Right(),
@@ -430,11 +427,13 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 				container.Border(linestyle.Light),
 				container.BorderTitle("Configurated"),
 				container.SplitVertical(
-					container.Left(),
+					container.Left(
+						container.PlaceWidget(instlog),
+					),
 					container.Right(),
 				),
 			),
-			container.SplitPercent(18),
+			container.SplitPercent(40),
 		),
 	)
 	if err != nil {
@@ -447,40 +446,50 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 			/*
 				Validate data
 			*/
+			errlog.Reset()
+
 			dbms = dbmsin.ReadAndClear()
 			if utility.Fstr(dbms) == "" || utility.Fstr(dbms) != "MYSQL" {
-				inerr = "Unknown DBMS: " + dbms
-				insuc = ""
+				log_msg = "\n   Error: Unknown DBMS: " + dbms + "\n"
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 				dsn = dsnin.ReadAndClear()
 				name = namein.ReadAndClear()
-				break
+				return
 			}
 
 			dsn = dsnin.ReadAndClear()
 			if string(dsn) == "" {
-				inerr = "Blank DSN is invalid."
-				insuc = ""
+				log_msg = "\n   Error: Blank DSN is invalid."
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 				name = namein.ReadAndClear()
-				break
+				return
 			}
 
 			name = namein.ReadAndClear()
 			if name == "" {
-				name = "null"
+				log_msg = "\n   Warning: Blank connection name. (non-fatal)"
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorYellow)))
+				name = "<unnamed>"
 			}
 
 			var inst types.Instance
 			inst.DBMS = utility.Dbmsstr(dbms)
 			inst.DSN = []byte(dsn)
-			inst.Dbname = name
+			inst.ConnName = name
 
 			if !db.Ping(inst) {
-				inerr = "Invalid DSN. Connection closed."
-				insuc = ""
-				break
+				errlog.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+				time.Sleep(1 * time.Second)
+				errlog.Reset()
+				log_msg = "\n   Error: Invalid DSN. Connection closed."
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+				return
 			} else {
-				insuc = "Connection established!"
-				inerr = ""
+				errlog.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+				time.Sleep(1 * time.Second)
+				errlog.Reset()
+				log_msg = "\n   Success! Connection established."
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 			}
 
 			instances = append(instances, inst)
@@ -499,6 +508,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 
 /*
 container-1 (top left): InnoDB Info
+container-2 (right): donuts
 */
 func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -623,11 +633,42 @@ func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 func DisplayMemory(t *tcell.Terminal, cpool []*sql.DB) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	//mem_headers := []string{"Area", "Memory Allocation"}
+
 	cont, err := container.New(
 		t,
 		container.ID("memory_dashboard"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("MEMORY (? for help)"),
+		container.SplitVertical(
+			container.Left(
+				container.SplitHorizontal(
+					container.Top(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Db Memory Allocation"),
+					),
+					container.Bottom(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Users Memory Allocation"),
+					),
+					container.SplitPercent(45),
+				),
+			),
+			container.Right(
+				container.SplitHorizontal(
+					container.Top(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Total Allocated Memory"),
+					),
+					container.Bottom(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Empty"),
+					),
+					container.SplitPercent(55),
+				),
+			),
+			container.SplitPercent(50),
+		),
 	)
 	if err != nil {
 		panic(err)
@@ -675,6 +716,26 @@ func DisplayErrorLog(t *tcell.Terminal, cpool []*sql.DB) {
 		container.ID("err_log"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("ERROR LOG (? for help)"),
+		container.SplitHorizontal(
+			container.Top(
+				container.SplitVertical(
+					container.Left(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Filters"),
+					),
+					container.Right(
+						container.Border(linestyle.Light),
+						container.BorderTitle("2"),
+					),
+					container.SplitPercent(70),
+				),
+			),
+			container.Bottom(
+				container.Border(linestyle.Light),
+				container.BorderTitle("Errors"),
+			),
+			container.SplitPercent(40),
+		),
 	)
 	if err != nil {
 		panic(err)

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/raneamri/gotop/db"
-	"github.com/raneamri/gotop/types"
 	"github.com/raneamri/gotop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -25,53 +25,68 @@ import (
 Provides data dynamically to displays.go
 Note: add filter arg and rake frows
 */
-func dynProcesslist(ctx context.Context, pl *text.Text, acc_pl []string, delay time.Duration, cpool []*sql.DB) {
+func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpool []*sql.DB) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			pldata := db.GetLongQuery(cpool[0], db.ProcesslistLongQuery())
-
-			var frow string
-			for _, row := range pldata {
-				/*
-					Converting data to usable
-				*/
-				ftime, _ := strconv.ParseInt(row[8], 10, 64)
-				row[8] = utility.FpicoToMs(ftime)
-				flocktime, _ := strconv.ParseInt(row[9], 10, 64)
-				row[9] = utility.FpicoToUs(flocktime)
-
-				frow = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[8], row[9], row[7])
-				acc_pl = append([]string{frow}, acc_pl...)
-			}
-
+			pl.Reset()
 			/*
-				Cap processlist
+				Write header
 			*/
-			if len(acc_pl) > 500 {
-				acc_pl = acc_pl[:500]
-			}
-
 			pl_header := fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
 				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
-
-			pl.Reset()
 			if err := pl.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
 				panic(err)
 			}
 
-			for i, row := range acc_pl {
-				/*
-					Flipping digit to alternate row color
-				*/
-				if i%2 == 0 {
-					pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-				} else {
-					pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+			for _, ndx := range ActiveConns {
+				pldata := db.GetLongQuery(cpool[ndx], db.ProcesslistLongQuery())
+
+				var frow string
+				var ftable []string
+				for _, row := range pldata {
+					/*
+						Converting data to usable
+					*/
+					cmd := row[0]
+					thread := row[1]
+					conn := row[2]
+					pid := row[3]
+					state := row[4]
+					user := row[5]
+					db := row[6]
+					ftime, _ := strconv.ParseInt(row[8], 10, 64)
+					time := utility.FpicoToMs(ftime)
+					flocktime, _ := strconv.ParseInt(row[9], 10, 64)
+					locktime := utility.FpicoToUs(flocktime)
+					fquery := strings.ReplaceAll(row[7], "\t", " ")
+					fquery = strings.ReplaceAll(row[7], "\n", " ")
+					if len(fquery) > 30 {
+						fquery = fquery[:30]
+					}
+
+					frow = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
+						cmd, thread, conn, pid, state, user, db, time, locktime, fquery)
+					ftable = append([]string{frow}, ftable...)
+				}
+
+				for i, row := range ftable {
+					if i%2 == 0 {
+						err := pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+						if err != nil {
+							panic(err)
+						}
+					} else {
+						err := pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+						if err != nil {
+							panic(err)
+						}
+					}
 				}
 			}
+
 		case <-ctx.Done():
 			return
 		}
@@ -139,43 +154,6 @@ func dynGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarCha
 
 			if err := bc.Values(values, utility.Max(values)); err != nil {
 				panic(err)
-			}
-
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func dynConfigs(ctx context.Context, logt *text.Text, instt *text.Text, err string, suc string, instances []types.Instance, delay time.Duration) {
-	ticker := time.NewTicker(delay)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			logt.Reset()
-			if err == "" && suc != "" {
-				if err := logt.Write(suc, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorRed))); err != nil {
-					panic(err)
-				}
-			} else if suc == "" && err != "" {
-				if err := logt.Write("err", text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorLime))); err != nil {
-					panic(err)
-				}
-			}
-
-			instt.Reset()
-			for i, inst := range instances {
-				fstr := utility.Strdbms(inst.DBMS) + string(inst.DSN) + inst.Dbname
-				if i%2 == 0 {
-					if err := instt.Write(fstr, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
-						panic(err)
-					}
-				} else {
-					if err := instt.Write(fstr, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorGray))); err != nil {
-						panic(err)
-					}
-				}
 			}
 
 		case <-ctx.Done():

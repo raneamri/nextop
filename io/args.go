@@ -21,9 +21,9 @@ func ReadArgs(instances []types.Instance) []types.Instance {
 		inst.DSN = []byte(os.Args[2])
 
 		if len(os.Args) == 4 {
-			inst.Dbname = os.Args[3]
+			inst.ConnName = os.Args[3]
 		} else {
-			inst.Dbname = "<unnamed>"
+			inst.ConnName = "<unnamed>"
 		}
 
 		instances = utility.PushInstance(instances, inst)

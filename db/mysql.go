@@ -61,9 +61,11 @@ Returns true on success, false on fail
 Used to authentificate connections
 */
 func Ping(instance types.Instance) bool {
-	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	driver, err := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	if err != nil {
+		return false
+	}
 	if err := driver.Ping(); err != nil {
-		driver.Close()
 		return false
 	}
 	driver.Close()

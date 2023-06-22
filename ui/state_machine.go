@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	State     types.State_t
-	Laststate types.State_t
-	Interval  time.Duration = 500 * time.Millisecond
-	PoolNdx   int           = 0
+	State       types.State_t
+	Laststate   types.State_t
+	Interval    time.Duration = 500 * time.Millisecond
+	ActiveConns []int         = []int{0, 1}
 )
 
 func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {

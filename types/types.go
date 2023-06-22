@@ -45,9 +45,12 @@ type Instance struct {
 	DBMS DBMS_t
 
 	/*
-
-	 */
+		DSN, stored as byte slice
+	*/
 	DSN []byte
 
-	Dbname string
+	/*
+		Manually assigned connection name
+	*/
+	ConnName string
 }

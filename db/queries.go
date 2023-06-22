@@ -49,3 +49,7 @@ func DeletesLongQuery() string {
 	return `SELECT SUM(IF(digest_text LIKE 'DELETES%', count_star, 0)) AS delete_count
 			FROM performance_schema.events_statements_summary_by_digest;`
 }
+
+func ErrorShortQuery() string {
+	return `SHOW ERRORS;`
+}

@@ -59,3 +59,12 @@
 - Added byte (int) to MiB (string) conversion.
 - Retrieved most data needed for InnoDB page.
 - Added barchart for selects etc.
+
+## Thu 22 Jun 2023:
+- Set layout for Error Log & Memory Dashboard.
+- Fixed processlist. Now shows true queries and ignores illegal chars. aswell as resets on tick.
+- Changed db-name to conn-name.
+- Added active connections slice.
+- Fixed some aspect-ratios.
+- Added error logging to configs as well as fixed a potential segfault.
+- Fixed long lasting instance duplication error.

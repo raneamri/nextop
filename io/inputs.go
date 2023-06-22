@@ -43,10 +43,10 @@ func NewInstance() types.Instance {
 	fmt.Scanf("%s", &newInstance.DSN)
 
 	utility.ClearTerminal()
-	fmt.Println("Enter database name (default:none): ")
-	fmt.Scanf("%s", &newInstance.Dbname)
-	if newInstance.Dbname == "" {
-		newInstance.Dbname = "none"
+	fmt.Println("Enter connection name: ")
+	fmt.Scanf("%s", &newInstance.ConnName)
+	if newInstance.ConnName == "" {
+		newInstance.ConnName = "<unnamed>"
 	}
 
 	utility.ClearTerminal()
