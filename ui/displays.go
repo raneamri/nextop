@@ -256,7 +256,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		panic(err)
 	}
 
-	go dynGraphs(ctx, lc, bc, queries, Interval, cpool)
+	go dynPLGraphs(ctx, lc, bc, queries, Interval, cpool)
 
 	cont, err := container.New(
 		t,
@@ -350,8 +350,9 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 	errlog, _ := text.New()
 	instlog, _ := text.New()
 
+	instlog.Reset()
 	for _, inst := range instances {
-		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write("\n   dbms", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + utility.Strdbms(inst.DBMS))
 		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + string((inst.DSN)))
@@ -391,49 +392,49 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 				container.SplitVertical(
 					container.Left(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Log"),
+						container.BorderTitle("Status"),
 						container.PlaceWidget(errlog),
 					),
 					container.Right(
-						container.SplitVertical(
-							container.Left(
-								container.Border(linestyle.Light),
-								container.BorderTitle("Input"),
+						container.Border(linestyle.Light),
+						container.BorderTitle("Input"),
+						container.SplitHorizontal(
+							container.Top(
+								container.PlaceWidget(dbmsin),
+							),
+							container.Bottom(
 								container.SplitHorizontal(
 									container.Top(
-										container.PlaceWidget(dbmsin),
+										container.PlaceWidget(dsnin),
 									),
 									container.Bottom(
-										container.SplitHorizontal(
-											container.Top(
-												container.PlaceWidget(dsnin),
-											),
-											container.Bottom(
-												container.PlaceWidget(namein),
-											),
-											container.SplitPercent(50),
-										),
+										container.PlaceWidget(namein),
 									),
-									container.SplitPercent(33),
+									container.SplitPercent(50),
 								),
 							),
-							container.Right(),
-							container.SplitPercent(80),
+							container.SplitPercent(33),
 						),
 					),
 				),
 			),
 			container.Bottom(
 				container.Border(linestyle.Light),
-				container.BorderTitle("Configurated"),
+				container.BorderTitle("Configs"),
 				container.SplitVertical(
 					container.Left(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Instances"),
 						container.PlaceWidget(instlog),
 					),
-					container.Right(),
+					container.Right(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Settings"),
+					),
+					container.SplitPercent(70),
 				),
 			),
-			container.SplitPercent(40),
+			container.SplitPercent(20),
 		),
 	)
 	if err != nil {
@@ -494,6 +495,8 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 
 			instances = append(instances, inst)
 			instances = io.SyncConfig(instances)
+
+			dynInstanceDisplay(ctx, instlog, instances, Interval, cpool)
 
 		case keyboard.KeyEsc:
 			State = Laststate

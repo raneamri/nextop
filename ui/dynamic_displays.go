@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/raneamri/gotop/db"
+	"github.com/raneamri/gotop/types"
 	"github.com/raneamri/gotop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -122,7 +123,7 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []
 	}
 }
 
-func dynGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarChart, queries []float64, delay time.Duration, cpool []*sql.DB) {
+func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarChart, queries []float64, delay time.Duration, cpool []*sql.DB) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -236,5 +237,18 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []types.Instance, delay time.Duration, cpool []*sql.DB) {
+
+	instlog.Reset()
+	for _, inst := range instances {
+		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write(": " + utility.Strdbms(inst.DBMS))
+		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write(": " + string((inst.DSN)))
+		instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		instlog.Write(": " + string((inst.ConnName)))
 	}
 }
