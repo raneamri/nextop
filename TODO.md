@@ -2,13 +2,12 @@
 ## QUERYING:
 - Retrieve queries for:
     - Checkpoints.
-    - Allocated memory.
     - Locking info.
-- Fix InnoDB data lack.
 
 ## INTERFACE:
 - Clean up UI.
 - Add color coding for extensive latency.
+- Fix page throttling.
 
 # FUTURE IMPLEMENTATIONS
 ## PROCESSLIST:
@@ -24,3 +23,6 @@
 
 ## OTHER:
 - Change routines so header is fetched from sql rather than manually set. (optional)
+- Make code visually more consistent.
+- Add code of conduct.
+- Set tools for modulation and plugin creation. (~50% done)
