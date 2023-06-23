@@ -23,16 +23,16 @@ While naming your connection isn't required, it is greatly recommended to name c
 Upon successful connection, instance will be written in config for easy access in the future.
 
 ## Interface
-# Help
+### Controls
 
-# Processlist
+### Processlist
 
-# InnoDB Dashboard
+### InnoDB Dashboard
 
-# Memory Dashboard
+### Memory Dashboard
 
-# Error Log
+### Error Log
 
-# Lock Log
+### Lock Log
 
-# Configs
+### Configs
