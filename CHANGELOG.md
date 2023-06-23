@@ -69,3 +69,7 @@
 - Added error logging to configs as well as fixed a potential segfault.
 - Fixed long lasting instance duplication error.
 - Configs interface improved.
+
+## Fri 23 Jun 2023:
+- Fixed my unconventional GoLang practices.
+- Much better connection pool, using three queues.

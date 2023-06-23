@@ -1,12 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/raneamri/gotop/db"
 	"github.com/raneamri/gotop/errors"
 	"github.com/raneamri/gotop/io"
 	"github.com/raneamri/gotop/types"
@@ -33,7 +31,6 @@ func main() {
 	*/
 	var (
 		instances []types.Instance
-		cpool     []*sql.DB
 		err       error
 	)
 	/*
@@ -54,9 +51,7 @@ func main() {
 
 		If user specifies wrong number of arguments, exit with code 1
 	*/
-	if len(os.Args) == 1 {
-		//instances = io.NoArgStartup(instances)
-	} else if len(os.Args) > 2 {
+	if len(os.Args) > 2 {
 		instances = io.ReadArgs(instances)
 	}
 
@@ -66,22 +61,8 @@ func main() {
 	*/
 	instances = io.SyncConfig(instances)
 
-	/*
-		Start connection pool
-		Note: add further mapping to tie instance to connection
-			  implement hashmap
-	*/
-	for i, instance := range instances {
-		if len(cpool) <= i || cpool[i] == nil {
-			cpool = append(cpool, db.Connect(instance))
-			if cpool[i] == nil {
-				fmt.Println("Connection error.")
-			}
-		}
-	}
-
 	utility.ClearTerminal()
-	ui.InterfaceLoop(instances, cpool)
+	ui.InterfaceLoop(instances)
 	fmt.Println("Bye")
 }
 

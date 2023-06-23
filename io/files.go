@@ -53,7 +53,11 @@ func HealConfig() {
 Deletes the config file and recreates it, then rewrites headers
 */
 func ResetConfig() {
-	fpath := "gotop.conf"
+	var (
+		fpath   string
+		headers [2]string
+	)
+	fpath = "gotop.conf"
 	/*
 		Recreate file
 	*/
@@ -62,7 +66,7 @@ func ResetConfig() {
 	/*
 		Re-write headers
 	*/
-	var headers = [2]string{"plugins", "connections"}
+	headers = [2]string{"plugins", "connections"}
 	for _, elem := range headers {
 		var parsed []byte = []byte("[" + elem + "]\n\n[/" + elem + "]\n")
 		ioutil.WriteFile(fpath, parsed, 0644)
@@ -76,8 +80,15 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 	/*
 		Same parsing as writeConfig
 	*/
-	fpath := "gotop.conf"
-	parser, err := ioutil.ReadFile(fpath)
+	var (
+		fpath     string
+		connStart int
+		connEnd   int
+		config    string
+	)
+
+	fpath = "gotop.conf"
+	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		return instances, err
 	}
@@ -85,35 +96,42 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 	/*
 		Only keep 'connections' section
 	*/
-	connStart := strings.Index(string(parser), "[connections]")
-	connEnd := strings.Index(string(parser), "[/connections]")
-	config := string(parser[connStart+13 : connEnd-1])
+	connStart = strings.Index(string(contents), "[connections]")
+	connEnd = strings.Index(string(contents), "[/connections]")
+	config = string(contents[connStart+13 : connEnd-1])
 
 	/*
 		Parse each line
 	*/
-	lines := strings.Split(config, "\n")
+	var lines []string = strings.Split(config, "\n")
 	for _, line := range lines {
+		var (
+			inst  types.Instance
+			pairs []string
+			parts []string
+			key   string
+			value string
+		)
+
 		line = strings.TrimSpace(line)
 		if line == "" || line == "\n" {
 			continue
 		}
 
-		var inst types.Instance
-		pairs := strings.Split(line, " ")
+		pairs = strings.Split(line, " ")
 		for _, pair := range pairs {
 			pair = strings.TrimSpace(pair)
 			if pair == "" {
 				continue
 			}
 
-			parts := strings.Split(pair, "=")
+			parts = strings.Split(pair, "=")
 			if len(parts) != 2 {
 				continue
 			}
 
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
+			key = strings.TrimSpace(parts[0])
+			value = strings.TrimSpace(parts[1])
 
 			switch key {
 			case "dbms":
@@ -135,15 +153,22 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 Removes duplicates in config
 */
 func CleanConfig() {
-	fpath := "gotop.conf"
+	var (
+		fpath       string
+		config      string
+		output      string
+		lines       []string
+		uniquelines map[string]struct{}
+		ordered     []string
+	)
+	fpath = "gotop.conf"
 	parser, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		panic(err)
 	}
-	config := string(parser)
-	lines := strings.Split(config, "\n")
-	uniquelines := make(map[string]struct{})
-	ordered := []string{}
+	config = string(parser)
+	lines = strings.Split(config, "\n")
+	uniquelines = make(map[string]struct{})
 
 	for _, line := range lines {
 		/*
@@ -172,7 +197,7 @@ func CleanConfig() {
 	/*
 		Format the unique lines
 	*/
-	output := strings.Join(ordered, "\n")
+	output = strings.Join(ordered, "\n")
 
 	/*
 		Re-write config
@@ -202,7 +227,7 @@ func SyncConfig(instances []types.Instance) []types.Instance {
 	*/
 	CleanConfig()
 	/*
-		Put instances back in
+		Clean instances and read cleaned config
 	*/
 	instances = instances[:0]
 	instances, _ = ReadConfig(instances)

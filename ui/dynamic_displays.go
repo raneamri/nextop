@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math"
 	"strconv"
@@ -26,7 +25,7 @@ import (
 Provides data dynamically to displays.go
 Note: add filter arg and rake frows
 */
-func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpool []*sql.DB) {
+func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -42,8 +41,8 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpo
 				panic(err)
 			}
 
-			for _, ndx := range ActiveConns {
-				pldata := db.GetLongQuery(cpool[ndx], db.ProcesslistLongQuery())
+			for _, key := range ActiveConns {
+				pldata := db.GetLongQuery(ConnPool[key], db.ProcesslistLongQuery())
 
 				var frow string
 				var ftable []string
@@ -94,7 +93,7 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration, cpo
 	}
 }
 
-func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []*sql.DB) {
+func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -104,7 +103,7 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []
 				"Uptime", "QPS", "Threads")
 
 			parameters := []string{"uptime", "queries", "threads_connected"}
-			statuses := db.GetStatus(cpool[0], parameters)
+			statuses := db.GetStatus(ConnPool[CurrConn], parameters)
 
 			uptime, _ := strconv.Atoi(statuses[0])
 			qps := statuses[1]
@@ -123,24 +122,27 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration, cpool []
 	}
 }
 
-func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarChart, queries []float64, delay time.Duration, cpool []*sql.DB) {
+func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarChart, queries []float64, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			parameters := []string{"queries"}
-			variables := db.GetStatus(cpool[0], parameters)
+			variables := db.GetStatus(ConnPool[CurrConn], parameters)
 			qps, _ := strconv.ParseFloat(variables[0], 64)
 			queries = append(queries, math.Round(qps))
 
-			selects := db.GetLongQuery(cpool[0], db.SelectLongQuery())
+			/*
+				Condense into one query
+			*/
+			selects := db.GetLongQuery(ConnPool[CurrConn], db.SelectLongQuery())
 			selects_int, _ := strconv.Atoi(selects[0][0])
-			inserts := db.GetLongQuery(cpool[0], db.InsertsLongQuery())
+			inserts := db.GetLongQuery(ConnPool[CurrConn], db.InsertsLongQuery())
 			inserts_int, _ := strconv.Atoi(inserts[0][0])
-			updates := db.GetLongQuery(cpool[0], db.UpdatesLongQuery())
+			updates := db.GetLongQuery(ConnPool[CurrConn], db.UpdatesLongQuery())
 			updates_int, _ := strconv.Atoi(updates[0][0])
-			deletes := db.GetLongQuery(cpool[0], db.DeletesLongQuery())
+			deletes := db.GetLongQuery(ConnPool[CurrConn], db.DeletesLongQuery())
 			deletes_int, _ := strconv.Atoi(deletes[0][0])
 			values := []int{selects_int, inserts_int, updates_int, deletes_int}
 
@@ -163,7 +165,7 @@ func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarC
 	}
 }
 
-func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, delay time.Duration, cpool []*sql.DB) {
+func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -171,7 +173,7 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 		case <-ticker.C:
 			varparameters := []string{"innodb_buffer_pool_size", "datadir", "innodb_log_file_size",
 				"innodb_log_files_in_group", "innodb_adaptive_hash_index"}
-			variables := db.GetVariable(cpool[0], varparameters)
+			variables := db.GetVariable(ConnPool[CurrConn], varparameters)
 
 			bf_pool_int, _ := strconv.Atoi(variables[0])
 			bfpool_size := "\n\n" + utility.BytesToMiB(bf_pool_int) + "\n"
@@ -197,7 +199,7 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 			dbinfo.Write(ahi_nparts, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 
 			varparameters = db.InnoDBLongParams()
-			variables = db.GetSchemaVariable(cpool[0], varparameters)
+			variables = db.GetSchemaVariable(ConnPool[CurrConn], varparameters)
 
 			/*
 				Note: fix pendings
@@ -240,7 +242,7 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 	}
 }
 
-func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []types.Instance, delay time.Duration, cpool []*sql.DB) {
+func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []types.Instance, delay time.Duration) {
 
 	instlog.Reset()
 	for _, inst := range instances {

@@ -12,12 +12,7 @@ Specific error for incorrect arguments
 */
 func ThrowArgError(arguments []string) {
 	fmt.Println("Unknown argument(s)/flag(s).")
-	fmt.Println("Appropriate arguments: <dbms> <username> -w/ws<pass> <(default=3306)port> <(default=127.0.0.1)host> <(default=none)db-name> --s")
-	/*
-		Flags yet to be implemented
-	*/
-	fmt.Println("Flags: -w  -> write password to config file as plaintext\n       -ws -> encrypt and write password safely")
-	fmt.Println("       --s -> save login to config")
+	fmt.Println("Appropriate arguments: <dbms> <dsn> optional:<conn-name>")
 	os.Exit(1)
 }
 

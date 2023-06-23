@@ -12,7 +12,7 @@ func ReadArgs(instances []types.Instance) []types.Instance {
 	if len(os.Args) == 3 || len(os.Args) == 4 {
 		var inst types.Instance
 		/*
-			Unpack non-optional values
+			Unpack values
 		*/
 		inst.DBMS = utility.Dbmsstr(os.Args[1])
 		if inst.DBMS == -1 {

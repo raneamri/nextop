@@ -5,17 +5,40 @@ import (
 	"time"
 
 	"github.com/mum4k/termdash/terminal/tcell"
+	"github.com/raneamri/gotop/db"
 	"github.com/raneamri/gotop/types"
 )
 
 var (
-	State       types.State_t
-	Laststate   types.State_t
-	Interval    time.Duration = 500 * time.Millisecond
-	ActiveConns []int         = []int{0}
+	/*
+		State trackers
+	*/
+	State     types.State_t
+	Laststate types.State_t
+	/*
+		Refresh rate
+	*/
+	Interval time.Duration = 500 * time.Millisecond
+	/*
+		Holds all drivers
+	*/
+	ConnPool map[string]*sql.DB = make(map[string]*sql.DB)
+	/*
+		Contains the key to all active connections that should be displayed
+	*/
+	ActiveConns []string
+	/*
+		Keychain for ActiveConns popped keys
+	*/
+	InactiveConns []string
+	/*
+		Holds key to main connection to be displayed
+		since some displays aren't big enough to show all instances
+	*/
+	CurrConn string
 )
 
-func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
+func InterfaceLoop(instances []types.Instance) {
 	/*
 		Interface parameters
 		Open a tcell for the interface
@@ -24,6 +47,17 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 	defer t.Close()
 	if err != nil {
 		panic(err)
+	}
+
+	/*
+		Open & map all connections
+	*/
+	for i, inst := range instances {
+		if i == 0 {
+			CurrConn = inst.ConnName
+		}
+		ConnPool[inst.ConnName] = db.Connect(inst)
+		ActiveConns = append(ActiveConns, inst.ConnName)
 	}
 
 	/*
@@ -45,7 +79,7 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 			Laststate = types.MENU
 			break
 		case types.PROCESSLIST:
-			DisplayProcesslist(t, cpool)
+			DisplayProcesslist(t)
 			Laststate = types.PROCESSLIST
 			if State == types.PROCESSLIST {
 				State = types.MENU
@@ -53,27 +87,27 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 			break
 		case types.DB_DASHBOARD:
 			Laststate = types.DB_DASHBOARD
-			DisplayDbDashboard(t, cpool)
+			DisplayDbDashboard(t)
 			if State == types.DB_DASHBOARD {
 				State = types.MENU
 			}
 			break
 		case types.MEM_DASHBOARD:
 			Laststate = types.MEM_DASHBOARD
-			DisplayMemory(t, cpool)
+			DisplayMemory(t)
 			if State == types.MEM_DASHBOARD {
 				State = types.MENU
 			}
 			break
 		case types.ERR_LOG:
-			DisplayErrorLog(t, cpool)
+			DisplayErrorLog(t)
 			Laststate = types.ERR_LOG
 			if State == types.ERR_LOG {
 				State = types.MENU
 			}
 			break
 		case types.LOCK_LOG:
-			DisplayLocks(t, cpool)
+			DisplayLocks(t)
 			Laststate = types.LOCK_LOG
 			if State == types.LOCK_LOG {
 				State = types.MENU
@@ -84,7 +118,7 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 				Force user to this state if no configs are found and if launched w/o args.
 				Prompt user to connect to database
 			*/
-			DisplayConfigs(t, instances, cpool)
+			DisplayConfigs(t, instances)
 			Laststate = types.CONFIGS
 			if State == types.CONFIGS {
 				State = types.MENU
@@ -105,8 +139,8 @@ func InterfaceLoop(instances []types.Instance, cpool []*sql.DB) {
 				Perform cleanup and close program
 			*/
 			//t.Close() fixes input buffer overflow ?
-			for _, conn := range cpool {
-				conn.Close()
+			for _, key := range ActiveConns {
+				ConnPool[key].Close()
 			}
 			return
 		}

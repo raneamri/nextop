@@ -1,7 +1,6 @@
 # TODO
 ## CONFIGS:
 - Finalise config system.
-- Make config page dynamic. X
 
 ## QUERYING:
 - Retrieve queries for:
@@ -17,6 +16,5 @@
 
 ## CONNECTIONS:
 - Add connection grouping. (fiter dependency)
-- Change db-name -> conn-name. X
 - Sync connection pool at config.
 - Add further mapping to tie instance to connection & implement hashmap (?).

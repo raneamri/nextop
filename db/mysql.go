@@ -44,7 +44,8 @@ Quoting https://github.com/go-sql-driver/mysql#features:
 Unwrap instance into db pointer
 */
 func Connect(instance types.Instance) *sql.DB {
-	driver, _ := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	var driver *sql.DB
+	driver, _ = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
 	driver.SetConnMaxLifetime(time.Minute * 3)
 	driver.SetMaxOpenConns(10)
 	driver.SetMaxIdleConns(10)
@@ -61,7 +62,11 @@ Returns true on success, false on fail
 Used to authentificate connections
 */
 func Ping(instance types.Instance) bool {
-	driver, err := sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	var (
+		driver *sql.DB
+		err    error
+	)
+	driver, err = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
 	if err != nil {
 		return false
 	}
@@ -79,7 +84,7 @@ func GetStatus(driver *sql.DB, parameters []string) []string {
 	var results []string
 
 	for _, param := range parameters {
-		query := `SHOW STATUS LIKE '` + param + `';`
+		var query string = `SHOW STATUS LIKE '` + param + `';`
 		rows, err := Query(driver, query)
 		if err != nil {
 			return []string{"-1"}
@@ -98,7 +103,7 @@ func GetVariable(driver *sql.DB, parameters []string) []string {
 	var values []string
 
 	for _, param := range parameters {
-		query := `SHOW VARIABLES LIKE '` + param + `';`
+		var query string = `SHOW VARIABLES LIKE '` + param + `';`
 		rows, err := Query(driver, query)
 		if err != nil {
 			values = append(values, "-1")
@@ -117,7 +122,7 @@ func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
 	var values []string
 
 	for _, param := range parameters {
-		query := `SELECT variable_name, variable_value
+		var query string = `SELECT variable_name, variable_value
 					FROM performance_schema.global_status
 					WHERE variable_name LIKE '` + param + `';`
 		rows, err := Query(driver, query)

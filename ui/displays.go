@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -187,7 +186,7 @@ Format of this display is:
 	container-3 (top-mid): barchart showing sel/ins/del ...
 	container-4 (top-right): graph shows lifeline as graph
 */
-func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
+func DisplayProcesslist(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	/*
@@ -195,14 +194,14 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	*/
 	pl_table, _ := text.New()
 
-	go dynProcesslist(ctx, pl_table, Interval*2, cpool)
+	go dynProcesslist(ctx, pl_table, Interval*2)
 
 	/*
 		QPS/Uptime data (container-2)
 	*/
 	tl_table, _ := text.New()
 
-	go dynQPSUPT(ctx, tl_table, Interval, cpool)
+	go dynQPSUPT(ctx, tl_table, Interval)
 
 	/*
 		SEL/INS ... (container-3)
@@ -256,7 +255,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 		panic(err)
 	}
 
-	go dynPLGraphs(ctx, lc, bc, queries, Interval, cpool)
+	go dynPLGraphs(ctx, lc, bc, queries, Interval)
 
 	cont, err := container.New(
 		t,
@@ -337,7 +336,7 @@ func DisplayProcesslist(t *tcell.Terminal, cpool []*sql.DB) {
 	}
 }
 
-func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.DB) {
+func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
@@ -505,7 +504,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 			instances = append(instances, inst)
 			instances = io.SyncConfig(instances)
 
-			dynInstanceDisplay(ctx, instlog, instances, Interval, cpool)
+			dynInstanceDisplay(ctx, instlog, instances, Interval)
 
 		case keyboard.KeyEsc:
 			State = Laststate
@@ -522,7 +521,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance, cpool []*sql.
 container-1 (top left): InnoDB Info
 container-2 (right): donuts
 */
-func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
+func DisplayDbDashboard(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	/*
@@ -548,7 +547,7 @@ func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 	infotext, _ := text.New()
 	bfptext, _ := text.New()
 
-	go dynDbDashboard(ctx, infotext, bfptext, Interval, cpool)
+	go dynDbDashboard(ctx, infotext, bfptext, Interval)
 
 	cont, err := container.New(
 		t,
@@ -642,7 +641,7 @@ func DisplayDbDashboard(t *tcell.Terminal, cpool []*sql.DB) {
 	}
 }
 
-func DisplayMemory(t *tcell.Terminal, cpool []*sql.DB) {
+func DisplayMemory(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	//mem_headers := []string{"Area", "Memory Allocation"}
@@ -720,7 +719,7 @@ func DisplayMemory(t *tcell.Terminal, cpool []*sql.DB) {
 	}
 }
 
-func DisplayErrorLog(t *tcell.Terminal, cpool []*sql.DB) {
+func DisplayErrorLog(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cont, err := container.New(
@@ -787,7 +786,7 @@ func DisplayErrorLog(t *tcell.Terminal, cpool []*sql.DB) {
 	}
 }
 
-func DisplayLocks(t *tcell.Terminal, cpool []*sql.DB) {
+func DisplayLocks(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cont, err := container.New(

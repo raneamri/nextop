@@ -9,6 +9,10 @@ import (
 )
 
 /*
+All these functions are redundant
+*/
+
+/*
 Prompts user to pick a DBMS
 */
 func PickDBMS() types.DBMS_t {
