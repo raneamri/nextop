@@ -73,3 +73,5 @@
 ## Fri 23 Jun 2023:
 - Fixed my unconventional GoLang practices.
 - Much better connection pool, using three queues.
+- Added in-interface connection cycling.
+- Formatted some of the data better.

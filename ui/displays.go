@@ -246,7 +246,7 @@ func DisplayProcesslist(t *tcell.Terminal) {
 
 	lc, err := linechart.New(
 		linechart.YAxisAdaptive(),
-		linechart.YAxisFormattedValues(linechart.ValueFormatterSuffix(0, "")),
+		linechart.YAxisFormattedValues(linechart.ValueFormatterRoundWithSuffix("")),
 		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
 		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
@@ -277,10 +277,10 @@ func DisplayProcesslist(t *tcell.Terminal) {
 							),
 							container.Right(
 								container.Border(linestyle.Light),
-								container.BorderTitle("Queries/h"),
+								container.BorderTitle("QPS"),
 								container.PlaceWidget(lc),
 							),
-							container.SplitPercent(30),
+							container.SplitPercent(28),
 						),
 					),
 					container.SplitPercent(30),
@@ -532,7 +532,7 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 		InnoDB info (container-1)
 	*/
 
-	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Redo Log\n",
+	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Path Log\n",
 		"      InnoDB Logfile Size\n", "       Num InnoDB Logfile\n\n", "          Checkpoint Info\n",
 		"           Checkpoint Age\n\n", "      Adaptive Hash Index\n", "       Num AHI Partitions"}
 	infolabels, _ := text.New()
@@ -560,7 +560,6 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 		container.BorderTitle("INNODB DASHBOARD (? for help)"),
 		container.SplitVertical(
 			container.Left(
-				container.Border(linestyle.Light),
 				container.SplitHorizontal(
 					container.Top(
 						container.Border(linestyle.Light),
@@ -603,7 +602,37 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 					container.SplitPercent(50),
 				),
 			),
-			container.Right(),
+			container.Right(
+				container.SplitHorizontal(
+					container.Top(
+						container.SplitVertical(
+							container.Left(
+								container.BorderTitle("Checkpoint Age %"),
+								container.Border(linestyle.Light),
+							),
+							container.Right(
+								container.BorderTitle("Buffer Pool %"),
+								container.Border(linestyle.Light),
+							),
+							container.SplitPercent(50),
+						),
+					),
+					container.Bottom(
+						container.SplitVertical(
+							container.Left(
+								container.BorderTitle("AHI Ratio %"),
+								container.Border(linestyle.Light),
+							),
+							container.Right(
+								container.BorderTitle("Disk Read Ratio %"),
+								container.Border(linestyle.Light),
+							),
+							container.SplitPercent(50),
+						),
+					),
+					container.SplitPercent(50),
+				),
+			),
 			container.SplitPercent(50),
 		),
 	)

@@ -233,3 +233,69 @@ func SyncConfig(instances []types.Instance) []types.Instance {
 	instances, _ = ReadConfig(instances)
 	return instances
 }
+
+/*
+Takes the value of the setting type and returns its value as a string
+*/
+func FetchSetting(param string) string {
+	var (
+		fpath         string
+		settingsStart int
+		settingsEnd   int
+		config        string
+		pairs         []string
+		parts         []string
+	)
+
+	fpath = "gotop.conf"
+	contents, err := ioutil.ReadFile(fpath)
+	if err != nil {
+		panic(err)
+	}
+
+	/*
+		Only keep 'settings' section
+	*/
+	settingsStart = strings.Index(string(contents), "[settings]")
+	settingsEnd = strings.Index(string(contents), "[/settings]")
+	config = string(contents[settingsStart+10 : settingsEnd-1])
+
+	/*
+		Parse each line
+	*/
+	var lines []string = strings.Split(config, "\n")
+	for _, line := range lines {
+		var (
+			value string
+			key   string
+		)
+
+		line = strings.TrimSpace(line)
+		if line == "" || line == "\n" {
+			continue
+		}
+
+		pairs = strings.Split(line, " ")
+		for _, pair := range pairs {
+			pair = strings.TrimSpace(pair)
+			if pair == "" {
+				continue
+			}
+
+			parts = strings.Split(pair, "=")
+			if len(parts) != 2 {
+				continue
+			}
+
+			key = strings.TrimSpace(parts[0])
+			value = strings.TrimSpace(parts[1])
+
+			switch key {
+			case param:
+				return value
+			}
+		}
+	}
+
+	return string("-1")
+}

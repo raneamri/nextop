@@ -2,10 +2,12 @@ package ui
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/raneamri/gotop/db"
+	"github.com/raneamri/gotop/io"
 	"github.com/raneamri/gotop/types"
 )
 
@@ -18,7 +20,7 @@ var (
 	/*
 		Refresh rate
 	*/
-	Interval time.Duration = 500 * time.Millisecond
+	Interval time.Duration
 	/*
 		Holds all drivers
 	*/
@@ -48,6 +50,12 @@ func InterfaceLoop(instances []types.Instance) {
 	if err != nil {
 		panic(err)
 	}
+
+	/*
+		Fetch refresh rate from config
+	*/
+	interval_int, _ := strconv.Atoi(io.FetchSetting("refresh-rate"))
+	Interval = time.Duration(interval_int) * time.Millisecond
 
 	/*
 		Open & map all connections

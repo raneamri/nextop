@@ -13,8 +13,11 @@
 - Add filters
 - Add color.
 - Clean up UI.
+- Add color coded for extensive latency.
 
 ## CONNECTIONS:
 - Add connection grouping. (fiter dependency)
 - Sync connection pool at config.
 - Add further mapping to tie instance to connection & implement hashmap (?).
+
+# FUTURE IMPLEMENTATIONS

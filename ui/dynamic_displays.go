@@ -99,22 +99,36 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
-			tl_header := fmt.Sprintf("%-15v %-20v %-5v\n",
-				"Uptime", "QPS", "Threads")
+			tl_header := fmt.Sprintf("%-11v %-16v %-7v %-5v\n",
+				"Connection", "Uptime", "QPS", "Threads")
 
-			parameters := []string{"uptime", "queries", "threads_connected"}
-			statuses := db.GetStatus(ConnPool[CurrConn], parameters)
+			var tabled_data []string
 
-			uptime, _ := strconv.Atoi(statuses[0])
-			qps := statuses[1]
-			thrds := statuses[2]
+			for _, key := range ActiveConns {
+				parameters := []string{"uptime", "queries", "threads_connected"}
+				statuses := db.GetStatus(ConnPool[key], parameters)
+
+				uptime, _ := strconv.Atoi(statuses[0])
+				qps_int, _ := strconv.Atoi(fmt.Sprint(statuses[1]))
+				qps := utility.Fnum(qps_int)
+				thrds := statuses[2]
+
+				frow := fmt.Sprintf("%-11v %-16v %-7v %-5v\n", key, utility.Ftime(uptime), qps, fmt.Sprint(thrds))
+				tabled_data = append(tabled_data, frow)
+			}
 
 			tl.Reset()
 			if err := tl.Write(tl_header, text.WriteCellOpts(cell.Bold())); err != nil {
 				panic(err)
 			}
-			frow := fmt.Sprintf("%-15v %-20v %-5v", utility.Ftime(uptime), qps, fmt.Sprint(thrds))
-			tl.Write(frow, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+
+			for i, row := range tabled_data {
+				if i%2 == 0 {
+					tl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+				} else {
+					tl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+				}
+			}
 
 		case <-ctx.Done():
 			return
@@ -177,15 +191,15 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 
 			bf_pool_int, _ := strconv.Atoi(variables[0])
 			bfpool_size := "\n\n" + utility.BytesToMiB(bf_pool_int) + "\n"
-			bfpool_inst := "1" + "\n\n" // omitted since not working in SQL 8+ for now
+			bfpool_inst := "OMITTED (SQL 8+)" + "\n\n" // omitted since not working in SQL 8+ for now
 			redolog := variables[1] + "\n"
 			intlogfile, _ := strconv.Atoi(variables[2])
 			logfile_size := utility.BytesToMiB(intlogfile) + "\n"
 			logfilen := variables[3] + "\n\n"
-			checkpoint_info := "0MiB" + "\n" // omitted (not sure what it means)
-			checkpoint_age := "0" + "\n\n"   // omitted too
+			checkpoint_info := "OMITTED" + "\n"  // omitted (not sure what it means)
+			checkpoint_age := "OMITTED" + "\n\n" // omitted too
 			ahi := variables[4] + "\n"
-			ahi_nparts := "1" + "\n" // omitted
+			ahi_nparts := "OMITTED" + "\n" // omitted
 
 			dbinfo.Reset()
 			dbinfo.Write(bfpool_size, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))

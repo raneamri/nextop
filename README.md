@@ -15,11 +15,24 @@ while in the correct directory & can be called using the command:
 
 or called with arguments:
 ```bash
-    ./gotop <dbms> "<dsn>" <db-display-name>
+    ./gotop <dbms> "<dsn>" <conn-name>
 ```
 where the quotation marks around the DSN is necessary on Mac M1 zsh and the last argument is completely optional.
+While naming your connection isn't required, it is greatly recommended to name connections if you're monitoring multiple.
 
-Upon successful TCP connection, instance will be written in config for easy access in the future.
+Upon successful connection, instance will be written in config for easy access in the future.
 
 ## Interface
-Coming soon.
+# Help
+
+# Processlist
+
+# InnoDB Dashboard
+
+# Memory Dashboard
+
+# Error Log
+
+# Lock Log
+
+# Configs
