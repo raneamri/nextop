@@ -369,7 +369,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 	dbmsin, err := textinput.New(
 		textinput.Label("DBMS ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
-		textinput.MaxWidthCells(35),
+		textinput.MaxWidthCells(45),
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
@@ -378,7 +378,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 	dsnin, err := textinput.New(
 		textinput.Label("DSN  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
-		textinput.MaxWidthCells(35),
+		textinput.MaxWidthCells(45),
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
@@ -387,7 +387,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 	namein, err := textinput.New(
 		textinput.Label("NAME ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
-		textinput.MaxWidthCells(35),
+		textinput.MaxWidthCells(45),
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
@@ -510,6 +510,9 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 
 			ConnPool[inst.ConnName] = db.Connect(inst)
 			ActiveConns = append(ActiveConns, inst.ConnName)
+			if len(ActiveConns) == 1 {
+				CurrConn = ActiveConns[0]
+			}
 
 			instances = append(instances, inst)
 			instances = io.SyncConfig(instances)

@@ -60,12 +60,14 @@ func InterfaceLoop(instances []types.Instance) {
 	/*
 		Open & map all connections
 	*/
-	for i, inst := range instances {
-		if i == 0 {
-			CurrConn = inst.ConnName
+	if len(instances) > 0 {
+		for i, inst := range instances {
+			if i == 0 {
+				CurrConn = inst.ConnName
+			}
+			ConnPool[inst.ConnName] = db.Connect(inst)
+			ActiveConns = append(ActiveConns, inst.ConnName)
 		}
-		ConnPool[inst.ConnName] = db.Connect(inst)
-		ActiveConns = append(ActiveConns, inst.ConnName)
 	}
 
 	/*
