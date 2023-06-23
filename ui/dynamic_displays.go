@@ -31,16 +31,13 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
-			pl.Reset()
 			/*
 				Write header
 			*/
 			pl_header := fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
 				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
-			if err := pl.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
-				panic(err)
-			}
 
+			var flipper int = 1
 			for _, key := range ActiveConns {
 				pldata := db.GetLongQuery(ConnPool[key], db.ProcesslistLongQuery())
 
@@ -72,17 +69,23 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 					ftable = append([]string{frow}, ftable...)
 				}
 
-				for i, row := range ftable {
-					if i%2 == 0 {
+				pl.Reset()
+				if err := pl.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
+					panic(err)
+				}
+				for _, row := range ftable {
+					if flipper > 0 {
 						err := pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 						if err != nil {
 							panic(err)
 						}
+						flipper *= -1
 					} else {
 						err := pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 						if err != nil {
 							panic(err)
 						}
+						flipper *= -1
 					}
 				}
 			}
