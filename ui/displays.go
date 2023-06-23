@@ -373,7 +373,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" Ex. MySQL"),
+		textinput.PlaceHolder(" <mysql, oracle ...>"),
 	)
 	dsnin, err := textinput.New(
 		textinput.Label("DSN  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
@@ -391,7 +391,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" Optional"),
+		textinput.PlaceHolder(" <recommended>"),
 	)
 
 	cont, err := container.New(
