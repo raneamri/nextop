@@ -833,30 +833,41 @@ func DisplayMemory(t *tcell.Terminal) {
 func DisplayErrorLog(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var (
+		err_ot   []float64
+		warn_ot  []float64
+		other_ot []float64
+	)
+	log, _ := text.New()
+
+	go dynErrorLog(ctx, log, err_ot, warn_ot, other_ot, Interval)
+
 	cont, err := container.New(
 		t,
 		container.ID("err_log"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("ERROR LOG (? for help)"),
+		container.PlaceWidget(log),
 		container.SplitHorizontal(
 			container.Top(
 				container.SplitVertical(
 					container.Left(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Filters"),
+						container.BorderTitle("Graph (?)"),
 					),
 					container.Right(
 						container.Border(linestyle.Light),
-						container.BorderTitle("2"),
+						container.BorderTitle("Pinboard"),
 					),
-					container.SplitPercent(70),
+					container.SplitPercent(60),
 				),
 			),
 			container.Bottom(
 				container.Border(linestyle.Light),
-				container.BorderTitle("Errors"),
+				container.BorderTitle("Log"),
+				container.PlaceWidget(log),
 			),
-			container.SplitPercent(40),
+			container.SplitPercent(30),
 		),
 	)
 	if err != nil {
@@ -900,11 +911,27 @@ func DisplayErrorLog(t *tcell.Terminal) {
 func DisplayLocks(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	log, _ := text.New()
+	active_txt, _ := text.New()
+
 	cont, err := container.New(
 		t,
 		container.ID("lock_log"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("LOCKS (? for help)"),
+		container.BorderTitle("LOCKS LOG (? for help)"),
+		container.SplitHorizontal(
+			container.Top(
+				container.Border(linestyle.Light),
+				container.BorderTitle("Active (?)"),
+				container.PlaceWidget(log),
+			),
+			container.Bottom(
+				container.Border(linestyle.Light),
+				container.BorderTitle("Locks"),
+				container.PlaceWidget(active_txt),
+			),
+			container.SplitPercent(20),
+		),
 	)
 	if err != nil {
 		panic(err)

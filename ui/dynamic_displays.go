@@ -323,7 +323,7 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 			hardwalloc1_txt.Reset()
 			hardwalloc2_txt.Reset()
 			hardwalloc1_txt.Write("\n\n\n\n                   Disk\n                    RAM", text.WriteCellOpts(cell.Bold()))
-			hardwalloc2_txt.Write("\n\n    Current     (Max)\n\n", text.WriteCellOpts(cell.Bold()))
+			hardwalloc2_txt.Write("\n\n    Current  (Max)\n\n", text.WriteCellOpts(cell.Bold()))
 			for k, chunk := range ramndisk_alloc {
 				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
 				if k%2 == 0 {
@@ -351,5 +351,32 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 			return
 		}
 	}
+}
 
+func dynErrorLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot []float64,
+	other_ot []float64, delay time.Duration) {
+	ticker := time.NewTicker(delay)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func dynLockLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot []float64,
+	other_ot []float64, delay time.Duration) {
+	ticker := time.NewTicker(delay)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+
+		case <-ctx.Done():
+			return
+		}
+	}
 }
