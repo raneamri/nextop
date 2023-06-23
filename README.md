@@ -24,15 +24,30 @@ Upon successful connection, instance will be written in config for easy access i
 
 ## Interface
 ### Controls
-
-### Processlist
-
-### InnoDB Dashboard
-
-### Memory Dashboard
-
-### Error Log
-
-### Lock Log
+Will add
 
 ### Configs
+If gotop is called for the first time with no arguments, you will be sent directly to this page:
+
+![ConfigPage](https://github.com/raneamri/gotop/blob/main/img/Screenshot%202023-06-23%20at%2017.50.50.png)
+
+To proceed, enter a valid DSN and its DBMS*. Naming the connection is highly recommended if you plan and using multiple connections.
+
+*As of Fri 23rd June 2023, the only DBMS supported is MySQL.
+
+### Processlist
+![Processlist](https://github.com/raneamri/gotop/blob/main/img/Screenshot%202023-06-23%20at%2017.51.34.png)
+
+Filtering for processlist coming in July.
+
+### InnoDB Dashboard
+![InnoDBDashboard](https://github.com/raneamri/gotop/blob/main/img/Screenshot%202023-06-23%20at%2017.51.54.png)
+
+### Memory Dashboard
+![MemoryDashboard](https://github.com/raneamri/gotop/blob/main/img/Screenshot%202023-06-23%20at%2017.52.09.png)
+
+### Error Log
+![ErrorLog]
+
+### Lock Log
+![LockLog]
