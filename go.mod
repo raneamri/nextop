@@ -17,12 +17,3 @@ require (
 	golang.org/x/term v0.9.0 // indirect
 	golang.org/x/text v0.10.0 // indirect
 )
-
-replace (
-	github.com/raneamri/gotop/errors => ./errors
-	github.com/raneamri/gotop/io => ./io
-	github.com/raneamri/gotop/services => ./services
-	github.com/raneamri/gotop/types => ./types
-	github.com/raneamri/gotop/ui => ./ui
-	github.com/raneamri/gotop/util => ./util
-)

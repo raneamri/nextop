@@ -61,8 +61,8 @@ func main() {
 	*/
 	instances = io.SyncConfig(instances)
 
-	utility.ClearTerminal()
 	ui.InterfaceLoop(instances)
+
 	fmt.Println("Bye")
 }
 

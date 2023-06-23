@@ -13,6 +13,7 @@ import (
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"github.com/mum4k/termdash/widgets/barchart"
+	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/mum4k/termdash/widgets/textinput"
@@ -193,6 +194,7 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		Processlist data (container-1)
 	*/
 	pl_table, _ := text.New()
+	pl_table.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	go dynProcesslist(ctx, pl_table, Interval*2)
 
@@ -200,6 +202,7 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		QPS/Uptime data (container-2)
 	*/
 	tl_table, _ := text.New()
+	tl_table.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	go dynQPSUPT(ctx, tl_table, Interval)
 
@@ -209,10 +212,10 @@ func DisplayProcesslist(t *tcell.Terminal) {
 
 	bc, err := barchart.New(
 		barchart.BarColors([]cell.Color{
+			cell.ColorNumber(24),
 			cell.ColorNumber(25),
-			cell.ColorNumber(30),
-			cell.ColorNumber(35),
-			cell.ColorNumber(40),
+			cell.ColorNumber(26),
+			cell.ColorNumber(27),
 		}),
 		barchart.ValueColors([]cell.Color{
 			cell.ColorWhite,
@@ -480,7 +483,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 
 			name = namein.ReadAndClear()
 			if name == "" {
-				log_msg = "\n   Warning: Blank connection name. (non-fatal)"
+				log_msg = "\n   Warning: Blank connection name!"
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorYellow)))
 				name = "<unnamed>"
 			}
@@ -504,6 +507,9 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 				log_msg = "\n   Success! Connection established."
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 			}
+
+			ConnPool[inst.ConnName] = db.Connect(inst)
+			ActiveConns = append(ActiveConns, inst.ConnName)
 
 			instances = append(instances, inst)
 			instances = io.SyncConfig(instances)
@@ -532,7 +538,7 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 		InnoDB info (container-1)
 	*/
 
-	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Path Log\n",
+	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Redo Log\n",
 		"      InnoDB Logfile Size\n", "       Num InnoDB Logfile\n\n", "          Checkpoint Info\n",
 		"           Checkpoint Age\n\n", "      Adaptive Hash Index\n", "       Num AHI Partitions"}
 	infolabels, _ := text.New()
@@ -549,9 +555,35 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 	}
 
 	infotext, _ := text.New()
+	infotext.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	bfptext, _ := text.New()
+	bfptext.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	go dynDbDashboard(ctx, infotext, bfptext, Interval)
+	checkpoint_donut, err := donut.New(
+		donut.HolePercent(65),
+		donut.CellOpts(cell.FgColor(cell.ColorNumber(24))),
+		donut.Label("Checkpoint Age %", cell.FgColor(cell.ColorWhite)),
+	)
+
+	pool_donut, err := donut.New(
+		donut.HolePercent(65),
+		donut.CellOpts(cell.FgColor(cell.ColorNumber(25))),
+		donut.Label("Buffer Pool %", cell.FgColor(cell.ColorWhite)),
+	)
+
+	ahi_donut, err := donut.New(
+		donut.HolePercent(65),
+		donut.CellOpts(cell.FgColor(cell.ColorNumber(26))),
+		donut.Label("AHI Ratio %", cell.FgColor(cell.ColorWhite)),
+	)
+
+	disk_donut, err := donut.New(
+		donut.HolePercent(65),
+		donut.CellOpts(cell.FgColor(cell.ColorNumber(27))),
+		donut.Label("Disk Read %", cell.FgColor(cell.ColorWhite)),
+	)
+
+	go dynDbDashboard(ctx, infotext, bfptext, checkpoint_donut, pool_donut, ahi_donut, disk_donut, Interval)
 
 	cont, err := container.New(
 		t,
@@ -607,12 +639,12 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 					container.Top(
 						container.SplitVertical(
 							container.Left(
-								container.BorderTitle("Checkpoint Age %"),
 								container.Border(linestyle.Light),
+								container.PlaceWidget(checkpoint_donut),
 							),
 							container.Right(
-								container.BorderTitle("Buffer Pool %"),
 								container.Border(linestyle.Light),
+								container.PlaceWidget(pool_donut),
 							),
 							container.SplitPercent(50),
 						),
@@ -620,12 +652,12 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 					container.Bottom(
 						container.SplitVertical(
 							container.Left(
-								container.BorderTitle("AHI Ratio %"),
 								container.Border(linestyle.Light),
+								container.PlaceWidget(ahi_donut),
 							),
 							container.Right(
-								container.BorderTitle("Disk Read Ratio %"),
 								container.Border(linestyle.Light),
+								container.PlaceWidget(disk_donut),
 							),
 							container.SplitPercent(50),
 						),
@@ -677,7 +709,25 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 func DisplayMemory(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	//mem_headers := []string{"Area", "Memory Allocation"}
+	dballoc1_txt, _ := text.New()
+	dballoc2_txt, _ := text.New()
+	usralloc1_txt, _ := text.New()
+	usralloc2_txt, _ := text.New()
+	dballoc_lc, _ := linechart.New(
+		linechart.YAxisAdaptive(),
+		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
+		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+	)
+	hardwalloc1_txt, _ := text.New()
+	hardwalloc2_txt, _ := text.New()
+
+	/*
+		Slice to hole allocated memory over time
+	*/
+	var alt []float64
+
+	go dynMemoryDashboard(ctx, dballoc1_txt, dballoc2_txt, usralloc1_txt, usralloc2_txt, dballoc_lc, hardwalloc1_txt, hardwalloc2_txt, alt, Interval)
 
 	cont, err := container.New(
 		t,
@@ -690,12 +740,30 @@ func DisplayMemory(t *tcell.Terminal) {
 					container.Top(
 						container.Border(linestyle.Light),
 						container.BorderTitle("Db Memory Allocation"),
+						container.SplitVertical(
+							container.Left(
+								container.PlaceWidget(dballoc1_txt),
+							),
+							container.Right(
+								container.PlaceWidget(dballoc2_txt),
+							),
+							container.SplitPercent(60),
+						),
 					),
 					container.Bottom(
 						container.Border(linestyle.Light),
 						container.BorderTitle("Users Memory Allocation"),
+						container.SplitVertical(
+							container.Left(
+								container.PlaceWidget(usralloc1_txt),
+							),
+							container.Right(
+								container.PlaceWidget(usralloc2_txt),
+							),
+							container.SplitPercent(60),
+						),
 					),
-					container.SplitPercent(45),
+					container.SplitPercent(65),
 				),
 			),
 			container.Right(
@@ -703,12 +771,22 @@ func DisplayMemory(t *tcell.Terminal) {
 					container.Top(
 						container.Border(linestyle.Light),
 						container.BorderTitle("Total Allocated Memory"),
+						container.PlaceWidget(dballoc_lc),
 					),
 					container.Bottom(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Empty"),
+						container.BorderTitle("Disk / RAM"),
+						container.SplitVertical(
+							container.Left(
+								container.PlaceWidget(hardwalloc1_txt),
+							),
+							container.Right(
+								container.PlaceWidget(hardwalloc2_txt),
+							),
+							container.SplitPercent(50),
+						),
 					),
-					container.SplitPercent(55),
+					container.SplitPercent(65),
 				),
 			),
 			container.SplitPercent(50),

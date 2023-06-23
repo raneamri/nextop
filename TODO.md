@@ -1,7 +1,4 @@
 # TODO
-## CONFIGS:
-- Finalise config system.
-
 ## QUERYING:
 - Retrieve queries for:
     - Checkpoints.
@@ -10,14 +7,20 @@
 - Fix InnoDB data lack.
 
 ## INTERFACE:
-- Add filters
-- Add color.
 - Clean up UI.
-- Add color coded for extensive latency.
-
-## CONNECTIONS:
-- Add connection grouping. (fiter dependency)
-- Sync connection pool at config.
-- Add further mapping to tie instance to connection & implement hashmap (?).
+- Add color coding for extensive latency.
 
 # FUTURE IMPLEMENTATIONS
+## PROCESSLIST:
+- Add specific thread analysis.
+
+## INTERFACE:
+- Add filters
+- Add color.
+- Add connection grouping. (fiter dependency)
+
+## CONFIGS:
+- Add further settings to config system.
+
+## OTHER:
+- Change routines so header is fetched from sql rather than manually set. (optional)

@@ -53,3 +53,30 @@ func DeletesLongQuery() string {
 func ErrorShortQuery() string {
 	return `SHOW ERRORS;`
 }
+
+func UserMemoryShortQuery() string {
+	return `SELECT user, current_allocated, current_max_alloc
+			FROM sys.memory_by_user_by_current_bytes
+			WHERE user != "background";`
+}
+
+func GlobalAllocatedShortQuery() string {
+	return `SELECT total_allocated FROM sys.memory_global_total;`
+}
+
+func SpecificAllocatedLongQuery() string {
+	return `SELECT SUBSTRING_INDEX(event_name,'/',2) AS code_area,
+			format_bytes(SUM(current_alloc)) AS current_alloc,
+			sum(current_alloc) current_alloc_num
+			FROM sys.x$memory_global_by_current_bytes
+			GROUP BY SUBSTRING_INDEX(event_name,'/',2)
+			ORDER BY SUM(current_alloc) DESC;`
+}
+
+func RamNDiskLongQuery() string {
+	return `SELECT event_name,
+			format_bytes(CURRENT_NUMBER_OF_BYTES_USED) AS current_alloc,
+			format_bytes(HIGH_NUMBER_OF_BYTES_USED) AS high_alloc
+			FROM performance_schema.memory_summary_global_by_event_name
+			WHERE event_name LIKE 'memory/temptable/%';`
+}

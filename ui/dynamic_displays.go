@@ -15,6 +15,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mum4k/termdash/cell"
 	"github.com/mum4k/termdash/widgets/barchart"
+	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
 
@@ -182,32 +183,34 @@ func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarC
 	}
 }
 
-func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, delay time.Duration) {
+func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
+	checkpoint_donut *donut.Donut, pool_donut *donut.Donut, ahi_donut *donut.Donut,
+	disk_donut *donut.Donut, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			varparameters := []string{"innodb_buffer_pool_size", "datadir", "innodb_log_file_size",
-				"innodb_log_files_in_group", "innodb_adaptive_hash_index"}
-			variables := db.GetVariable(ConnPool[CurrConn], varparameters)
+			varparameters := []string{"innodb_buffer_pool_size", "innodb_buffer_pool_instances", "innodb_log_file_size",
+				"innodb_log_files_in_group", "innodb_adaptive_hash_index", "innodb_adaptive_hash_index_parts"}
+			variables := db.GetSchemaVariable(ConnPool[CurrConn], varparameters)
 
 			bf_pool_int, _ := strconv.Atoi(variables[0])
 			bfpool_size := "\n\n" + utility.BytesToMiB(bf_pool_int) + "\n"
-			bfpool_inst := "OMITTED (SQL 8+)" + "\n\n" // omitted since not working in SQL 8+ for now
-			redolog := variables[1] + "\n"
+			bfpool_inst := variables[1] + "\n\n"
+			redolog := db.GetSchemaStatus(ConnPool[CurrConn], []string{"innodb_redo_log_enabled"})
 			intlogfile, _ := strconv.Atoi(variables[2])
 			logfile_size := utility.BytesToMiB(intlogfile) + "\n"
 			logfilen := variables[3] + "\n\n"
 			checkpoint_info := "OMITTED" + "\n"  // omitted (not sure what it means)
 			checkpoint_age := "OMITTED" + "\n\n" // omitted too
 			ahi := variables[4] + "\n"
-			ahi_nparts := "OMITTED" + "\n" // omitted
+			ahi_nparts := variables[5] + "\n" // omitted
 
 			dbinfo.Reset()
 			dbinfo.Write(bfpool_size, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 			dbinfo.Write(bfpool_inst, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			dbinfo.Write(redolog, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+			dbinfo.Write(redolog[0]+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 			dbinfo.Write(logfile_size, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 			dbinfo.Write(logfilen, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 			dbinfo.Write(checkpoint_info, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
@@ -216,7 +219,7 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 			dbinfo.Write(ahi_nparts, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 
 			varparameters = db.InnoDBLongParams()
-			variables = db.GetSchemaVariable(ConnPool[CurrConn], varparameters)
+			variables = db.GetSchemaStatus(ConnPool[CurrConn], varparameters)
 
 			/*
 				Note: fix pendings
@@ -253,6 +256,11 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text, 
 			bfpinfo.Write(pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 			bfpinfo.Write(os_pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 
+			checkpoint_donut.Percent(50)
+			pool_donut.Percent(50)
+			ahi_donut.Percent(50)
+			disk_donut.Percent(50)
+
 		case <-ctx.Done():
 			return
 		}
@@ -270,4 +278,78 @@ func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []typ
 		instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + string((inst.ConnName)))
 	}
+}
+
+func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_txt *text.Text,
+	usralloc1_txt *text.Text, usralloc2_txt *text.Text, dballoc_lc *linechart.LineChart, hardwalloc1_txt *text.Text,
+	hardwalloc2_txt *text.Text, alt []float64, delay time.Duration) {
+	ticker := time.NewTicker(delay)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			total_alloc := db.GetLongQuery(ConnPool[CurrConn], db.GlobalAllocatedShortQuery())
+			alloc_by_area := db.GetLongQuery(ConnPool[CurrConn], db.SpecificAllocatedLongQuery())
+			usr_alloc := db.GetLongQuery(ConnPool[CurrConn], db.UserMemoryShortQuery())
+			ramndisk_alloc := db.GetLongQuery(ConnPool[CurrConn], db.RamNDiskLongQuery())
+
+			dballoc1_txt.Reset()
+			dballoc2_txt.Reset()
+			dballoc1_txt.Write("\n\n   Total allocated\n\n", text.WriteCellOpts(cell.Bold()))
+			dballoc2_txt.Write("\n\n"+total_alloc[0][0]+"\n\n", text.WriteCellOpts(cell.Bold()))
+			for i, chunk := range alloc_by_area {
+				dballoc1_txt.Write("   "+chunk[0]+"\n", text.WriteCellOpts(cell.Bold()))
+				if i%2 == 0 {
+					dballoc2_txt.Write(chunk[1]+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+				} else {
+					dballoc2_txt.Write(chunk[1]+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+				}
+			}
+
+			usralloc1_txt.Reset()
+			usralloc2_txt.Reset()
+			usralloc1_txt.Write("\n\n   User\n\n", text.WriteCellOpts(cell.Bold()))
+			usralloc2_txt.Write("\n\nCurrent  (Max)\n\n", text.WriteCellOpts(cell.Bold()))
+			for j, chunk := range usr_alloc {
+				usralloc1_txt.Write("   "+chunk[0]+"\n", text.WriteCellOpts(cell.Bold()))
+				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
+				if j%2 == 0 {
+					usralloc2_txt.Write(chunk[1]+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+				} else {
+					usralloc2_txt.Write(chunk[1]+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+				}
+			}
+
+			hardwalloc1_txt.Reset()
+			hardwalloc2_txt.Reset()
+			hardwalloc1_txt.Write("\n\n\n\n                   Disk\n                    RAM", text.WriteCellOpts(cell.Bold()))
+			hardwalloc2_txt.Write("\n\n    Current     (Max)\n\n", text.WriteCellOpts(cell.Bold()))
+			for k, chunk := range ramndisk_alloc {
+				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
+				if k%2 == 0 {
+					hardwalloc2_txt.Write(chunk[1]+"      ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+				} else {
+					hardwalloc2_txt.Write(chunk[1]+"      ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+				}
+			}
+
+			parts := strings.SplitN(total_alloc[0][0], " ", 2)
+			aps, _ := strconv.ParseFloat(parts[0], 64)
+			if aps > 0 {
+				alt = append(alt, aps)
+			}
+			if err := dballoc_lc.Series("first", alt,
+				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
+				linechart.SeriesXLabels(map[int]string{
+					0: "0",
+				}),
+			); err != nil {
+				panic(err)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+
 }

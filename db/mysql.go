@@ -118,12 +118,31 @@ func GetVariable(driver *sql.DB, parameters []string) []string {
 /*
 Looks up variable in performance_schema
 */
-func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
+func GetSchemaStatus(driver *sql.DB, parameters []string) []string {
 	var values []string
 
 	for _, param := range parameters {
 		var query string = `SELECT variable_name, variable_value
 					FROM performance_schema.global_status
+					WHERE variable_name LIKE '` + param + `';`
+		rows, err := Query(driver, query)
+		_, result, _ := GetData(rows)
+		if err != nil || len(result) == 0 {
+			values = append(values, "-1")
+		} else {
+			values = append(values, result[0][1])
+		}
+	}
+
+	return values
+}
+
+func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
+	var values []string
+
+	for _, param := range parameters {
+		var query string = `SELECT variable_name, variable_value
+					FROM performance_schema.global_variables
 					WHERE variable_name LIKE '` + param + `';`
 		rows, err := Query(driver, query)
 		_, result, _ := GetData(rows)
