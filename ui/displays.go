@@ -100,7 +100,7 @@ func DrawHelp(t *tcell.Terminal) {
 
 	help_table2, _ := text.New()
 	help_table2.Write(
-		"Actions:\n",
+		"-> Cycle to next connection\n<- Cycle to previous connection",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
@@ -261,7 +261,7 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		t,
 		container.ID("processlist"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("PROCESSLIST (? for help, ESC to go back, ,<- -> to navigate)"),
+		container.BorderTitle("PROCESSLIST (? for help)"),
 		container.SplitHorizontal(
 			container.Top(
 				container.SplitVertical(
@@ -319,6 +319,10 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
+		case keyboard.KeyArrowLeft:
+			CurrRotateLeft()
+		case keyboard.KeyArrowRight:
+			CurrRotateRight()
 		case '?':
 			State = types.HELP
 			cancel()
