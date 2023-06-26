@@ -20,7 +20,8 @@ var (
 	/*
 		Refresh rate
 	*/
-	Interval time.Duration
+	Interval    time.Duration
+	ErrInterval time.Duration
 	/*
 		Holds all drivers
 	*/
@@ -56,6 +57,8 @@ func InterfaceLoop(instances []types.Instance) {
 	*/
 	interval_int, _ := strconv.Atoi(io.FetchSetting("refresh-rate"))
 	Interval = time.Duration(interval_int) * time.Millisecond
+	err_interval_int, _ := strconv.Atoi(io.FetchSetting("errlog-refresh-rate"))
+	ErrInterval = time.Duration(err_interval_int) * time.Millisecond
 
 	/*
 		Open & map all connections
@@ -91,37 +94,22 @@ func InterfaceLoop(instances []types.Instance) {
 		case types.PROCESSLIST:
 			DisplayProcesslist(t)
 			Laststate = types.PROCESSLIST
-			if State == types.PROCESSLIST {
-				State = types.MENU
-			}
 			break
 		case types.DB_DASHBOARD:
 			Laststate = types.DB_DASHBOARD
 			DisplayDbDashboard(t)
-			if State == types.DB_DASHBOARD {
-				State = types.MENU
-			}
 			break
 		case types.MEM_DASHBOARD:
 			Laststate = types.MEM_DASHBOARD
 			DisplayMemory(t)
-			if State == types.MEM_DASHBOARD {
-				State = types.MENU
-			}
 			break
 		case types.ERR_LOG:
 			DisplayErrorLog(t)
 			Laststate = types.ERR_LOG
-			if State == types.ERR_LOG {
-				State = types.MENU
-			}
 			break
 		case types.LOCK_LOG:
 			DisplayLocks(t)
 			Laststate = types.LOCK_LOG
-			if State == types.LOCK_LOG {
-				State = types.MENU
-			}
 			break
 		case types.CONFIGS:
 			/*
@@ -130,9 +118,6 @@ func InterfaceLoop(instances []types.Instance) {
 			*/
 			DisplayConfigs(t, instances)
 			Laststate = types.CONFIGS
-			if State == types.CONFIGS {
-				State = types.MENU
-			}
 			break
 		case types.HELP:
 			/*
@@ -140,9 +125,6 @@ func InterfaceLoop(instances []types.Instance) {
 			*/
 			DrawHelp(t)
 			Laststate = types.HELP
-			if State == types.HELP {
-				State = types.MENU
-			}
 			break
 		case types.QUIT:
 			/*

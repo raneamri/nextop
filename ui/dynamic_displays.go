@@ -202,10 +202,12 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 			intlogfile, _ := strconv.Atoi(variables[2])
 			logfile_size := utility.BytesToMiB(intlogfile) + "\n"
 			logfilen := variables[3] + "\n\n"
-			checkpoint_info := "OMITTED" + "\n"  // omitted (not sure what it means)
-			checkpoint_age := "OMITTED" + "\n\n" // omitted too
+			checkpoint_info_raw := db.GetLongQuery(ConnPool[CurrConn], db.CheckpointInfoLongQuery())
+			checkpoint_info := strings.TrimLeft(checkpoint_info_raw[0][0], " ") + "\n"
+			checkpoint_age_raw := db.GetLongQuery(ConnPool[CurrConn], db.CheckpointAgePctLongQuery())
+			checkpoint_age := checkpoint_age_raw[0][0] + "%\n\n"
 			ahi := variables[4] + "\n"
-			ahi_nparts := variables[5] + "\n" // omitted
+			ahi_nparts := variables[5] + "\n"
 
 			dbinfo.Reset()
 			dbinfo.Write(bfpool_size, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
@@ -256,7 +258,8 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 			bfpinfo.Write(pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 			bfpinfo.Write(os_pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 
-			checkpoint_donut.Percent(50)
+			checkpoint_age_int, _ := strconv.Atoi(checkpoint_age_raw[0][0])
+			checkpoint_donut.Percent(checkpoint_age_int)
 			pool_donut.Percent(50)
 			ahi_donut.Percent(50)
 			disk_donut.Percent(50)
@@ -298,11 +301,11 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 			dballoc1_txt.Write("\n\n   Total allocated\n\n", text.WriteCellOpts(cell.Bold()))
 			dballoc2_txt.Write("\n\n"+total_alloc[0][0]+"\n\n", text.WriteCellOpts(cell.Bold()))
 			for i, chunk := range alloc_by_area {
-				dballoc1_txt.Write("   "+chunk[0]+"\n", text.WriteCellOpts(cell.Bold()))
+				dballoc1_txt.Write("   "+strings.TrimLeft(chunk[0], " ")+"\n", text.WriteCellOpts(cell.Bold()))
 				if i%2 == 0 {
-					dballoc2_txt.Write(chunk[1]+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+					dballoc2_txt.Write(strings.TrimLeft(chunk[1], " ")+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 				} else {
-					dballoc2_txt.Write(chunk[1]+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+					dballoc2_txt.Write(strings.TrimLeft(chunk[1], " ")+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 				}
 			}
 
@@ -314,22 +317,22 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 				usralloc1_txt.Write("   "+chunk[0]+"\n", text.WriteCellOpts(cell.Bold()))
 				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
 				if j%2 == 0 {
-					usralloc2_txt.Write(chunk[1]+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+					usralloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 				} else {
-					usralloc2_txt.Write(chunk[1]+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+					usralloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 				}
 			}
 
 			hardwalloc1_txt.Reset()
 			hardwalloc2_txt.Reset()
 			hardwalloc1_txt.Write("\n\n\n\n                   Disk\n                    RAM", text.WriteCellOpts(cell.Bold()))
-			hardwalloc2_txt.Write("\n\n    Current  (Max)\n\n", text.WriteCellOpts(cell.Bold()))
+			hardwalloc2_txt.Write("\n\nCurrent  (Max)\n\n", text.WriteCellOpts(cell.Bold()))
 			for k, chunk := range ramndisk_alloc {
 				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
 				if k%2 == 0 {
-					hardwalloc2_txt.Write(chunk[1]+"      ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+					hardwalloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 				} else {
-					hardwalloc2_txt.Write(chunk[1]+"      ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+					hardwalloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 				}
 			}
 
@@ -360,6 +363,38 @@ func dynErrorLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot 
 	for {
 		select {
 		case <-ticker.C:
+
+			error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
+
+			error_log_headers := "Timestamp                 " + "Thd " + "Message\n"
+
+			log.Reset()
+			log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
+
+			for i, msg := range error_log {
+				color := text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+				timestamp := msg[0][:strings.Index(msg[0], ".")] + "  "
+				thread := msg[1] + "   "
+				prio := msg[2]
+				//err_code := msg[3] + " "
+				//subsys := msg[4] + " "
+				logged := prio + ": " + msg[5] + "\n"
+
+				if prio == "System" {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorNavy))
+				} else if prio == "Warning" {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
+				}
+
+				if i%2 == 0 {
+					log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+				} else {
+					log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+				}
+				log.Write(logged, color)
+			}
 
 		case <-ctx.Done():
 			return

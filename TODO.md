@@ -10,6 +10,9 @@
 - Fix page throttling.
 
 # FUTURE IMPLEMENTATIONS
+## CONNECTIONS:
+- Add case handling for redundant connection in config.
+
 ## PROCESSLIST:
 - Add specific thread analysis.
 

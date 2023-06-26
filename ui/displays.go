@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -558,9 +559,9 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 	}
 
 	infotext, _ := text.New()
-	infotext.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	infotext.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	bfptext, _ := text.New()
-	bfptext.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	bfptext.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	checkpoint_donut, err := donut.New(
 		donut.HolePercent(65),
@@ -841,9 +842,47 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		warn_ot  []float64
 		other_ot []float64
 	)
-	log, _ := text.New()
+	log, _ := text.New(
+		text.WrapAtRunes(),
+	)
 
-	go dynErrorLog(ctx, log, err_ot, warn_ot, other_ot, Interval)
+	log.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+
+	/*
+		Error log can have heavy fetch / refresh time
+		So we display an error log instantly to account for that
+	*/
+	error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
+
+	error_log_headers := "Timestamp                 " + "Thd " + "Message\n"
+
+	log.Reset()
+	log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
+
+	for i, msg := range error_log {
+		color := text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+		timestamp := msg[0][:strings.Index(msg[0], ".")] + "  "
+		thread := msg[1] + "   "
+		prio := msg[2]
+		logged := prio + ": " + msg[5] + "\n"
+
+		if prio == "System" {
+			color = text.WriteCellOpts(cell.FgColor(cell.ColorNavy))
+		} else if prio == "Warning" {
+			color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
+		} else {
+			color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
+		}
+
+		if i%2 == 0 {
+			log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+		} else {
+			log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+		}
+		log.Write(logged, color)
+	}
+
+	go dynErrorLog(ctx, log, err_ot, warn_ot, other_ot, ErrInterval)
 
 	cont, err := container.New(
 		t,

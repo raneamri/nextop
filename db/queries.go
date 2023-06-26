@@ -50,10 +50,6 @@ func DeletesLongQuery() string {
 			FROM performance_schema.events_statements_summary_by_digest;`
 }
 
-func ErrorShortQuery() string {
-	return `SHOW ERRORS;`
-}
-
 func UserMemoryShortQuery() string {
 	return `SELECT user, current_allocated, current_max_alloc
 			FROM sys.memory_by_user_by_current_bytes
@@ -79,4 +75,40 @@ func RamNDiskLongQuery() string {
 			format_bytes(HIGH_NUMBER_OF_BYTES_USED) AS high_alloc
 			FROM performance_schema.memory_summary_global_by_event_name
 			WHERE event_name LIKE 'memory/temptable/%';`
+}
+
+func CheckpointInfoLongQuery() string {
+	return `SELECT CONCAT(
+			(
+			SELECT FORMAT_BYTES(
+			STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'
+			)
+			FROM performance_schema.log_status),
+			" / ",
+			format_bytes(
+			(SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE VARIABLE_NAME = 'innodb_log_file_size'
+			)  * (
+			SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE VARIABLE_NAME = 'innodb_log_files_in_group'))
+			) CheckpointInfo;`
+}
+
+func CheckpointAgePctLongQuery() string {
+	return `SELECT ROUND(((
+			SELECT STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'
+			FROM performance_schema.log_status) / ((
+			SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE VARIABLE_NAME = 'innodb_log_file_size'
+			) * (
+			SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE VARIABLE_NAME = 'innodb_log_files_in_group')) * 100));`
+}
+
+func ErrorLogShortQuery() string {
+	return `SELECT *, cast(unix_timestamp(logged)*1000000 as unsigned) logged_int FROM performance_schema.error_log`
 }
