@@ -845,6 +845,24 @@ func DisplayErrorLog(t *tcell.Terminal) {
 	log, _ := text.New(
 		text.WrapAtRunes(),
 	)
+	search, err := textinput.New(
+		textinput.Label("Search ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("err-include-suggestion")),
+	)
+	exclude, err := textinput.New(
+		textinput.Label("Exclude ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("err-exclude-suggestion")),
+	)
 
 	log.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
@@ -882,7 +900,7 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		log.Write(logged, color)
 	}
 
-	go dynErrorLog(ctx, log, err_ot, warn_ot, other_ot, ErrInterval)
+	go dynErrorLog(ctx, log, search, exclude, err_ot, warn_ot, other_ot, ErrInterval)
 
 	cont, err := container.New(
 		t,
@@ -895,7 +913,16 @@ func DisplayErrorLog(t *tcell.Terminal) {
 				container.SplitVertical(
 					container.Left(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Graph (?)"),
+						container.BorderTitle("Filters"),
+						container.SplitHorizontal(
+							container.Top(
+								container.PlaceWidget(search),
+							),
+							container.Bottom(
+								container.PlaceWidget(exclude),
+							),
+							container.SplitPercent(50),
+						),
 					),
 					container.Right(
 						container.Border(linestyle.Light),
@@ -918,29 +945,8 @@ func DisplayErrorLog(t *tcell.Terminal) {
 
 	keyreader := func(k *terminalapi.Keyboard) {
 		switch k.Key {
-		case 'p', 'P':
-			State = types.PROCESSLIST
-			cancel()
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'm', 'M':
-			State = types.MEM_DASHBOARD
-			cancel()
-		case 'l', 'L':
-			State = types.LOCK_LOG
-			cancel()
-		case 'c', 'C':
-			State = types.CONFIGS
-			cancel()
-		case '?':
-			State = types.HELP
-			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
-			cancel()
-		case 'q', 'Q':
-			State = types.QUIT
 			cancel()
 		}
 	}

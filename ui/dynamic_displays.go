@@ -18,6 +18,7 @@ import (
 	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
+	"github.com/mum4k/termdash/widgets/textinput"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -356,7 +357,8 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 	}
 }
 
-func dynErrorLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot []float64,
+func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInput,
+	exclude *textinput.TextInput, err_ot []float64, warn_ot []float64,
 	other_ot []float64, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
@@ -368,10 +370,14 @@ func dynErrorLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot 
 
 			error_log_headers := "Timestamp                 " + "Thd " + "Message\n"
 
+			filterfor := search.Read()
+			ommit := exclude.Read()
+
 			log.Reset()
 			log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
 
-			for i, msg := range error_log {
+			var flip int = 1
+			for _, msg := range error_log {
 				color := text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				timestamp := msg[0][:strings.Index(msg[0], ".")] + "  "
 				thread := msg[1] + "   "
@@ -379,6 +385,10 @@ func dynErrorLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot 
 				//err_code := msg[3] + " "
 				//subsys := msg[4] + " "
 				logged := prio + ": " + msg[5] + "\n"
+
+				if !strings.Contains(logged, filterfor) || (strings.Contains(logged, ommit) && ommit != "") {
+					continue
+				}
 
 				if prio == "System" {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorNavy))
@@ -388,11 +398,12 @@ func dynErrorLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot 
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
 				}
 
-				if i%2 == 0 {
+				if flip > 0 {
 					log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 				} else {
 					log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 				}
+				flip *= -1
 				log.Write(logged, color)
 			}
 

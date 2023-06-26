@@ -75,3 +75,10 @@
 - Much better connection pool, using three queues.
 - Added in-interface connection cycling.
 - Formatted some of the data better.
+
+## Mon 26 Jun 2023:
+- Added missing queries for InnoDB Dashboard.
+- Better formatted Memory Dashboard.
+- Added error log.
+- Added specific refresh rate for error log.
+- Added include and exclude filters to error log.

@@ -20,7 +20,12 @@ var (
 	/*
 		Refresh rate
 	*/
-	Interval    time.Duration
+	Interval time.Duration
+	/*
+		Specific refresh rate for the error log
+		Can be adjusted in config
+		If you believe you will need regular and rapid filter changes, set to higher value
+	*/
 	ErrInterval time.Duration
 	/*
 		Holds all drivers
