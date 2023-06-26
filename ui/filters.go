@@ -1,6 +1,10 @@
 package ui
 
 /*
+Note: future implement
+*/
+
+/*
 Resets all filters of all types
 */
 func ClearAllFilters() {
@@ -14,6 +18,9 @@ func ClearSpecificFilters() {
 
 }
 
+/*
+Adds a filter of a specific type
+*/
 func AddFilter() {
 
 }

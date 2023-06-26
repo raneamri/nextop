@@ -14,7 +14,7 @@ import (
 Formats a string into block capitals and turns spaces into underscores
 */
 func Fstr(formattable string) string {
-	words := strings.Fields(formattable) // Split the string into words
+	words := strings.Fields(formattable)
 	formattedWords := make([]string, len(words))
 
 	for i, word := range words {

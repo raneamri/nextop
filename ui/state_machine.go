@@ -11,6 +11,12 @@ import (
 	"github.com/raneamri/gotop/types"
 )
 
+/*
+Standard state machine to alter program states
+Also tracks previous state
+I believe it's guilty for irregular flash page buffering
+*/
+
 var (
 	/*
 		State trackers
@@ -79,10 +85,8 @@ func InterfaceLoop(instances []types.Instance) {
 	}
 
 	/*
-		Decide initial state
 		If no config found, force config state
 		Else, menu state
-		Note: change else to menu after testing is done
 	*/
 	if len(instances) == 0 {
 		State = types.CONFIGS
@@ -126,7 +130,7 @@ func InterfaceLoop(instances []types.Instance) {
 			break
 		case types.HELP:
 			/*
-				Display help text and GitHub
+				Display help text and repo
 			*/
 			DrawHelp(t)
 			Laststate = types.HELP
@@ -135,7 +139,7 @@ func InterfaceLoop(instances []types.Instance) {
 			/*
 				Perform cleanup and close program
 			*/
-			//t.Close() fixes input buffer overflow ?
+			t.Close()
 			for _, key := range ActiveConns {
 				ConnPool[key].Close()
 			}

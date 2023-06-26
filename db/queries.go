@@ -1,5 +1,10 @@
 package db
 
+/*
+All the queries, variables and statuses the program queries for
+Having them here declutters the program
+*/
+
 func ProcesslistLongQuery() string {
 	return `SELECT pps.PROCESSLIST_COMMAND AS command,
 				pps.THREAD_ID AS thd_id, pps.PROCESSLIST_ID AS conn_id,

@@ -1,8 +1,6 @@
 # TODO
 ## QUERYING:
-- Retrieve queries for:
-    - Checkpoints.
-    - Locking info.
+- Retrieve queries for locking info.
 
 ## INTERFACE:
 - Clean up UI.

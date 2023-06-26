@@ -9,6 +9,13 @@ import (
 	"github.com/raneamri/gotop/utility"
 )
 
+/*
+Handles file i/o
+*/
+
+/*
+Writes an instance to config
+*/
 func WriteConfig(instance types.Instance) error {
 	/*
 		Parse .conf to find connections section
@@ -46,11 +53,11 @@ Note: yet to be completed
 func HealConfig() {
 	//fpath := "./gotop.conf"
 	//parser, err := ioutil.ReadFile(fpath)
-
 }
 
 /*
 Deletes the config file and recreates it, then rewrites headers
+Note: unfinished
 */
 func ResetConfig() {
 	var (
@@ -210,7 +217,6 @@ func CleanConfig() {
 
 /*
 Syncs []Instance slice to config
-Note: fix duplicates bug
 */
 func SyncConfig(instances []types.Instance) []types.Instance {
 	/*
@@ -235,7 +241,7 @@ func SyncConfig(instances []types.Instance) []types.Instance {
 }
 
 /*
-Takes the value of the setting type and returns its value as a string
+Takes the value of the setting and returns its value as a string
 */
 func FetchSetting(param string) string {
 	var (

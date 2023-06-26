@@ -15,6 +15,7 @@ DBMS types
 const (
 	MYSQL DBMS_t = iota
 	ORACLE
+	POSTGRE
 )
 
 /*
@@ -45,7 +46,7 @@ type Instance struct {
 	DBMS DBMS_t
 
 	/*
-		DSN, stored as byte slice
+		DSN, stored as byte slice to protect password
 	*/
 	DSN []byte
 

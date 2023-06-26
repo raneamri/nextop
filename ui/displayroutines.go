@@ -272,7 +272,6 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 }
 
 func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []types.Instance, delay time.Duration) {
-
 	instlog.Reset()
 	for _, inst := range instances {
 		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))

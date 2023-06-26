@@ -3,6 +3,9 @@ package ui
 /*
 Management of connection drivers
 */
+/*
+Rotates connection pool to the right once
+*/
 func CurrRotateRight() {
 	/*
 		Check where in the active connections slice curr is
@@ -32,6 +35,9 @@ func CurrRotateRight() {
 	return
 }
 
+/*
+Rotates connection pool to the left once
+*/
 func CurrRotateLeft() {
 	/*
 		Check where in the active connections slice curr is

@@ -27,7 +27,7 @@ func ClearTerminal() {
 }
 
 /*
-Pushes an item to the top of a slice
+Pushes an item to the top of instance slice
 Also provides item with index
 */
 func PushInstance(instances []types.Instance, pushing types.Instance) []types.Instance {

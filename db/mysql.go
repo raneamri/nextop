@@ -116,7 +116,7 @@ func GetVariable(driver *sql.DB, parameters []string) []string {
 }
 
 /*
-Looks up variable in performance_schema
+Looks up status in performance_schema
 */
 func GetSchemaStatus(driver *sql.DB, parameters []string) []string {
 	var values []string
@@ -137,6 +137,9 @@ func GetSchemaStatus(driver *sql.DB, parameters []string) []string {
 	return values
 }
 
+/*
+Looks up variable in performance_schema
+*/
 func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
 	var values []string
 
@@ -156,6 +159,9 @@ func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
 	return values
 }
 
+/*
+Queries a custom query
+*/
 func GetLongQuery(driver *sql.DB, query string) [][]string {
 
 	rows, err := Query(driver, query)
@@ -217,20 +223,6 @@ func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 		result = append(result, resultRow)
 	}
 	return cols, result, nil
-}
-
-func DisplayData(cols []string, result [][]string) {
-	for _, col := range cols {
-		fmt.Printf("%s\t", col)
-	}
-	fmt.Println()
-
-	for _, row := range result {
-		for _, val := range row {
-			fmt.Printf("%s\t", val)
-		}
-		fmt.Println()
-	}
 }
 
 /*

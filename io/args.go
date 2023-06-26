@@ -8,6 +8,10 @@ import (
 	"github.com/raneamri/gotop/utility"
 )
 
+/*
+	Handles startup arguments
+*/
+
 func ReadArgs(instances []types.Instance) []types.Instance {
 	if len(os.Args) == 3 || len(os.Args) == 4 {
 		var inst types.Instance

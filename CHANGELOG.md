@@ -83,3 +83,4 @@
 - Added specific refresh rate for error log.
 - Added include and exclude filters to error log.
 - Added linechart to error log.
+- Added settings display in config tab.

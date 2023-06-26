@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"os"
 	"strings"
 	"time"
 
@@ -26,9 +27,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Draws the main menu
-*/
 func DrawMenu(t *tcell.Terminal) {
 	/*
 		Prepare context to leave state with signal
@@ -80,18 +78,11 @@ func DrawMenu(t *tcell.Terminal) {
 		}
 	}
 
-	/*
-		Display loop
-	*/
 	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(quitter), termdash.RedrawInterval(100*time.Millisecond)); err != nil {
 		panic(err)
 	}
 }
 
-/*
-Draws the help menu, which can either lead back to the previous view or to a desired view
-Static display
-*/
 func DrawHelp(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -108,7 +99,7 @@ func DrawHelp(t *tcell.Terminal) {
 
 	help_table3, _ := text.New()
 	help_table3.Write(
-		"Other:\n",
+		"Other:\nREPO https://github.com/raneamri/gotop\n",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
@@ -208,7 +199,7 @@ func DisplayProcesslist(t *tcell.Terminal) {
 	go dynQPSUPT(ctx, tl_table, Interval)
 
 	/*
-		SEL/INS ... (container-3)
+		SEL/INS barchart... (container-3)
 	*/
 
 	bc, err := barchart.New(
@@ -244,10 +235,9 @@ func DisplayProcesslist(t *tcell.Terminal) {
 	}
 
 	/*
-		Queries per hour for the past n hours (container-4)
+		Queries per hour for the past n intervals (container-4)
 	*/
 	var queries []float64
-
 	lc, err := linechart.New(
 		linechart.YAxisAdaptive(),
 		linechart.YAxisFormattedValues(linechart.ValueFormatterRoundWithSuffix("")),
@@ -355,9 +345,24 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 	)
 
 	errlog, _ := text.New()
+	errlog.Write("\n   Awaiting submission.", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	instlog, _ := text.New()
+	settings_txt, _ := text.New()
 
-	instlog.Reset()
+	/*
+		Display configurated settings (container-1)
+	*/
+	settings_headers := []string{"refresh-rate", "errlog-refresh-rate", "err-include-suggestion", "err-exclude-suggestion"}
+	dir, _ := os.Getwd()
+	settings_txt.Write("\n   "+dir+"/gotop.conf\n", text.WriteCellOpts(cell.Bold()))
+	for _, header := range settings_headers {
+		settings_txt.Write("\n   "+header, text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+		settings_txt.Write(": " + io.FetchSetting(header))
+	}
+
+	/*
+		Display configurated instances (container-2)
+	*/
 	for _, inst := range instances {
 		instlog.Write("\n   dbms", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + utility.Strdbms(inst.DBMS))
@@ -367,6 +372,9 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 		instlog.Write(": " + string((inst.ConnName)))
 	}
 
+	/*
+		Display text boxes (container-3)
+	*/
 	dbmsin, err := textinput.New(
 		textinput.Label("DBMS ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
@@ -446,8 +454,9 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 					container.Right(
 						container.Border(linestyle.Light),
 						container.BorderTitle("Settings"),
+						container.PlaceWidget(settings_txt),
 					),
-					container.SplitPercent(70),
+					container.SplitPercent(60),
 				),
 			),
 			container.SplitPercent(40),
@@ -468,6 +477,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 			dbms = dbmsin.ReadAndClear()
 			if utility.Fstr(dbms) == "" || utility.Fstr(dbms) != "MYSQL" {
 				log_msg = "\n   Error: Unknown DBMS: " + dbms + "\n"
+				errlog.Reset()
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 				dsn = dsnin.ReadAndClear()
 				name = namein.ReadAndClear()
@@ -477,6 +487,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 			dsn = dsnin.ReadAndClear()
 			if string(dsn) == "" {
 				log_msg = "\n   Error: Blank DSN is invalid."
+				errlog.Reset()
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 				name = namein.ReadAndClear()
 				return
@@ -495,6 +506,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 			inst.ConnName = name
 
 			if !db.Ping(inst) {
+				errlog.Reset()
 				errlog.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 				time.Sleep(1 * time.Second)
 				errlog.Reset()
@@ -502,6 +514,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 				return
 			} else {
+				errlog.Reset()
 				errlog.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 				time.Sleep(1 * time.Second)
 				errlog.Reset()
@@ -515,9 +528,15 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 				CurrConn = ActiveConns[0]
 			}
 
+			/*
+				Keep if valid and sync to prevent dupes
+			*/
 			instances = append(instances, inst)
 			instances = io.SyncConfig(instances)
 
+			/*
+				Update instances display
+			*/
 			dynInstanceDisplay(ctx, instlog, instances, Interval)
 
 		case keyboard.KeyEsc:
@@ -541,7 +560,6 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 	/*
 		InnoDB info (container-1)
 	*/
-
 	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Redo Log\n",
 		"      InnoDB Logfile Size\n", "       Num InnoDB Logfile\n\n", "          Checkpoint Info\n",
 		"           Checkpoint Age\n\n", "      Adaptive Hash Index\n", "       Num AHI Partitions"}
@@ -563,24 +581,24 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 	bfptext, _ := text.New()
 	bfptext.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
+	/*
+		Donuts (container-2)
+	*/
 	checkpoint_donut, err := donut.New(
 		donut.HolePercent(65),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(24))),
 		donut.Label("Checkpoint Age %", cell.FgColor(cell.ColorWhite)),
 	)
-
 	pool_donut, err := donut.New(
 		donut.HolePercent(65),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(25))),
 		donut.Label("Buffer Pool %", cell.FgColor(cell.ColorWhite)),
 	)
-
 	ahi_donut, err := donut.New(
 		donut.HolePercent(65),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(26))),
 		donut.Label("AHI Ratio %", cell.FgColor(cell.ColorWhite)),
 	)
-
 	disk_donut, err := donut.New(
 		donut.HolePercent(65),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(27))),
@@ -727,7 +745,7 @@ func DisplayMemory(t *tcell.Terminal) {
 	hardwalloc2_txt, _ := text.New()
 
 	/*
-		Slice to hole allocated memory over time
+		Slice to hold allocated memory over time
 	*/
 	var alt []float64
 
@@ -843,10 +861,16 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		other_ot []float64
 	)
 
+	/*
+		Error log (container-1)
+	*/
 	log, _ := text.New(
 		text.WrapAtRunes(),
 	)
 
+	/*
+		Error-type frequencies linechart (container-2)
+	*/
 	frequencies, _ := linechart.New(
 		linechart.YAxisAdaptive(),
 		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
@@ -854,8 +878,11 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 	)
 
+	/*
+		Filters (container-3)
+	*/
 	search, err := textinput.New(
-		textinput.Label("Search ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.Label("Search  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
 		textinput.MaxWidthCells(45),
 		textinput.ExclusiveKeyboardOnFocus(),
@@ -880,7 +907,6 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		So we display an error log instantly to account for that
 	*/
 	error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
-
 	error_log_headers := "Timestamp                 " + "Thd " + "Message\n"
 
 	log.Reset()
