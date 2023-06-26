@@ -359,7 +359,7 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 
 func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInput,
 	exclude *textinput.TextInput, err_ot []float64, warn_ot []float64,
-	other_ot []float64, delay time.Duration) {
+	sys_ot []float64, freqs *linechart.LineChart, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -376,7 +376,13 @@ func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInpu
 			log.Reset()
 			log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
 
-			var flip int = 1
+			var (
+				flip      int = 1
+				syscount  int
+				warncount int
+				errcount  int
+			)
+
 			for _, msg := range error_log {
 				color := text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				timestamp := msg[0][:strings.Index(msg[0], ".")] + "  "
@@ -386,16 +392,19 @@ func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInpu
 				//subsys := msg[4] + " "
 				logged := prio + ": " + msg[5] + "\n"
 
-				if !strings.Contains(logged, filterfor) || (strings.Contains(logged, ommit) && ommit != "") {
-					continue
-				}
-
 				if prio == "System" {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorNavy))
+					syscount++
 				} else if prio == "Warning" {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
-				} else {
+					warncount++
+				} else if prio == "Error" {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
+					errcount++
+				}
+
+				if !strings.Contains(logged, filterfor) || (strings.Contains(logged, ommit) && ommit != "") {
+					continue
 				}
 
 				if flip > 0 {
@@ -405,6 +414,37 @@ func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInpu
 				}
 				flip *= -1
 				log.Write(logged, color)
+			}
+
+			err_ot = append(err_ot, float64(errcount))
+			warn_ot = append(warn_ot, float64(warncount))
+			sys_ot = append(sys_ot, float64(syscount))
+
+			if err := freqs.Series("Errors", err_ot,
+				linechart.SeriesCellOpts(cell.FgColor(cell.ColorRed)),
+				linechart.SeriesXLabels(map[int]string{
+					0: "0",
+				}),
+			); err != nil {
+				panic(err)
+			}
+
+			if err := freqs.Series("Warnings", warn_ot,
+				linechart.SeriesCellOpts(cell.FgColor(cell.ColorYellow)),
+				linechart.SeriesXLabels(map[int]string{
+					0: "0",
+				}),
+			); err != nil {
+				panic(err)
+			}
+
+			if err := freqs.Series("System", sys_ot,
+				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNavy)),
+				linechart.SeriesXLabels(map[int]string{
+					0: "0",
+				}),
+			); err != nil {
+				panic(err)
 			}
 
 		case <-ctx.Done():

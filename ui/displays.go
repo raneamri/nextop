@@ -842,9 +842,18 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		warn_ot  []float64
 		other_ot []float64
 	)
+
 	log, _ := text.New(
 		text.WrapAtRunes(),
 	)
+
+	frequencies, _ := linechart.New(
+		linechart.YAxisAdaptive(),
+		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
+		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+	)
+
 	search, err := textinput.New(
 		textinput.Label("Search ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
@@ -900,7 +909,7 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		log.Write(logged, color)
 	}
 
-	go dynErrorLog(ctx, log, search, exclude, err_ot, warn_ot, other_ot, ErrInterval)
+	go dynErrorLog(ctx, log, search, exclude, err_ot, warn_ot, other_ot, frequencies, ErrInterval)
 
 	cont, err := container.New(
 		t,
@@ -926,9 +935,10 @@ func DisplayErrorLog(t *tcell.Terminal) {
 					),
 					container.Right(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Pinboard"),
+						container.BorderTitle("Statistics"),
+						container.PlaceWidget(frequencies),
 					),
-					container.SplitPercent(60),
+					container.SplitPercent(40),
 				),
 			),
 			container.Bottom(
