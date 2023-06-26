@@ -13,14 +13,10 @@
 
 ## PROCESSLIST:
 - Add specific thread analysis.
+- Add filters
 
 ## INTERFACE:
-- Add filters
-- Add color.
 - Add connection grouping. (fiter dependency)
-
-## CONFIGS:
-- Add further settings to config system.
 
 ## OTHER:
 - Change routines so header is fetched from sql rather than manually set. (optional)

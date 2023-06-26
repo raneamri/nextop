@@ -117,3 +117,18 @@ func CheckpointAgePctLongQuery() string {
 func ErrorLogShortQuery() string {
 	return `SELECT *, cast(unix_timestamp(logged)*1000000 as unsigned) logged_int FROM performance_schema.error_log`
 }
+
+func LocksLongQuery() string {
+	return `SELECT
+			r.trx_id waiting_trx_id,
+			r.trx_mysql_thread_id waiting_thread,
+			r.trx_query waiting_query,
+			b.trx_id blocking_trx_id,
+			b.trx_mysql_thread_id blocking_thread,
+			b.trx_query blocking_query
+			FROM       performance_schema.data_lock_waits w
+			INNER JOIN information_schema.innodb_trx b
+			ON b.trx_id = w.blocking_engine_transaction_id
+			INNER JOIN information_schema.innodb_trx r
+			ON r.trx_id = w.requesting_engine_transaction_id;`
+}

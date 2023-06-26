@@ -59,7 +59,7 @@ func Connect(instance types.Instance) *sql.DB {
 /*
 Attempts to connect using a dsn
 Returns true on success, false on fail
-Used to authentificate connections
+Used to authenticate connections
 */
 func Ping(instance types.Instance) bool {
 	var (

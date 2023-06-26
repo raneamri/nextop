@@ -39,13 +39,13 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 			pl_header := fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
 				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
 
-			var flipper int = 1
+			var colors []text.WriteOption
 			for _, key := range ActiveConns {
 				pldata := db.GetLongQuery(ConnPool[key], db.ProcesslistLongQuery())
 
 				var frow string
 				var ftable []string
-				for _, row := range pldata {
+				for i, row := range pldata {
 					/*
 						Converting data to usable
 					*/
@@ -57,6 +57,21 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 					user := row[5]
 					db := row[6]
 					ftime, _ := strconv.ParseInt(row[8], 10, 64)
+					if ftime > 5_000_000_000_000 {
+						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorBlue))}, colors...)
+					} else if ftime > 10_000_000_000_000 {
+						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorYellow))}, colors...)
+					} else if ftime > 30_000_000_000_000 {
+						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorRed))}, colors...)
+					} else if ftime > 60_000_000_000_000 {
+						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))}, colors...)
+					} else {
+						if i%2 == 0 {
+							colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorGray))}, colors...)
+						} else {
+							colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorWhite))}, colors...)
+						}
+					}
 					time := utility.FpicoToMs(ftime)
 					flocktime, _ := strconv.ParseInt(row[9], 10, 64)
 					locktime := utility.FpicoToUs(flocktime)
@@ -75,19 +90,10 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 				if err := pl.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
 					panic(err)
 				}
-				for _, row := range ftable {
-					if flipper > 0 {
-						err := pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-						if err != nil {
-							panic(err)
-						}
-						flipper *= -1
-					} else {
-						err := pl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-						if err != nil {
-							panic(err)
-						}
-						flipper *= -1
+				for i, row := range ftable {
+					err := pl.Write(row, colors[i])
+					if err != nil {
+						panic(err)
 					}
 				}
 			}
@@ -261,9 +267,9 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 
 			checkpoint_age_int, _ := strconv.Atoi(checkpoint_age_raw[0][0])
 			checkpoint_donut.Percent(checkpoint_age_int)
-			pool_donut.Percent(50)
-			ahi_donut.Percent(50)
-			disk_donut.Percent(50)
+			pool_donut.Percent(1)
+			ahi_donut.Percent(33)
+			disk_donut.Percent(96)
 
 		case <-ctx.Done():
 			return
@@ -367,7 +373,7 @@ func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInpu
 
 			error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
 
-			error_log_headers := "Timestamp                 " + "Thd " + "Message\n"
+			error_log_headers := "Timestamp           " + "Thd " + " Message\n"
 
 			filterfor := search.Read()
 			ommit := exclude.Read()

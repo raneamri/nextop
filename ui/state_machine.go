@@ -58,7 +58,6 @@ func InterfaceLoop(instances []types.Instance) {
 		Open a tcell for the interface
 	*/
 	t, err := tcell.New()
-	defer t.Close()
 	if err != nil {
 		panic(err)
 	}
@@ -105,12 +104,12 @@ func InterfaceLoop(instances []types.Instance) {
 			Laststate = types.PROCESSLIST
 			break
 		case types.DB_DASHBOARD:
-			Laststate = types.DB_DASHBOARD
 			DisplayDbDashboard(t)
+			Laststate = types.DB_DASHBOARD
 			break
 		case types.MEM_DASHBOARD:
-			Laststate = types.MEM_DASHBOARD
 			DisplayMemory(t)
+			Laststate = types.MEM_DASHBOARD
 			break
 		case types.ERR_LOG:
 			DisplayErrorLog(t)
@@ -126,7 +125,6 @@ func InterfaceLoop(instances []types.Instance) {
 				Prompt user to connect to database
 			*/
 			DisplayConfigs(t, instances)
-			Laststate = types.CONFIGS
 			break
 		case types.HELP:
 			/*

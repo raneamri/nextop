@@ -38,6 +38,8 @@ func DrawMenu(t *tcell.Terminal) {
 		container.ID("main_menu"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("GOTOP (? for help)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 	)
 	if err != nil {
 		panic(err)
@@ -108,6 +110,8 @@ func DrawHelp(t *tcell.Terminal) {
 		container.ID("help_screen"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("HELP (ESC to go back)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.SplitHorizontal(
 			container.Top(
 				container.Border(linestyle.Light),
@@ -256,6 +260,8 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		container.ID("processlist"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("PROCESSLIST (? for help)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.SplitHorizontal(
 			container.Top(
 				container.SplitVertical(
@@ -408,6 +414,8 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 		container.ID("configs_display"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("CONFIGS (ESC to go back, ENTER to submit)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.KeyFocusNext(keyboard.KeyTab),
 		container.KeyFocusGroupsNext(keyboard.KeyArrowDown, 1),
 		container.KeyFocusGroupsPrevious(keyboard.KeyArrowUp, 1),
@@ -507,7 +515,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 
 			if !db.Ping(inst) {
 				errlog.Reset()
-				errlog.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+				errlog.Write("\n   Authenticating...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 				time.Sleep(1 * time.Second)
 				errlog.Reset()
 				log_msg = "\n   Error: Invalid DSN. Connection closed."
@@ -515,7 +523,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 				return
 			} else {
 				errlog.Reset()
-				errlog.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+				errlog.Write("\n   Authenticating...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 				time.Sleep(1 * time.Second)
 				errlog.Reset()
 				log_msg = "\n   Success! Connection established."
@@ -612,6 +620,8 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 		container.ID("db_dashboard"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("INNODB DASHBOARD (? for help)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.SplitVertical(
 			container.Left(
 				container.SplitHorizontal(
@@ -756,6 +766,8 @@ func DisplayMemory(t *tcell.Terminal) {
 		container.ID("memory_dashboard"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("MEMORY (? for help)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.SplitVertical(
 			container.Left(
 				container.SplitHorizontal(
@@ -907,7 +919,7 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		So we display an error log instantly to account for that
 	*/
 	error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
-	error_log_headers := "Timestamp                 " + "Thd " + "Message\n"
+	error_log_headers := "Timestamp           " + "Thd " + " Message\n"
 
 	log.Reset()
 	log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
@@ -942,6 +954,8 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		container.ID("err_log"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("ERROR LOG (? for help)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.PlaceWidget(log),
 		container.SplitHorizontal(
 			container.Top(
@@ -1003,6 +1017,8 @@ func DisplayLocks(t *tcell.Terminal) {
 		container.ID("lock_log"),
 		container.Border(linestyle.Light),
 		container.BorderTitle("LOCKS LOG (? for help)"),
+		container.BorderColor(cell.ColorGray),
+		container.FocusedColor(cell.ColorWhite),
 		container.SplitHorizontal(
 			container.Top(
 				container.Border(linestyle.Light),
