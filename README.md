@@ -10,17 +10,10 @@ GoTop can be built using the command:
     make build
 ```
 
-and can be called using the command:
+and can be called using the commands:
 ```bash
     ./gotop
 ```
-
-on Mac or 
-```bash
-    gotop
-```
-
-on Windows
 
 or called with arguments:
 ```bash
