@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/nextop/types"
 
 	_ "github.com/go-sql-driver/mysql"
 )

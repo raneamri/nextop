@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/raneamri/gotop/types"
-	"github.com/raneamri/gotop/utility"
+	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 )
 
 /*

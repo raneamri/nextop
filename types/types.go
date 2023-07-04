@@ -1,6 +1,8 @@
 package types
 
 import (
+	"database/sql"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -29,7 +31,6 @@ const (
 	ERR_LOG
 	LOCK_LOG
 	CONFIGS
-	HELP
 	QUIT
 )
 
@@ -51,7 +52,18 @@ type Instance struct {
 	DSN []byte
 
 	/*
+		SQL driver
+	*/
+	Driver *sql.DB
+	Online bool
+
+	/*
 		Manually assigned connection name
 	*/
 	ConnName string
+
+	/*
+		Group name
+	*/
+	Group string
 }

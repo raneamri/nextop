@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/raneamri/gotop/types"
-	"github.com/raneamri/gotop/utility"
+	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 )
 
 /*
@@ -20,7 +20,7 @@ func WriteConfig(instance types.Instance) error {
 	/*
 		Parse .conf to find connections section
 	*/
-	fpath := "gotop.conf"
+	fpath := "nextop.conf"
 	parser, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		return err
@@ -33,9 +33,10 @@ func WriteConfig(instance types.Instance) error {
 	var (
 		fdbms   string = "dbms=" + utility.Strdbms(instance.DBMS) + " "
 		fdsn    string = "dsn=" + string(instance.DSN) + " "
-		fdbname string = "conn-name=" + instance.ConnName
+		fdbname string = "conn-name=" + instance.ConnName + " "
+		fgroup  string = "group=" + instance.Group
 
-		parsed []byte = []byte(beforeSection + fdbms + fdsn + fdbname + "\n" + afterSection)
+		parsed []byte = []byte(beforeSection + fdbms + fdsn + fdbname + fgroup + "\n" + afterSection)
 	)
 
 	err = ioutil.WriteFile(fpath, parsed, 0644)
@@ -51,7 +52,7 @@ Heals a file by iterating through its content and finding irregularities
 Note: yet to be completed
 */
 func HealConfig() {
-	//fpath := "./gotop.conf"
+	//fpath := "./nextop.conf"
 	//parser, err := ioutil.ReadFile(fpath)
 }
 
@@ -64,7 +65,7 @@ func ResetConfig() {
 		fpath   string
 		headers [2]string
 	)
-	fpath = "gotop.conf"
+	fpath = "nextop.conf"
 	/*
 		Recreate file
 	*/
@@ -94,7 +95,7 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 		config    string
 	)
 
-	fpath = "gotop.conf"
+	fpath = "nextop.conf"
 	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		return instances, err
@@ -147,6 +148,8 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 				inst.DSN = []byte(value)
 			case "conn-name":
 				inst.ConnName = value
+			case "group":
+				inst.Group = value
 			}
 		}
 
@@ -168,7 +171,7 @@ func CleanConfig() {
 		uniquelines map[string]struct{}
 		ordered     []string
 	)
-	fpath = "gotop.conf"
+	fpath = "nextop.conf"
 	parser, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		panic(err)
@@ -253,7 +256,7 @@ func FetchSetting(param string) string {
 		parts         []string
 	)
 
-	fpath = "gotop.conf"
+	fpath = "nextop.conf"
 	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		panic(err)
@@ -264,6 +267,72 @@ func FetchSetting(param string) string {
 	*/
 	settingsStart = strings.Index(string(contents), "[settings]")
 	settingsEnd = strings.Index(string(contents), "[/settings]")
+	config = string(contents[settingsStart+10 : settingsEnd-1])
+
+	/*
+		Parse each line
+	*/
+	var lines []string = strings.Split(config, "\n")
+	for _, line := range lines {
+		var (
+			value string
+			key   string
+		)
+
+		line = strings.TrimSpace(line)
+		if line == "" || line == "\n" {
+			continue
+		}
+
+		pairs = strings.Split(line, " ")
+		for _, pair := range pairs {
+			pair = strings.TrimSpace(pair)
+			if pair == "" {
+				continue
+			}
+
+			parts = strings.Split(pair, "=")
+			if len(parts) != 2 {
+				continue
+			}
+
+			key = strings.TrimSpace(parts[0])
+			value = strings.TrimSpace(parts[1])
+
+			switch key {
+			case param:
+				return value
+			}
+		}
+	}
+
+	return string("-1")
+}
+
+/*
+Takes the value of the setting and returns its value as a string
+*/
+func FetchKeybind(param string) string {
+	var (
+		fpath         string
+		settingsStart int
+		settingsEnd   int
+		config        string
+		pairs         []string
+		parts         []string
+	)
+
+	fpath = "nextop.conf"
+	contents, err := ioutil.ReadFile(fpath)
+	if err != nil {
+		panic(err)
+	}
+
+	/*
+		Only keep 'settings' section
+	*/
+	settingsStart = strings.Index(string(contents), "[keybinds]")
+	settingsEnd = strings.Index(string(contents), "[/keybinds]")
 	config = string(contents[settingsStart+10 : settingsEnd-1])
 
 	/*

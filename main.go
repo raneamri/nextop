@@ -5,11 +5,11 @@ import (
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/raneamri/gotop/errors"
-	"github.com/raneamri/gotop/io"
-	"github.com/raneamri/gotop/types"
-	"github.com/raneamri/gotop/ui"
-	"github.com/raneamri/gotop/utility"
+	"github.com/raneamri/nextop/errors"
+	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/ui"
+	"github.com/raneamri/nextop/utility"
 )
 
 /*
@@ -42,6 +42,11 @@ func main() {
 	}
 
 	/*
+		Ensure keybinds are functioning
+	*/
+	ui.ValidateKeybinds()
+
+	/*
 		If user doesn't specify arguments on run
 		prompt connection details and put in []Instance and/or .conf
 		Note: os.Args[0] == binary, so args start @ index 1
@@ -67,5 +72,5 @@ func main() {
 }
 
 func Version() string {
-	return "v0.0.0"
+	return "v0.0.1"
 }

@@ -19,73 +19,15 @@ import (
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/mum4k/termdash/widgets/textinput"
-	"github.com/raneamri/gotop/db"
-	"github.com/raneamri/gotop/io"
-	"github.com/raneamri/gotop/types"
-	"github.com/raneamri/gotop/utility"
+	"github.com/raneamri/nextop/db"
+	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func DrawMenu(t *tcell.Terminal) {
-	/*
-		Prepare context to leave state with signal
-	*/
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cont, err := container.New(
-		t,
-		container.ID("main_menu"),
-		container.Border(linestyle.Light),
-		container.BorderTitle("GOTOP (? for help)"),
-		container.BorderColor(cell.ColorGray),
-		container.FocusedColor(cell.ColorWhite),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	/*
-		Keyboard reader
-	*/
-	quitter := func(k *terminalapi.Keyboard) {
-		switch k.Key {
-		case 'p', 'P':
-			State = types.PROCESSLIST
-			cancel()
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'm', 'M':
-			State = types.MEM_DASHBOARD
-			cancel()
-		case 'e', 'E':
-			State = types.ERR_LOG
-			cancel()
-		case 'l', 'L':
-			State = types.LOCK_LOG
-			cancel()
-		case 'c', 'C':
-			State = types.CONFIGS
-			cancel()
-		case '?':
-			State = types.HELP
-			cancel()
-		case keyboard.KeyEsc:
-			State = Laststate
-			cancel()
-		case 'q', 'Q':
-			State = types.QUIT
-			cancel()
-		}
-	}
-
-	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(quitter), termdash.RedrawInterval(100*time.Millisecond)); err != nil {
-		panic(err)
-	}
-}
-
-func DrawHelp(t *tcell.Terminal) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	help_table1, _ := text.New()
@@ -95,45 +37,53 @@ func DrawHelp(t *tcell.Terminal) {
 
 	help_table2, _ := text.New()
 	help_table2.Write(
-		"-> Cycle to next connection\n<- Cycle to previous connection",
+		"-> Cycle to next connection\n<- Cycle to previous connection\n\\ Clear all filters\n/ Clear group filters\n+ Increase refresh rate by 100ms\n- Decrease refresh rate by 100ms",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
 	help_table3, _ := text.New()
 	help_table3.Write(
-		"Other:\nREPO https://github.com/raneamri/gotop\n",
+		"REPO https://github.com/raneamri/nextop\nAUTHOR Imrane AMRI\nLICENSE ...\n",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
 	cont, err := container.New(
 		t,
-		container.ID("help_screen"),
+		container.ID("menu_screen"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("HELP (ESC to go back)"),
+		container.BorderTitle("NEXTOP (ESC to go back)"),
 		container.BorderColor(cell.ColorGray),
 		container.FocusedColor(cell.ColorWhite),
-		container.SplitHorizontal(
-			container.Top(
-				container.Border(linestyle.Light),
-				container.BorderTitle("Modes"),
-				container.PlaceWidget(help_table1),
-			),
-			container.Bottom(
+		container.SplitVertical(
+			container.Left(
 				container.SplitHorizontal(
 					container.Top(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Actions"),
-						container.PlaceWidget(help_table2),
+						container.BorderTitle("Modes"),
+						container.PlaceWidget(help_table1),
 					),
 					container.Bottom(
-						container.Border(linestyle.Light),
-						container.BorderTitle("Other"),
-						container.PlaceWidget(help_table3),
+						container.SplitHorizontal(
+							container.Top(
+								container.Border(linestyle.Light),
+								container.BorderTitle("Actions"),
+								container.PlaceWidget(help_table2),
+							),
+							container.Bottom(
+								container.Border(linestyle.Light),
+								container.BorderTitle("Other"),
+								container.PlaceWidget(help_table3),
+							),
+							container.SplitPercent(50),
+						),
 					),
-					container.SplitPercent(50),
+					container.SplitPercent(40),
 				),
 			),
-			container.SplitPercent(40),
+			container.Right(
+				container.Border(linestyle.Double),
+			),
+			container.SplitPercent(65),
 		),
 	)
 	if err != nil {
@@ -189,24 +139,60 @@ func DisplayProcesslist(t *tcell.Terminal) {
 	/*
 		Processlist data (container-1)
 	*/
-	pl_table, _ := text.New()
-	pl_table.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	pl_text, _ := text.New()
+	pl_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	var processlist []string
 
-	go dynProcesslist(ctx, pl_table, Interval*2)
+	search, err := textinput.New(
+		textinput.Label("Search  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("pl-include-suggestion")),
+	)
+	exclude, err := textinput.New(
+		textinput.Label("Exclude ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("pl-exclude-suggestion")),
+	)
+	group, err := textinput.New(
+		textinput.Label("Group   ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Group name"),
+	)
 
 	/*
 		QPS/Uptime data (container-2)
 	*/
-	tl_table, _ := text.New()
-	tl_table.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
-
-	go dynQPSUPT(ctx, tl_table, Interval)
+	info_text, _ := text.New()
+	info_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	/*
-		SEL/INS barchart... (container-3)
+		Queries per hour for the past n intervals (container-4)
 	*/
+	var queries []float64
+	queries_lc, err := linechart.New(
+		linechart.YAxisAdaptive(),
+		linechart.YAxisFormattedValues(linechart.ValueFormatterRoundWithSuffix("")),
+		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
+		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
+	)
 
-	bc, err := barchart.New(
+	/*
+		SEL/INS/... barchart (container-3)
+	*/
+	acts_bc, err := barchart.New(
 		barchart.BarColors([]cell.Color{
 			cell.ColorNumber(24),
 			cell.ColorNumber(25),
@@ -238,22 +224,9 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		panic(err)
 	}
 
-	/*
-		Queries per hour for the past n intervals (container-4)
-	*/
-	var queries []float64
-	lc, err := linechart.New(
-		linechart.YAxisAdaptive(),
-		linechart.YAxisFormattedValues(linechart.ValueFormatterRoundWithSuffix("")),
-		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
-		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
-		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	go dynPLGraphs(ctx, lc, bc, queries, Interval)
+	go dynProcesslist(ctx, pl_text, processlist, search, exclude, group, Interval)
+	go dynProcesslistInfo(ctx, info_text, Interval)
+	go dynProcesslistGraphs(ctx, queries_lc, acts_bc, queries, Interval)
 
 	cont, err := container.New(
 		t,
@@ -266,24 +239,51 @@ func DisplayProcesslist(t *tcell.Terminal) {
 			container.Top(
 				container.SplitVertical(
 					container.Left(
-						container.Border(linestyle.Light),
-						container.PlaceWidget(tl_table),
+						container.SplitHorizontal(
+							container.Top(
+								container.Border(linestyle.Light),
+								container.BorderTitle("Active (scrollable)"),
+								container.PlaceWidget(info_text),
+							),
+							container.Bottom(
+								container.Border(linestyle.Light),
+								container.BorderTitle("Filters"),
+								container.SplitHorizontal(
+									container.Top(
+										container.PlaceWidget(search),
+									),
+									container.Bottom(
+										container.SplitHorizontal(
+											container.Top(
+												container.PlaceWidget(exclude),
+											),
+											container.Bottom(
+												container.PlaceWidget(group),
+											),
+											container.SplitPercent(50),
+										),
+									),
+									container.SplitPercent(33),
+								),
+							),
+							container.SplitPercent(30),
+						),
 					),
 					container.Right(
 						container.SplitVertical(
 							container.Left(
 								container.Border(linestyle.Light),
-								container.PlaceWidget(bc),
+								container.PlaceWidget(acts_bc),
 							),
 							container.Right(
 								container.Border(linestyle.Light),
 								container.BorderTitle("QPS"),
-								container.PlaceWidget(lc),
+								container.PlaceWidget(queries_lc),
 							),
-							container.SplitPercent(28),
+							container.SplitPercent(32),
 						),
 					),
-					container.SplitPercent(30),
+					container.SplitPercent(40),
 				),
 			),
 			container.Bottom(
@@ -292,7 +292,7 @@ func DisplayProcesslist(t *tcell.Terminal) {
 				*/
 				container.Border(linestyle.Light),
 				container.BorderTitle("Processes"),
-				container.PlaceWidget(pl_table),
+				container.PlaceWidget(pl_text),
 			),
 			container.SplitPercent(40),
 		),
@@ -304,34 +304,28 @@ func DisplayProcesslist(t *tcell.Terminal) {
 
 	keyreader := func(k *terminalapi.Keyboard) {
 		switch k.Key {
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'm', 'M':
-			State = types.MEM_DASHBOARD
-			cancel()
-		case 'e', 'E':
-			State = types.ERR_LOG
-			cancel()
-		case 'l', 'L':
-			State = types.LOCK_LOG
-			cancel()
-		case 'c', 'C':
-			State = types.CONFIGS
-			cancel()
 		case keyboard.KeyArrowLeft:
 			CurrRotateLeft()
 		case keyboard.KeyArrowRight:
 			CurrRotateRight()
 		case '?':
-			State = types.HELP
+			State = types.MENU
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-		case 'q', 'Q':
-			State = types.QUIT
-			cancel()
+		case '\\':
+			time.Sleep(100 * time.Millisecond)
+			search.ReadAndClear()
+			exclude.ReadAndClear()
+			group.ReadAndClear()
+		case '/':
+			time.Sleep(100 * time.Millisecond)
+			group.ReadAndClear()
+		case '+':
+			Interval += 100 * time.Millisecond
+		case '-':
+			Interval -= 100 * time.Millisecond
 		}
 	}
 
@@ -360,7 +354,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 	*/
 	settings_headers := []string{"refresh-rate", "errlog-refresh-rate", "err-include-suggestion", "err-exclude-suggestion"}
 	dir, _ := os.Getwd()
-	settings_txt.Write("\n   "+dir+"/gotop.conf\n", text.WriteCellOpts(cell.Bold()))
+	settings_txt.Write("\n   "+dir+"/nextop.conf\n", text.WriteCellOpts(cell.Bold()))
 	for _, header := range settings_headers {
 		settings_txt.Write("\n   "+header, text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		settings_txt.Write(": " + io.FetchSetting(header))
@@ -545,7 +539,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 			/*
 				Update instances display
 			*/
-			dynInstanceDisplay(ctx, instlog, instances, Interval)
+			dynInstanceDisplay(ctx, instlog, instances)
 
 		case keyboard.KeyEsc:
 			State = Laststate
@@ -722,7 +716,7 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 			State = types.CONFIGS
 			cancel()
 		case '?':
-			State = types.HELP
+			State = types.MENU
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
@@ -848,7 +842,7 @@ func DisplayMemory(t *tcell.Terminal) {
 			State = types.CONFIGS
 			cancel()
 		case '?':
-			State = types.HELP
+			State = types.MENU
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
@@ -998,6 +992,17 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+		case '?':
+			State = types.MENU
+			cancel()
+		case '\\':
+			time.Sleep(100 * time.Millisecond)
+			search.ReadAndClear()
+			exclude.ReadAndClear()
+		case '+':
+			Interval += 100 * time.Millisecond
+		case '-':
+			Interval -= 100 * time.Millisecond
 		}
 	}
 
@@ -1055,7 +1060,7 @@ func DisplayLocks(t *tcell.Terminal) {
 			State = types.CONFIGS
 			cancel()
 		case '?':
-			State = types.HELP
+			State = types.MENU
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate

@@ -84,3 +84,12 @@
 - Added include and exclude filters to error log.
 - Added linechart to error log.
 - Added settings display in config tab.
+
+## Mon 3 Jul 2023:
+- Rebranded to new agreed name.
+- Reduced workload in display routines.
+- Added filters to processlist along with filter suggestions.
+- Removed original menu page, merged with help menu.
+- Set processlist to default view.
+- Added connection groups.
+- Began adding keybind configuration.

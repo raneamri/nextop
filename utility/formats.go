@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/nextop/types"
 )
 
 /*

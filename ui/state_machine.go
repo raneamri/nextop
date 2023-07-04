@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/mum4k/termdash/terminal/tcell"
-	"github.com/raneamri/gotop/db"
-	"github.com/raneamri/gotop/io"
-	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/nextop/db"
+	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/types"
 )
 
 /*
@@ -75,11 +75,15 @@ func InterfaceLoop(instances []types.Instance) {
 	*/
 	if len(instances) > 0 {
 		for i, inst := range instances {
-			if i == 0 {
-				CurrConn = inst.ConnName
+			var key string = inst.ConnName
+			if inst.Group != "" {
+				key += "&" + inst.Group
 			}
-			ConnPool[inst.ConnName] = db.Connect(inst)
-			ActiveConns = append(ActiveConns, inst.ConnName)
+			if i == 0 {
+				CurrConn = key
+			}
+			ConnPool[key] = db.Connect(inst)
+			ActiveConns = append(ActiveConns, key)
 		}
 	}
 
@@ -90,7 +94,7 @@ func InterfaceLoop(instances []types.Instance) {
 	if len(instances) == 0 {
 		State = types.CONFIGS
 	} else {
-		State = types.MENU
+		State = types.PROCESSLIST
 	}
 
 	for true {
@@ -120,18 +124,7 @@ func InterfaceLoop(instances []types.Instance) {
 			Laststate = types.LOCK_LOG
 			break
 		case types.CONFIGS:
-			/*
-				Force user to this state if no configs are found and if launched w/o args.
-				Prompt user to connect to database
-			*/
 			DisplayConfigs(t, instances)
-			break
-		case types.HELP:
-			/*
-				Display help text and repo
-			*/
-			DrawHelp(t)
-			Laststate = types.HELP
 			break
 		case types.QUIT:
 			/*

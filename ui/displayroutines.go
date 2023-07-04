@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/raneamri/gotop/db"
-	"github.com/raneamri/gotop/types"
-	"github.com/raneamri/gotop/utility"
+	"github.com/raneamri/nextop/db"
+	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mum4k/termdash/cell"
@@ -27,75 +27,96 @@ import (
 Provides data dynamically to displays.go
 Note: add filter arg and rake frows
 */
-func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
+func dynProcesslist(ctx context.Context,
+	pl_text *text.Text,
+	processlist []string,
+	search *textinput.TextInput,
+	exclude *textinput.TextInput,
+	group *textinput.TextInput,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			/*
-				Write header
-			*/
-			pl_header := fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
-				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
+			filterfor := search.Read()
+			ommit := exclude.Read()
+			filtergroup := group.Read()
 
-			var colors []text.WriteOption
 			for _, key := range ActiveConns {
-				pldata := db.GetLongQuery(ConnPool[key], db.ProcesslistLongQuery())
-
-				var frow string
-				var ftable []string
-				for i, row := range pldata {
-					/*
-						Converting data to usable
-					*/
-					cmd := row[0]
-					thread := row[1]
-					conn := row[2]
-					pid := row[3]
-					state := row[4]
-					user := row[5]
-					db := row[6]
-					ftime, _ := strconv.ParseInt(row[8], 10, 64)
-					if ftime > 5_000_000_000_000 {
-						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorBlue))}, colors...)
-					} else if ftime > 10_000_000_000_000 {
-						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorYellow))}, colors...)
-					} else if ftime > 30_000_000_000_000 {
-						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorRed))}, colors...)
-					} else if ftime > 60_000_000_000_000 {
-						colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))}, colors...)
-					} else {
-						if i%2 == 0 {
-							colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorGray))}, colors...)
-						} else {
-							colors = append([]text.WriteOption{text.WriteCellOpts(cell.FgColor(cell.ColorWhite))}, colors...)
-						}
+				/*
+					Handle group filter
+				*/
+				if filtergroup != "" {
+					var limiter int = strings.IndexRune(key, '&') + 1
+					var group string = key[limiter:]
+					if limiter == -1 || group != filtergroup {
+						continue
 					}
-					time := utility.FpicoToMs(ftime)
+				}
+
+				pldata := db.GetLongQuery(ConnPool[key], db.ProcesslistLongQuery())
+				for _, row := range pldata {
+					/*
+						Formatting
+					*/
+					ftime, _ := strconv.ParseInt(row[8], 10, 64)
 					flocktime, _ := strconv.ParseInt(row[9], 10, 64)
-					locktime := utility.FpicoToUs(flocktime)
 					fquery := strings.ReplaceAll(row[7], "\t", " ")
 					fquery = strings.ReplaceAll(row[7], "\n", " ")
 					if len(fquery) > 30 {
-						fquery = fquery[:30]
+						fquery = fquery[:30] + "..."
 					}
 
-					frow = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
-						cmd, thread, conn, pid, state, user, db, time, locktime, fquery)
-					ftable = append([]string{frow}, ftable...)
+					/*
+						Line up items to header
+					*/
+					formatted_list := fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
+						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
+						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime), fquery)
+					processlist = append(processlist, formatted_list)
+				}
+			}
+
+			pl_text.Reset()
+			headers := fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
+				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
+			pl_text.Write(headers, text.WriteCellOpts(cell.Bold()))
+
+			var color_flipper = 1
+			for _, process := range processlist {
+				var color text.WriteOption
+				if !strings.Contains(process, filterfor) || (strings.Contains(process, ommit) && ommit != "") {
+					continue
 				}
 
-				pl.Reset()
-				if err := pl.Write(pl_header, text.WriteCellOpts(cell.Bold()), text.WriteCellOpts(cell.FgColor(cell.ColorWhite))); err != nil {
-					panic(err)
+				/*
+						Evaluate color
+
+					if flocktime > 5_000_000_000_000 {
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorBlue))
+					} else if flocktime > 10_000_000_000_000 {
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
+					} else if flocktime > 30_000_000_000_000 {
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
+					} else if flocktime > 60_000_000_000_000 {
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))
+					} else {
+						if color_flipper > 0 {
+							color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+						} else {
+							color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+						}
+					}*/
+
+				if color_flipper > 0 {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
-				for i, row := range ftable {
-					err := pl.Write(row, colors[i])
-					if err != nil {
-						panic(err)
-					}
-				}
+				color_flipper *= -1
+				pl_text.Write(process, color)
 			}
 
 		case <-ctx.Done():
@@ -104,41 +125,49 @@ func dynProcesslist(ctx context.Context, pl *text.Text, delay time.Duration) {
 	}
 }
 
-func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration) {
+func dynProcesslistInfo(ctx context.Context,
+	info_text *text.Text,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			tl_header := fmt.Sprintf("%-11v %-16v %-7v %-5v\n",
+			var color text.WriteOption
+			headers := fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
 				"Connection", "Uptime", "QPS", "Threads")
 
-			var tabled_data []string
+			var info []string
 
 			for _, key := range ActiveConns {
 				parameters := []string{"uptime", "queries", "threads_connected"}
 				statuses := db.GetStatus(ConnPool[key], parameters)
 
+				/*
+					Formatting
+				*/
 				uptime, _ := strconv.Atoi(statuses[0])
 				qps_int, _ := strconv.Atoi(fmt.Sprint(statuses[1]))
-				qps := utility.Fnum(qps_int)
-				thrds := statuses[2]
 
-				frow := fmt.Sprintf("%-11v %-16v %-7v %-5v\n", key, utility.Ftime(uptime), qps, fmt.Sprint(thrds))
-				tabled_data = append(tabled_data, frow)
+				/*
+					Line up items to header
+				*/
+				formatted_list := fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
+					key, utility.Ftime(uptime), utility.Fnum(qps_int), statuses[2])
+				info = append(info, formatted_list)
 			}
 
-			tl.Reset()
-			if err := tl.Write(tl_header, text.WriteCellOpts(cell.Bold())); err != nil {
-				panic(err)
-			}
-
-			for i, row := range tabled_data {
+			info_text.Reset()
+			info_text.Write(headers, text.WriteCellOpts(cell.Bold()))
+			for i, item := range info {
 				if i%2 == 0 {
-					tl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 				} else {
-					tl.Write(row, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
+
+				info_text.Write(item, color)
 			}
 
 		case <-ctx.Done():
@@ -147,7 +176,12 @@ func dynQPSUPT(ctx context.Context, tl *text.Text, delay time.Duration) {
 	}
 }
 
-func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarChart, queries []float64, delay time.Duration) {
+func dynProcesslistGraphs(ctx context.Context,
+	queries_lc *linechart.LineChart,
+	acts_bc *barchart.BarChart,
+	queries []float64,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -159,7 +193,7 @@ func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarC
 			queries = append(queries, math.Round(qps))
 
 			/*
-				Condense into one query
+				Condense data
 			*/
 			selects := db.GetLongQuery(ConnPool[CurrConn], db.SelectLongQuery())
 			selects_int, _ := strconv.Atoi(selects[0][0])
@@ -171,18 +205,14 @@ func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarC
 			deletes_int, _ := strconv.Atoi(deletes[0][0])
 			values := []int{selects_int, inserts_int, updates_int, deletes_int}
 
-			if err := lc.Series("first", queries,
+			queries_lc.Series("first", queries,
 				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
 				linechart.SeriesXLabels(map[int]string{
 					0: "0",
 				}),
-			); err != nil {
-				panic(err)
-			}
+			)
 
-			if err := bc.Values(values, utility.Max(values)); err != nil {
-				panic(err)
-			}
+			acts_bc.Values(values, utility.Max(values))
 
 		case <-ctx.Done():
 			return
@@ -190,14 +220,23 @@ func dynPLGraphs(ctx context.Context, lc *linechart.LineChart, bc *barchart.BarC
 	}
 }
 
-func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
-	checkpoint_donut *donut.Donut, pool_donut *donut.Donut, ahi_donut *donut.Donut,
-	disk_donut *donut.Donut, delay time.Duration) {
+func dynDbDashboard(ctx context.Context,
+	dbinfo *text.Text,
+	bfpinfo *text.Text,
+	checkpoint_donut *donut.Donut,
+	pool_donut *donut.Donut,
+	ahi_donut *donut.Donut,
+	disk_donut *donut.Donut,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			/*
+				container-1
+			*/
 			varparameters := []string{"innodb_buffer_pool_size", "innodb_buffer_pool_instances", "innodb_log_file_size",
 				"innodb_log_files_in_group", "innodb_adaptive_hash_index", "innodb_adaptive_hash_index_parts"}
 			variables := db.GetSchemaVariable(ConnPool[CurrConn], varparameters)
@@ -227,6 +266,9 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 			dbinfo.Write(ahi, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 			dbinfo.Write(ahi_nparts, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 
+			/*
+				container-2
+			*/
 			varparameters = db.InnoDBLongParams()
 			variables = db.GetSchemaStatus(ConnPool[CurrConn], varparameters)
 
@@ -265,6 +307,10 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 			bfpinfo.Write(pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 			bfpinfo.Write(os_pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
 
+			/*
+				container-3
+				(unfinished)
+			*/
 			checkpoint_age_int, _ := strconv.Atoi(checkpoint_age_raw[0][0])
 			checkpoint_donut.Percent(checkpoint_age_int)
 			pool_donut.Percent(1)
@@ -277,7 +323,10 @@ func dynDbDashboard(ctx context.Context, dbinfo *text.Text, bfpinfo *text.Text,
 	}
 }
 
-func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []types.Instance, delay time.Duration) {
+func dynInstanceDisplay(ctx context.Context,
+	instlog *text.Text,
+	instances []types.Instance) {
+
 	instlog.Reset()
 	for _, inst := range instances {
 		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
@@ -289,9 +338,17 @@ func dynInstanceDisplay(ctx context.Context, instlog *text.Text, instances []typ
 	}
 }
 
-func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_txt *text.Text,
-	usralloc1_txt *text.Text, usralloc2_txt *text.Text, dballoc_lc *linechart.LineChart, hardwalloc1_txt *text.Text,
-	hardwalloc2_txt *text.Text, alt []float64, delay time.Duration) {
+func dynMemoryDashboard(ctx context.Context,
+	dballoc1_txt *text.Text,
+	dballoc2_txt *text.Text,
+	usralloc1_txt *text.Text,
+	usralloc2_txt *text.Text,
+	dballoc_lc *linechart.LineChart,
+	hardwalloc1_txt *text.Text,
+	hardwalloc2_txt *text.Text,
+	alt []float64,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -362,9 +419,16 @@ func dynMemoryDashboard(ctx context.Context, dballoc1_txt *text.Text, dballoc2_t
 	}
 }
 
-func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInput,
-	exclude *textinput.TextInput, err_ot []float64, warn_ot []float64,
-	sys_ot []float64, freqs *linechart.LineChart, delay time.Duration) {
+func dynErrorLog(ctx context.Context,
+	log *text.Text,
+	search *textinput.TextInput,
+	exclude *textinput.TextInput,
+	err_ot []float64,
+	warn_ot []float64,
+	sys_ot []float64,
+	freqs *linechart.LineChart,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {
@@ -458,8 +522,13 @@ func dynErrorLog(ctx context.Context, log *text.Text, search *textinput.TextInpu
 	}
 }
 
-func dynLockLog(ctx context.Context, log *text.Text, err_ot []float64, warn_ot []float64,
-	other_ot []float64, delay time.Duration) {
+func dynLockLog(ctx context.Context,
+	log *text.Text,
+	err_ot []float64,
+	warn_ot []float64,
+	other_ot []float64,
+	delay time.Duration) {
+
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
 	for {

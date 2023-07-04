@@ -4,15 +4,21 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/raneamri/gotop/types"
+	"github.com/raneamri/nextop/types"
 )
 
 /*
 Specific error for incorrect arguments
 */
 func ThrowArgError(arguments []string) {
-	fmt.Println("Unknown argument(s)/flag(s).")
-	fmt.Println("Appropriate arguments: <dbms> <dsn> optional:<conn-name>")
+	fmt.Println("Unknown argument(s):")
+	fmt.Println("    Appropriate arguments: <dbms> <dsn> optional:<conn-name>")
+	os.Exit(1)
+}
+
+func ThrowKeybindError(duplicate string) {
+	fmt.Println("Keybinding error:")
+	fmt.Println("    " + duplicate + " is a duplicate keybind")
 	os.Exit(1)
 }
 

@@ -1,4 +1,4 @@
-module github.com/raneamri/gotop
+module github.com/raneamri/nextop
 
 go 1.20
 
