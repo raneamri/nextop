@@ -43,23 +43,24 @@ Quoting https://github.com/go-sql-driver/mysql#features:
 /*
 Unwrap instance into db pointer
 */
-func Connect(instance types.Instance) *sql.DB {
+func Connect(instance types.Instance) (*sql.DB, error) {
 	var (
 		driver *sql.DB
 		err    error
 	)
 	driver, err = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
 	if err != nil {
-		panic(err)
+		driver.Close()
+		return nil, err
 	}
 	driver.SetConnMaxLifetime(time.Minute * 3)
 	driver.SetMaxOpenConns(10)
 	driver.SetMaxIdleConns(10)
 	if err := driver.Ping(); err != nil {
 		driver.Close()
-		panic(err)
+		return nil, err
 	}
-	return driver
+	return driver, nil
 }
 
 /*

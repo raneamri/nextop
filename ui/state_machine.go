@@ -107,9 +107,12 @@ func InterfaceLoop() {
 				CurrConn = key
 				flag = false
 			}
-			inst.Driver = db.Connect(inst)
+			var err error
+			inst.Driver, err = db.Connect(inst)
 			Instances[key] = inst
-			ActiveConns = append(ActiveConns, key)
+			if err == nil {
+				ActiveConns = append(ActiveConns, key)
+			}
 		}
 	}
 
@@ -117,7 +120,7 @@ func InterfaceLoop() {
 		If no config found, force config state
 		Else, processlist
 	*/
-	if len(Instances) == 0 {
+	if len(ActiveConns) == 0 {
 		State = types.CONFIGS
 	} else {
 		State = types.PROCESSLIST

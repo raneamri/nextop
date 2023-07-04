@@ -393,6 +393,11 @@ func DisplayConfigs() {
 		instlog.Write(": " + string((inst.DSN)))
 		instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + string((inst.ConnName)))
+		if inst.Driver != nil {
+			instlog.Write(" ONLINE", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
+		} else {
+			instlog.Write(" OFFLINE", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+		}
 	}
 
 	/*
@@ -547,10 +552,12 @@ func DisplayConfigs() {
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 			}
 
-			inst.Driver = db.Connect(inst)
-			ActiveConns = append(ActiveConns, inst.ConnName)
-			if len(ActiveConns) == 1 {
-				CurrConn = ActiveConns[0]
+			inst.Driver, err = db.Connect(inst)
+			if err == nil {
+				ActiveConns = append(ActiveConns, inst.ConnName)
+				if len(ActiveConns) == 1 {
+					CurrConn = ActiveConns[0]
+				}
 			}
 
 			/*
@@ -569,10 +576,26 @@ func DisplayConfigs() {
 			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
 			t.Close()
+		case '?':
+			if len(ActiveConns) > 0 {
+				State = types.MENU
+				cancel()
+				t.Close()
+			} else {
+				errlog.Reset()
+				log_msg = "\n   Please make sure to have a minimum of one connection online\n   before changing views."
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+			}
 		case keyboard.KeyEsc:
-			State = Laststate
-			cancel()
-			t.Close()
+			if len(ActiveConns) > 0 {
+				State = Laststate
+				cancel()
+				t.Close()
+			} else {
+				errlog.Reset()
+				log_msg = "\n   Please make sure to have a minimum of one connection online\n   before changing views."
+				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+			}
 		}
 	}
 
