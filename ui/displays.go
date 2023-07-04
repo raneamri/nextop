@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ func DrawMenu() {
 
 	help_table2, _ := text.New()
 	help_table2.Write(
-		"-> Cycle to next connection\n<- Cycle to previous connection\n\\ Clear all filters\n/ Clear group filters\n+ Increase refresh rate by 100ms\n- Decrease refresh rate by 100ms",
+		"CTRL+D Reload page\n-> Cycle to next connection\n<- Cycle to previous connection\n\\ Clear all filters\n/ Clear group filters\n+ Increase refresh rate by 100ms\n- Decrease refresh rate by 100ms",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
@@ -114,6 +115,11 @@ func DrawMenu() {
 			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
+			cancel()
+			t.Close()
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
 			t.Close()
 		case keyboard.KeyEsc:
@@ -321,6 +327,11 @@ func DisplayProcesslist() {
 			State = types.MENU
 			cancel()
 			t.Close()
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
@@ -364,7 +375,7 @@ func DisplayConfigs() {
 	/*
 		Display configurated settings (container-1)
 	*/
-	settings_headers := []string{"refresh-rate", "errlog-refresh-rate", "err-include-suggestion", "err-exclude-suggestion"}
+	settings_headers := []string{"refresh-rate", "errlog-refresh-rate", "default-group"}
 	dir, _ := os.Getwd()
 	settings_txt.Write("\n   "+dir+"/nextop.conf\n", text.WriteCellOpts(cell.Bold()))
 	for _, header := range settings_headers {
@@ -553,6 +564,11 @@ func DisplayConfigs() {
 			*/
 			dynInstanceDisplay(ctx, instlog)
 
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
@@ -738,6 +754,11 @@ func DisplayDbDashboard() {
 			State = types.MENU
 			cancel()
 			t.Close()
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
@@ -873,6 +894,11 @@ func DisplayMemory() {
 			State = types.MENU
 			cancel()
 			t.Close()
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
@@ -944,7 +970,7 @@ func DisplayErrorLog() {
 		Error log can have heavy fetch / refresh time
 		So we display an error log instantly to account for that
 	*/
-	error_log := db.GetLongQuery(Instances[CurrConn].Driver, db.ErrorLogShortQuery())
+	error_log := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLErrorLogShortQuery())
 	error_log_headers := "Timestamp           " + "Thd " + " Message\n"
 
 	log.Reset()
@@ -1021,6 +1047,11 @@ func DisplayErrorLog() {
 
 	keyreader := func(k *terminalapi.Keyboard) {
 		switch k.Key {
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
@@ -1079,6 +1110,11 @@ func DisplayLocks() {
 
 	keyreader := func(k *terminalapi.Keyboard) {
 		switch k.Key {
+		case keyboard.KeyCtrlD:
+			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			cancel()
+			t.Close()
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()

@@ -52,6 +52,13 @@ var (
 		since some displays aren't big enough to show all instances
 	*/
 	CurrConn string
+
+	/*
+		Map to hold all queries for ease of selection
+	*/
+	GlobalQueryMap map[types.DBMS_t]map[string]func() string = make(map[types.DBMS_t]map[string]func() string)
+	MySQLQueries   map[string]func() string                  = make(map[string]func() string)
+	//PostGreQueries map[string]func() string                  = make(map[string]func() string)
 )
 
 func InterfaceLoop() {
@@ -90,7 +97,7 @@ func InterfaceLoop() {
 
 	/*
 		Open & map all connections
-		Set first connection as main
+		Set first connection as current
 	*/
 	var flag bool = true
 	if len(Instances) > 0 {
@@ -115,6 +122,12 @@ func InterfaceLoop() {
 	} else {
 		State = types.PROCESSLIST
 	}
+
+	/*
+		Set up query maps
+	*/
+	db.MapMySQL(MySQLQueries)
+	GlobalQueryMap[types.MYSQL] = MySQLQueries
 
 	for true {
 		switch State {

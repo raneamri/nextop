@@ -53,7 +53,8 @@ func dynProcesslist(ctx context.Context,
 					}
 				}
 
-				pldata := db.GetLongQuery(Instances[key].Driver, db.ProcesslistLongQuery())
+				lookup := GlobalQueryMap[Instances[key].DBMS]
+				pldata := db.GetLongQuery(Instances[key].Driver, lookup["processlist"]())
 
 				for _, row := range pldata {
 					/*
@@ -193,13 +194,13 @@ func dynProcesslistGraphs(ctx context.Context,
 			/*
 				Condense data
 			*/
-			selects := db.GetLongQuery(Instances[CurrConn].Driver, db.SelectLongQuery())
+			selects := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLSelectLongQuery())
 			selects_int, _ := strconv.Atoi(selects[0][0])
-			inserts := db.GetLongQuery(Instances[CurrConn].Driver, db.InsertsLongQuery())
+			inserts := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLInsertsLongQuery())
 			inserts_int, _ := strconv.Atoi(inserts[0][0])
-			updates := db.GetLongQuery(Instances[CurrConn].Driver, db.UpdatesLongQuery())
+			updates := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLUpdatesLongQuery())
 			updates_int, _ := strconv.Atoi(updates[0][0])
-			deletes := db.GetLongQuery(Instances[CurrConn].Driver, db.DeletesLongQuery())
+			deletes := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLDeletesLongQuery())
 			deletes_int, _ := strconv.Atoi(deletes[0][0])
 			values := []int{selects_int, inserts_int, updates_int, deletes_int}
 
@@ -246,9 +247,9 @@ func dynDbDashboard(ctx context.Context,
 			intlogfile, _ := strconv.Atoi(variables[2])
 			logfile_size := utility.BytesToMiB(intlogfile) + "\n"
 			logfilen := variables[3] + "\n\n"
-			checkpoint_info_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.CheckpointInfoLongQuery())
+			checkpoint_info_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLCheckpointInfoLongQuery())
 			checkpoint_info := strings.TrimLeft(checkpoint_info_raw[0][0], " ") + "\n"
-			checkpoint_age_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.CheckpointAgePctLongQuery())
+			checkpoint_age_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLCheckpointAgePctLongQuery())
 			checkpoint_age := checkpoint_age_raw[0][0] + "%\n\n"
 			ahi := variables[4] + "\n"
 			ahi_nparts := variables[5] + "\n"
@@ -267,7 +268,7 @@ func dynDbDashboard(ctx context.Context,
 			/*
 				container-2
 			*/
-			varparameters = db.InnoDBLongParams()
+			varparameters = strings.Split(db.MySQLInnoDBLongParams(), " ")
 			variables = db.GetSchemaStatus(Instances[CurrConn].Driver, varparameters)
 
 			/*
@@ -351,10 +352,11 @@ func dynMemoryDashboard(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			total_alloc := db.GetLongQuery(Instances[CurrConn].Driver, db.GlobalAllocatedShortQuery())
-			alloc_by_area := db.GetLongQuery(Instances[CurrConn].Driver, db.SpecificAllocatedLongQuery())
-			usr_alloc := db.GetLongQuery(Instances[CurrConn].Driver, db.UserMemoryShortQuery())
-			ramndisk_alloc := db.GetLongQuery(Instances[CurrConn].Driver, db.RamNDiskLongQuery())
+			lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
+			total_alloc := db.GetLongQuery(Instances[CurrConn].Driver, lookup["global_alloc"]())
+			alloc_by_area := db.GetLongQuery(Instances[CurrConn].Driver, lookup["spec_alloc"]())
+			usr_alloc := db.GetLongQuery(Instances[CurrConn].Driver, lookup["user_alloc"]())
+			ramndisk_alloc := db.GetLongQuery(Instances[CurrConn].Driver, lookup["ramdisk_alloc"]())
 
 			dballoc1_txt.Reset()
 			dballoc2_txt.Reset()
@@ -431,8 +433,8 @@ func dynErrorLog(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-
-			error_log := db.GetLongQuery(Instances[CurrConn].Driver, db.ErrorLogShortQuery())
+			lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
+			error_log := db.GetLongQuery(Instances[CurrConn].Driver, lookup["err"]())
 
 			error_log_headers := "Timestamp           " + "Thd " + " Message\n"
 
@@ -531,6 +533,8 @@ func dynLockLog(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
+			//lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
+			//lock_log := db.GetLongQuery(Instances[CurrConn].Driver, lookup["locks"]())
 
 		case <-ctx.Done():
 			return
