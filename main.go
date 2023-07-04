@@ -68,7 +68,7 @@ func main() {
 
 	ui.InterfaceLoop(instances)
 
-	fmt.Println("Bye")
+	fmt.Printf("Bye")
 }
 
 func Version() string {

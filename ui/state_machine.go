@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/types"
@@ -33,6 +32,13 @@ var (
 		If you believe you will need regular and rapid filter changes, set to higher value
 	*/
 	ErrInterval time.Duration
+
+	/*
+		Map to hold all instances, including drivers, groups & DBMS
+		Key is connection name
+	*/
+	Instances map[string]types.Instance = make(map[string]types.Instance)
+
 	/*
 		Holds all drivers
 	*/
@@ -53,15 +59,6 @@ var (
 )
 
 func InterfaceLoop(instances []types.Instance) {
-	/*
-		Interface parameters
-		Open a tcell for the interface
-	*/
-	t, err := tcell.New()
-	if err != nil {
-		panic(err)
-	}
-
 	/*
 		Fetch refresh rate from config
 	*/
@@ -100,37 +97,36 @@ func InterfaceLoop(instances []types.Instance) {
 	for true {
 		switch State {
 		case types.MENU:
-			DrawMenu(t)
+			DrawMenu()
 			Laststate = types.MENU
 			break
 		case types.PROCESSLIST:
-			DisplayProcesslist(t)
+			DisplayProcesslist()
 			Laststate = types.PROCESSLIST
 			break
 		case types.DB_DASHBOARD:
-			DisplayDbDashboard(t)
+			DisplayDbDashboard()
 			Laststate = types.DB_DASHBOARD
 			break
 		case types.MEM_DASHBOARD:
-			DisplayMemory(t)
+			DisplayMemory()
 			Laststate = types.MEM_DASHBOARD
 			break
 		case types.ERR_LOG:
-			DisplayErrorLog(t)
+			DisplayErrorLog()
 			Laststate = types.ERR_LOG
 			break
 		case types.LOCK_LOG:
-			DisplayLocks(t)
+			DisplayLocks()
 			Laststate = types.LOCK_LOG
 			break
 		case types.CONFIGS:
-			DisplayConfigs(t, instances)
+			DisplayConfigs(instances)
 			break
 		case types.QUIT:
 			/*
 				Perform cleanup and close program
 			*/
-			t.Close()
 			for _, key := range ActiveConns {
 				ConnPool[key].Close()
 			}

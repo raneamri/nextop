@@ -27,7 +27,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func DrawMenu(t *tcell.Terminal) {
+func DrawMenu() {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	help_table1, _ := text.New()
@@ -98,24 +99,31 @@ func DrawMenu(t *tcell.Terminal) {
 		case 'd', 'D':
 			State = types.DB_DASHBOARD
 			cancel()
+			t.Close()
 		case 'm', 'M':
 			State = types.MEM_DASHBOARD
 			cancel()
+			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
+			t.Close()
 		case 'l', 'L':
 			State = types.LOCK_LOG
 			cancel()
+			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
+			t.Close()
 		}
 	}
 
@@ -133,7 +141,8 @@ Format of this display is:
 	container-3 (top-mid): barchart showing sel/ins/del ...
 	container-4 (top-right): graph shows lifeline as graph
 */
-func DisplayProcesslist(t *tcell.Terminal) {
+func DisplayProcesslist() {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	/*
@@ -311,9 +320,11 @@ func DisplayProcesslist(t *tcell.Terminal) {
 		case '?':
 			State = types.MENU
 			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		case '\\':
 			time.Sleep(100 * time.Millisecond)
 			search.ReadAndClear()
@@ -334,7 +345,8 @@ func DisplayProcesslist(t *tcell.Terminal) {
 	}
 }
 
-func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
+func DisplayConfigs(instances []types.Instance) {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
@@ -544,6 +556,7 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		}
 	}
 
@@ -556,7 +569,8 @@ func DisplayConfigs(t *tcell.Terminal, instances []types.Instance) {
 container-1 (top left): InnoDB Info
 container-2 (right): donuts
 */
-func DisplayDbDashboard(t *tcell.Terminal) {
+func DisplayDbDashboard() {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	/*
@@ -703,27 +717,35 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
+			t.Close()
 		case 'm', 'M':
 			State = types.MEM_DASHBOARD
 			cancel()
+			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
+			t.Close()
 		case 'l', 'L':
 			State = types.LOCK_LOG
 			cancel()
+			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
+			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
+			t.Close()
 		}
 	}
 
@@ -732,7 +754,8 @@ func DisplayDbDashboard(t *tcell.Terminal) {
 	}
 }
 
-func DisplayMemory(t *tcell.Terminal) {
+func DisplayMemory() {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	dballoc1_txt, _ := text.New()
@@ -829,27 +852,35 @@ func DisplayMemory(t *tcell.Terminal) {
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
+			t.Close()
 		case 'd', 'D':
 			State = types.DB_DASHBOARD
 			cancel()
+			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
+			t.Close()
 		case 'l', 'L':
 			State = types.LOCK_LOG
 			cancel()
+			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
+			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
+			t.Close()
 		}
 	}
 
@@ -858,7 +889,8 @@ func DisplayMemory(t *tcell.Terminal) {
 	}
 }
 
-func DisplayErrorLog(t *tcell.Terminal) {
+func DisplayErrorLog() {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
@@ -992,9 +1024,11 @@ func DisplayErrorLog(t *tcell.Terminal) {
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
+			t.Close()
 		case '\\':
 			time.Sleep(100 * time.Millisecond)
 			search.ReadAndClear()
@@ -1011,7 +1045,8 @@ func DisplayErrorLog(t *tcell.Terminal) {
 	}
 }
 
-func DisplayLocks(t *tcell.Terminal) {
+func DisplayLocks() {
+	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	log, _ := text.New()
@@ -1047,27 +1082,35 @@ func DisplayLocks(t *tcell.Terminal) {
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
+			t.Close()
 		case 'd', 'D':
 			State = types.DB_DASHBOARD
 			cancel()
+			t.Close()
 		case 'm', 'M':
 			State = types.MEM_DASHBOARD
 			cancel()
+			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
+			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
+			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
+			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
+			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
+			t.Close()
 		}
 	}
 
