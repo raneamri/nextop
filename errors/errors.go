@@ -25,25 +25,9 @@ func ThrowKeybindError(duplicate string) {
 /*
 Note: not fully implemented
 */
-func CatchConfigReadError(err error, instances []types.Instance) {
+func CatchConfigReadError(err error, instances map[string]types.Instance) {
 	fmt.Println("Config file broken. Attempting to heal...")
-	/*
-		healConfig()
-		instances, err = readConfig()
-		if err != nil {
-			fmt.Println("Failed. Resetting config...")
-			resetConfig()
-			instances, err = readConfig()
-			if err != nil {
-				fmt.Println("Fatal error: ")
-				panic(err)
-			} else {
-				fmt.Println("Success! Configurations fully reset & instance written to config")
-			}
-		} else {
-			fmt.Println("Success! Instance written to config.")
-		}
-	*/
+	panic(err)
 }
 
 /*

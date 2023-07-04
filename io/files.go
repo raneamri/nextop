@@ -2,7 +2,6 @@ package io
 
 import (
 	"io/ioutil"
-	"os"
 	"strings"
 
 	"github.com/raneamri/nextop/types"
@@ -48,43 +47,9 @@ func WriteConfig(instance types.Instance) error {
 }
 
 /*
-Heals a file by iterating through its content and finding irregularities
-Note: yet to be completed
-*/
-func HealConfig() {
-	//fpath := "./nextop.conf"
-	//parser, err := ioutil.ReadFile(fpath)
-}
-
-/*
-Deletes the config file and recreates it, then rewrites headers
-Note: unfinished
-*/
-func ResetConfig() {
-	var (
-		fpath   string
-		headers [2]string
-	)
-	fpath = "nextop.conf"
-	/*
-		Recreate file
-	*/
-	os.Remove(fpath)
-	os.Create(fpath)
-	/*
-		Re-write headers
-	*/
-	headers = [2]string{"plugins", "connections"}
-	for _, elem := range headers {
-		var parsed []byte = []byte("[" + elem + "]\n\n[/" + elem + "]\n")
-		ioutil.WriteFile(fpath, parsed, 0644)
-	}
-}
-
-/*
 Reads preset instances and puts them in slice by default
 */
-func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
+func ReadInstances(Instances map[string]types.Instance) {
 	/*
 		Same parsing as writeConfig
 	*/
@@ -96,10 +61,7 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 	)
 
 	fpath = "nextop.conf"
-	contents, err := ioutil.ReadFile(fpath)
-	if err != nil {
-		return instances, err
-	}
+	contents, _ := ioutil.ReadFile(fpath)
 
 	/*
 		Only keep 'connections' section
@@ -153,10 +115,8 @@ func ReadConfig(instances []types.Instance) ([]types.Instance, error) {
 			}
 		}
 
-		instances = utility.PushInstance(instances, inst)
+		Instances[inst.ConnName] = inst
 	}
-
-	return instances, err
 }
 
 /*
@@ -221,11 +181,11 @@ func CleanConfig() {
 /*
 Syncs []Instance slice to config
 */
-func SyncConfig(instances []types.Instance) []types.Instance {
+func SyncConfig(Instances map[string]types.Instance) {
 	/*
 		Write all instances in object to file
 	*/
-	for _, inst := range instances {
+	for _, inst := range Instances {
 		err := WriteConfig(inst)
 		if err != nil {
 			panic(err)
@@ -238,9 +198,8 @@ func SyncConfig(instances []types.Instance) []types.Instance {
 	/*
 		Clean instances and read cleaned config
 	*/
-	instances = instances[:0]
-	instances, _ = ReadConfig(instances)
-	return instances
+	Instances = make(map[string]types.Instance)
+	ReadInstances(Instances)
 }
 
 /*

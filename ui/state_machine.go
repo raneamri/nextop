@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"database/sql"
+	"os"
 	"strconv"
 	"time"
 
@@ -35,14 +35,10 @@ var (
 
 	/*
 		Map to hold all instances, including drivers, groups & DBMS
-		Key is connection name
+		Key is made of connection name, an indicative character to show there is a group and the group name
 	*/
 	Instances map[string]types.Instance = make(map[string]types.Instance)
 
-	/*
-		Holds all drivers
-	*/
-	ConnPool map[string]*sql.DB = make(map[string]*sql.DB)
 	/*
 		Contains the key to all active connections that should be displayed
 	*/
@@ -50,7 +46,7 @@ var (
 	/*
 		Keychain for ActiveConns popped keys
 	*/
-	InactiveConns []string
+	IdleConns []string
 	/*
 		Holds key to main connection to be displayed
 		since some displays aren't big enough to show all instances
@@ -58,7 +54,32 @@ var (
 	CurrConn string
 )
 
-func InterfaceLoop(instances []types.Instance) {
+func InterfaceLoop() {
+	/*
+		Attempt to fetch config from .conf
+	*/
+	io.ReadInstances(Instances)
+
+	/*
+		If user doesn't specify arguments on run
+		prompt connection details and put in []Instance and/or .conf
+		Note: os.Args[0] == bin name, so args start @ index 1
+
+		If user specifies correct number of arguments, attempt parse
+		If parsing fail, error is thrown
+
+		If user specifies wrong number of arguments, exit with code 1
+	*/
+	if len(os.Args) > 2 {
+		io.ReadArgs(Instances)
+	}
+
+	/*
+		Syncs dynamically stored configs to statically stored configs
+		Syncing involves writing to config (view files.go)
+	*/
+	io.SyncConfig(Instances)
+
 	/*
 		Fetch refresh rate from config
 	*/
@@ -69,26 +90,27 @@ func InterfaceLoop(instances []types.Instance) {
 
 	/*
 		Open & map all connections
+		Set first connection as main
 	*/
-	if len(instances) > 0 {
-		for i, inst := range instances {
+	var flag bool = true
+	if len(Instances) > 0 {
+		for _, inst := range Instances {
 			var key string = inst.ConnName
-			if inst.Group != "" {
-				key += "&" + inst.Group
-			}
-			if i == 0 {
+			if flag {
 				CurrConn = key
+				flag = false
 			}
-			ConnPool[key] = db.Connect(inst)
+			inst.Driver = db.Connect(inst)
+			Instances[key] = inst
 			ActiveConns = append(ActiveConns, key)
 		}
 	}
 
 	/*
 		If no config found, force config state
-		Else, menu state
+		Else, processlist
 	*/
-	if len(instances) == 0 {
+	if len(Instances) == 0 {
 		State = types.CONFIGS
 	} else {
 		State = types.PROCESSLIST
@@ -121,14 +143,14 @@ func InterfaceLoop(instances []types.Instance) {
 			Laststate = types.LOCK_LOG
 			break
 		case types.CONFIGS:
-			DisplayConfigs(instances)
+			DisplayConfigs()
 			break
 		case types.QUIT:
 			/*
 				Perform cleanup and close program
 			*/
-			for _, key := range ActiveConns {
-				ConnPool[key].Close()
+			for _, inst := range Instances {
+				inst.Driver.Close()
 			}
 			return
 		}

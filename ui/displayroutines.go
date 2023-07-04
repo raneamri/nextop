@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/raneamri/nextop/db"
-	"github.com/raneamri/nextop/types"
 	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -49,14 +48,13 @@ func dynProcesslist(ctx context.Context,
 					Handle group filter
 				*/
 				if filtergroup != "" {
-					var limiter int = strings.IndexRune(key, '&') + 1
-					var group string = key[limiter:]
-					if limiter == -1 || group != filtergroup {
+					if Instances[key].Group != filtergroup {
 						continue
 					}
 				}
 
-				pldata := db.GetLongQuery(ConnPool[key], db.ProcesslistLongQuery())
+				pldata := db.GetLongQuery(Instances[key].Driver, db.ProcesslistLongQuery())
+
 				for _, row := range pldata {
 					/*
 						Formatting
@@ -142,7 +140,7 @@ func dynProcesslistInfo(ctx context.Context,
 
 			for _, key := range ActiveConns {
 				parameters := []string{"uptime", "queries", "threads_connected"}
-				statuses := db.GetStatus(ConnPool[key], parameters)
+				statuses := db.GetStatus(Instances[key].Driver, parameters)
 
 				/*
 					Formatting
@@ -188,20 +186,20 @@ func dynProcesslistGraphs(ctx context.Context,
 		select {
 		case <-ticker.C:
 			parameters := []string{"queries"}
-			variables := db.GetStatus(ConnPool[CurrConn], parameters)
+			variables := db.GetStatus(Instances[CurrConn].Driver, parameters)
 			qps, _ := strconv.ParseFloat(variables[0], 64)
 			queries = append(queries, math.Round(qps))
 
 			/*
 				Condense data
 			*/
-			selects := db.GetLongQuery(ConnPool[CurrConn], db.SelectLongQuery())
+			selects := db.GetLongQuery(Instances[CurrConn].Driver, db.SelectLongQuery())
 			selects_int, _ := strconv.Atoi(selects[0][0])
-			inserts := db.GetLongQuery(ConnPool[CurrConn], db.InsertsLongQuery())
+			inserts := db.GetLongQuery(Instances[CurrConn].Driver, db.InsertsLongQuery())
 			inserts_int, _ := strconv.Atoi(inserts[0][0])
-			updates := db.GetLongQuery(ConnPool[CurrConn], db.UpdatesLongQuery())
+			updates := db.GetLongQuery(Instances[CurrConn].Driver, db.UpdatesLongQuery())
 			updates_int, _ := strconv.Atoi(updates[0][0])
-			deletes := db.GetLongQuery(ConnPool[CurrConn], db.DeletesLongQuery())
+			deletes := db.GetLongQuery(Instances[CurrConn].Driver, db.DeletesLongQuery())
 			deletes_int, _ := strconv.Atoi(deletes[0][0])
 			values := []int{selects_int, inserts_int, updates_int, deletes_int}
 
@@ -239,18 +237,18 @@ func dynDbDashboard(ctx context.Context,
 			*/
 			varparameters := []string{"innodb_buffer_pool_size", "innodb_buffer_pool_instances", "innodb_log_file_size",
 				"innodb_log_files_in_group", "innodb_adaptive_hash_index", "innodb_adaptive_hash_index_parts"}
-			variables := db.GetSchemaVariable(ConnPool[CurrConn], varparameters)
+			variables := db.GetSchemaVariable(Instances[CurrConn].Driver, varparameters)
 
 			bf_pool_int, _ := strconv.Atoi(variables[0])
 			bfpool_size := "\n\n" + utility.BytesToMiB(bf_pool_int) + "\n"
 			bfpool_inst := variables[1] + "\n\n"
-			redolog := db.GetSchemaStatus(ConnPool[CurrConn], []string{"innodb_redo_log_enabled"})
+			redolog := db.GetSchemaStatus(Instances[CurrConn].Driver, []string{"innodb_redo_log_enabled"})
 			intlogfile, _ := strconv.Atoi(variables[2])
 			logfile_size := utility.BytesToMiB(intlogfile) + "\n"
 			logfilen := variables[3] + "\n\n"
-			checkpoint_info_raw := db.GetLongQuery(ConnPool[CurrConn], db.CheckpointInfoLongQuery())
+			checkpoint_info_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.CheckpointInfoLongQuery())
 			checkpoint_info := strings.TrimLeft(checkpoint_info_raw[0][0], " ") + "\n"
-			checkpoint_age_raw := db.GetLongQuery(ConnPool[CurrConn], db.CheckpointAgePctLongQuery())
+			checkpoint_age_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.CheckpointAgePctLongQuery())
 			checkpoint_age := checkpoint_age_raw[0][0] + "%\n\n"
 			ahi := variables[4] + "\n"
 			ahi_nparts := variables[5] + "\n"
@@ -270,7 +268,7 @@ func dynDbDashboard(ctx context.Context,
 				container-2
 			*/
 			varparameters = db.InnoDBLongParams()
-			variables = db.GetSchemaStatus(ConnPool[CurrConn], varparameters)
+			variables = db.GetSchemaStatus(Instances[CurrConn].Driver, varparameters)
 
 			/*
 				Note: fix pendings
@@ -324,11 +322,10 @@ func dynDbDashboard(ctx context.Context,
 }
 
 func dynInstanceDisplay(ctx context.Context,
-	instlog *text.Text,
-	instances []types.Instance) {
+	instlog *text.Text) {
 
 	instlog.Reset()
-	for _, inst := range instances {
+	for _, inst := range Instances {
 		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + utility.Strdbms(inst.DBMS))
 		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
@@ -354,10 +351,10 @@ func dynMemoryDashboard(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			total_alloc := db.GetLongQuery(ConnPool[CurrConn], db.GlobalAllocatedShortQuery())
-			alloc_by_area := db.GetLongQuery(ConnPool[CurrConn], db.SpecificAllocatedLongQuery())
-			usr_alloc := db.GetLongQuery(ConnPool[CurrConn], db.UserMemoryShortQuery())
-			ramndisk_alloc := db.GetLongQuery(ConnPool[CurrConn], db.RamNDiskLongQuery())
+			total_alloc := db.GetLongQuery(Instances[CurrConn].Driver, db.GlobalAllocatedShortQuery())
+			alloc_by_area := db.GetLongQuery(Instances[CurrConn].Driver, db.SpecificAllocatedLongQuery())
+			usr_alloc := db.GetLongQuery(Instances[CurrConn].Driver, db.UserMemoryShortQuery())
+			ramndisk_alloc := db.GetLongQuery(Instances[CurrConn].Driver, db.RamNDiskLongQuery())
 
 			dballoc1_txt.Reset()
 			dballoc2_txt.Reset()
@@ -435,7 +432,7 @@ func dynErrorLog(ctx context.Context,
 		select {
 		case <-ticker.C:
 
-			error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
+			error_log := db.GetLongQuery(Instances[CurrConn].Driver, db.ErrorLogShortQuery())
 
 			error_log_headers := "Timestamp           " + "Thd " + " Message\n"
 

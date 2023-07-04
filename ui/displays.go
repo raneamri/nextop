@@ -345,7 +345,7 @@ func DisplayProcesslist() {
 	}
 }
 
-func DisplayConfigs(instances []types.Instance) {
+func DisplayConfigs() {
 	t, err := tcell.New()
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -375,7 +375,7 @@ func DisplayConfigs(instances []types.Instance) {
 	/*
 		Display configurated instances (container-2)
 	*/
-	for _, inst := range instances {
+	for _, inst := range Instances {
 		instlog.Write("\n   dbms", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 		instlog.Write(": " + utility.Strdbms(inst.DBMS))
 		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
@@ -536,7 +536,7 @@ func DisplayConfigs(instances []types.Instance) {
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 			}
 
-			ConnPool[inst.ConnName] = db.Connect(inst)
+			inst.Driver = db.Connect(inst)
 			ActiveConns = append(ActiveConns, inst.ConnName)
 			if len(ActiveConns) == 1 {
 				CurrConn = ActiveConns[0]
@@ -545,13 +545,13 @@ func DisplayConfigs(instances []types.Instance) {
 			/*
 				Keep if valid and sync to prevent dupes
 			*/
-			instances = append(instances, inst)
-			instances = io.SyncConfig(instances)
+			Instances[inst.ConnName] = inst
+			io.SyncConfig(Instances)
 
 			/*
 				Update instances display
 			*/
-			dynInstanceDisplay(ctx, instlog, instances)
+			dynInstanceDisplay(ctx, instlog)
 
 		case keyboard.KeyEsc:
 			State = Laststate
@@ -944,7 +944,7 @@ func DisplayErrorLog() {
 		Error log can have heavy fetch / refresh time
 		So we display an error log instantly to account for that
 	*/
-	error_log := db.GetLongQuery(ConnPool[CurrConn], db.ErrorLogShortQuery())
+	error_log := db.GetLongQuery(Instances[CurrConn].Driver, db.ErrorLogShortQuery())
 	error_log_headers := "Timestamp           " + "Thd " + " Message\n"
 
 	log.Reset()

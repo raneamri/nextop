@@ -12,7 +12,7 @@ import (
 	Handles startup arguments
 */
 
-func ReadArgs(instances []types.Instance) []types.Instance {
+func ReadArgs(Instances map[string]types.Instance) {
 	if len(os.Args) > 2 && len(os.Args) < 6 {
 		var inst types.Instance
 		/*
@@ -39,10 +39,8 @@ func ReadArgs(instances []types.Instance) []types.Instance {
 			inst.Group = os.Args[4]
 		}
 
-		instances = utility.PushInstance(instances, inst)
+		Instances[inst.ConnName] = inst
 	} else {
 		errors.ThrowArgError(os.Args)
 	}
-
-	return instances
 }

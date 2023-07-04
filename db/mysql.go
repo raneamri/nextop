@@ -44,8 +44,14 @@ Quoting https://github.com/go-sql-driver/mysql#features:
 Unwrap instance into db pointer
 */
 func Connect(instance types.Instance) *sql.DB {
-	var driver *sql.DB
-	driver, _ = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	var (
+		driver *sql.DB
+		err    error
+	)
+	driver, err = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	if err != nil {
+		panic(err)
+	}
 	driver.SetConnMaxLifetime(time.Minute * 3)
 	driver.SetMaxOpenConns(10)
 	driver.SetMaxIdleConns(10)

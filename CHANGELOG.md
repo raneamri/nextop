@@ -93,3 +93,6 @@
 - Set processlist to default view.
 - Added connection groups.
 - Began adding keybind configuration.
+
+## Tue 4 Jul 2023:
+- Fixed obnoxious page throttle.
