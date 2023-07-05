@@ -182,18 +182,11 @@ func DisplayInnoDbDashboard() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
-		// Calculate the time elapsed since the last input
 		elapsed := time.Since(LastInputTime)
-
-		// Set a minimum cooldown period (e.g., 500 milliseconds)
 		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-
-		// If the elapsed time is less than the cooldown period, ignore the input
 		if elapsed < time.Duration(ratelim)*time.Millisecond {
 			return
 		}
-
-		// Update the last input time to the current time
 		LastInputTime = time.Now()
 
 		switch k.Key {
@@ -254,6 +247,8 @@ func dynDbDashboard(ctx context.Context,
 
 	go fetchInnoDbDonuts(ctx, donutChannel, delay)
 	go writeInnoDbDonuts(ctx, checkpoint_donut, pool_donut, ahi_donut, disk_donut, donutChannel, delay)
+
+	<-ctx.Done()
 }
 
 func fetchInnoDb(ctx context.Context,

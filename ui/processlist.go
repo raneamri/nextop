@@ -286,11 +286,6 @@ func dynProcesslist(ctx context.Context,
 	go writeProcesslistLinechart(ctx, queries_lc, linechartChannel, delay)
 
 	<-ctx.Done()
-	time.Sleep(Interval)
-	close(processlistChannel)
-	close(infoChannel)
-	close(barchartChannel)
-	close(linechartChannel)
 }
 
 /*
