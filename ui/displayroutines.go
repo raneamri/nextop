@@ -2,140 +2,20 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/raneamri/nextop/db"
-	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mum4k/termdash/cell"
-	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/mum4k/termdash/widgets/textinput"
 
 	_ "github.com/go-sql-driver/mysql"
 )
-
-func dynDbDashboard(ctx context.Context,
-	dbinfo *text.Text,
-	bfpinfo *text.Text,
-	checkpoint_donut *donut.Donut,
-	pool_donut *donut.Donut,
-	ahi_donut *donut.Donut,
-	disk_donut *donut.Donut,
-	delay time.Duration) {
-
-	ticker := time.NewTicker(delay)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			/*
-				container-1
-			*/
-			varparameters := []string{"innodb_buffer_pool_size", "innodb_buffer_pool_instances", "innodb_log_file_size",
-				"innodb_log_files_in_group", "innodb_adaptive_hash_index", "innodb_adaptive_hash_index_parts"}
-			variables := db.GetSchemaVariable(Instances[CurrConn].Driver, varparameters)
-
-			bf_pool_int, _ := strconv.Atoi(variables[0])
-			bfpool_size := "\n\n" + utility.BytesToMiB(bf_pool_int) + "\n"
-			bfpool_inst := variables[1] + "\n\n"
-			redolog := db.GetSchemaStatus(Instances[CurrConn].Driver, []string{"innodb_redo_log_enabled"})
-			intlogfile, _ := strconv.Atoi(variables[2])
-			logfile_size := utility.BytesToMiB(intlogfile) + "\n"
-			logfilen := variables[3] + "\n\n"
-			checkpoint_info_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLCheckpointInfoLongQuery())
-			checkpoint_info := strings.TrimLeft(checkpoint_info_raw[0][0], " ") + "\n"
-			checkpoint_age_raw := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLCheckpointAgePctLongQuery())
-			checkpoint_age := checkpoint_age_raw[0][0] + "%\n\n"
-			ahi := variables[4] + "\n"
-			ahi_nparts := variables[5] + "\n"
-
-			dbinfo.Reset()
-			dbinfo.Write(bfpool_size, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			dbinfo.Write(bfpool_inst, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			dbinfo.Write(redolog[0]+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			dbinfo.Write(logfile_size, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			dbinfo.Write(logfilen, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			dbinfo.Write(checkpoint_info, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			dbinfo.Write(checkpoint_age, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			dbinfo.Write(ahi, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			dbinfo.Write(ahi_nparts, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-
-			/*
-				container-2
-			*/
-			varparameters = strings.Split(db.MySQLInnoDBLongParams(), " ")
-			variables = db.GetSchemaStatus(Instances[CurrConn].Driver, varparameters)
-
-			/*
-				Note: fix pendings
-			*/
-			read_reqs_int, _ := strconv.Atoi(variables[0])
-			read_reqs := "\n\n" + utility.Fnum(read_reqs_int) + "\n"
-			write_reqs_int, _ := strconv.Atoi(variables[1])
-			write_reqs := utility.Fnum(write_reqs_int) + "\n\n"
-			dirty_data_bytes, _ := strconv.Atoi(variables[2])
-			dirty_data := utility.BytesToMiB(dirty_data_bytes) + "\n\n"
-			reads_int, _ := strconv.Atoi(variables[3])
-			pending_reads := reads_int
-			writes_int, _ := strconv.Atoi(variables[4])
-			pending_writes := writes_int
-			os_log_pending_writes := variables[5] + "\n\n"
-			os_read_first, _ := strconv.Atoi(variables[6])
-			os_read_key, _ := strconv.Atoi(variables[7])
-			os_read_next, _ := strconv.Atoi(variables[8])
-			os_read_prev, _ := strconv.Atoi(variables[9])
-			os_read_rnd, _ := strconv.Atoi(variables[10])
-			os_read_rnd_next, _ := strconv.Atoi(variables[11])
-			disk_reads := utility.Fnum(os_read_first+os_read_key+os_read_next+os_read_prev+os_read_rnd+os_read_rnd_next) + "\n\n"
-			pending_fsyncs := variables[12] + "\n"
-			os_pending_fsyncs := variables[13] + "\n"
-
-			bfpinfo.Reset()
-			bfpinfo.Write(read_reqs, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			bfpinfo.Write(write_reqs, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			bfpinfo.Write(dirty_data, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			bfpinfo.Write(fmt.Sprint(pending_reads)+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			bfpinfo.Write(fmt.Sprint(pending_writes)+"\n\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			bfpinfo.Write(os_log_pending_writes, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			bfpinfo.Write(disk_reads, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-			bfpinfo.Write(pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-			bfpinfo.Write(os_pending_fsyncs, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-
-			/*
-				container-3
-				(unfinished)
-			*/
-			checkpoint_age_int, _ := strconv.Atoi(checkpoint_age_raw[0][0])
-			checkpoint_donut.Percent(checkpoint_age_int)
-			pool_donut.Percent(1)
-			ahi_donut.Percent(33)
-			disk_donut.Percent(96)
-
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func dynInstanceDisplay(ctx context.Context,
-	instlog *text.Text) {
-
-	instlog.Reset()
-	for _, inst := range Instances {
-		instlog.Write("\n   mysql", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-		instlog.Write(": " + utility.Strdbms(inst.DBMS))
-		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-		instlog.Write(": " + string((inst.DSN)))
-		instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-		instlog.Write(": " + string((inst.ConnName)))
-	}
-}
 
 func dynMemoryDashboard(ctx context.Context,
 	dballoc1_txt *text.Text,

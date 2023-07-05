@@ -102,3 +102,5 @@
 
 ## Wed 5 Jul 2023:
 - Added rate limiter on input.
+- Optimised processlist heavily.
+- Reimagination of goroutine system.

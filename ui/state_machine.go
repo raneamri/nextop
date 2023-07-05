@@ -148,7 +148,7 @@ func InterfaceLoop() {
 			Laststate = types.PROCESSLIST
 			break
 		case types.DB_DASHBOARD:
-			DisplayDbDashboard()
+			DisplayInnoDbDashboard()
 			Laststate = types.DB_DASHBOARD
 			break
 		case types.MEM_DASHBOARD:

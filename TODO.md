@@ -1,14 +1,7 @@
 # TODO
-## QUERYING:
 - Retrieve queries for locking info.
-
-# FUTURE IMPLEMENTATIONS
-## CONNECTIONS:
-- Add case handling for redundant connection in config. X
-
-## PROCESSLIST:
-- Add specific thread analysis.
-
-## OTHER:
+- View error with read reqs in innodb.
+- Fetch data for donuts.
+- Thread analysis.
 - Add code of conduct.
-- Set tools for modulation and plugin creation. (~50% done)
+- Set tools for modulation and plugin creation.

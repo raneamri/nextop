@@ -30,14 +30,14 @@ import (
 )
 
 /*
-	Workload:
-		9 separate queries
-		across 9 goroutines
-		updating 4 widgets (3 read only)
+Workload:
+	9 separate queries
+	across 9 goroutines
+	updating 4 widgets (3 read only)
 */
 
 /*
-Format of this display is:
+Format:
 
 	widget-1 (bottom): processlist
 	widget-2 (top-left): uptime & qps
@@ -286,6 +286,7 @@ func dynProcesslist(ctx context.Context,
 	go writeProcesslistLinechart(ctx, queries_lc, linechartChannel, delay)
 
 	<-ctx.Done()
+	time.Sleep(Interval)
 	close(processlistChannel)
 	close(infoChannel)
 	close(barchartChannel)
@@ -475,6 +476,7 @@ func fetchProcesslistInfo(ctx context.Context,
 			}
 
 			infoChannel <- messages
+			messages = []string{""}
 
 		case <-ctx.Done():
 			return
