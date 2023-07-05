@@ -59,6 +59,11 @@ var (
 	GlobalQueryMap map[types.DBMS_t]map[string]func() string = make(map[types.DBMS_t]map[string]func() string)
 	MySQLQueries   map[string]func() string                  = make(map[string]func() string)
 	//PostGreQueries map[string]func() string                  = make(map[string]func() string)
+
+	/*
+		Tracking variable to limit input
+	*/
+	LastInputTime time.Time
 )
 
 func InterfaceLoop() {
@@ -135,7 +140,7 @@ func InterfaceLoop() {
 	for true {
 		switch State {
 		case types.MENU:
-			DrawMenu()
+			DisplayMenu()
 			Laststate = types.MENU
 			break
 		case types.PROCESSLIST:
@@ -159,7 +164,9 @@ func InterfaceLoop() {
 			Laststate = types.LOCK_LOG
 			break
 		case types.CONFIGS:
+			io.SyncConfig(Instances)
 			DisplayConfigs()
+			Laststate = types.CONFIGS
 			break
 		case types.QUIT:
 			/*
@@ -169,6 +176,10 @@ func InterfaceLoop() {
 				inst.Driver.Close()
 			}
 			return
+		default:
+			DisplayMenu()
+			Laststate = types.MENU
+			break
 		}
 	}
 }

@@ -96,3 +96,9 @@
 
 ## Tue 4 Jul 2023:
 - Fixed obnoxious page throttle.
+- Connection system overhaul.
+- Query retrieval map added.
+- Other fixes. (view commit messages)
+
+## Wed 5 Jul 2023:
+- Added rate limiter on input.

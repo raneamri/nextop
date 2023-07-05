@@ -15,15 +15,13 @@ Handles file i/o
 /*
 Writes an instance to config
 */
-func WriteConfig(instance types.Instance) error {
+func WriteConfig(instance types.Instance) {
 	/*
 		Parse .conf to find connections section
 	*/
 	fpath := "nextop.conf"
-	parser, err := ioutil.ReadFile(fpath)
-	if err != nil {
-		return err
-	}
+	parser, _ := ioutil.ReadFile(fpath)
+
 	connStart := strings.Index(string(parser), "[/connections]")
 	connEnd := strings.Index(string(parser), "[/connections]")
 	beforeSection := string(parser[:connStart])
@@ -38,12 +36,7 @@ func WriteConfig(instance types.Instance) error {
 		parsed []byte = []byte(beforeSection + fdbms + fdsn + fdbname + fgroup + "\n" + afterSection)
 	)
 
-	err = ioutil.WriteFile(fpath, parsed, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	ioutil.WriteFile(fpath, parsed, 0644)
 }
 
 /*
@@ -186,10 +179,7 @@ func SyncConfig(Instances map[string]types.Instance) {
 		Write all instances in object to file
 	*/
 	for _, inst := range Instances {
-		err := WriteConfig(inst)
-		if err != nil {
-			panic(err)
-		}
+		WriteConfig(inst)
 	}
 	/*
 		Remove duplicates accross object & file

@@ -15,7 +15,6 @@ import (
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/terminalapi"
-	"github.com/mum4k/termdash/widgets/barchart"
 	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
@@ -28,8 +27,9 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func DrawMenu() {
+func DisplayMenu() {
 	t, err := tcell.New()
+	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	help_table1, _ := text.New()
@@ -93,6 +93,20 @@ func DrawMenu() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
+		// Calculate the time elapsed since the last input
+		elapsed := time.Since(LastInputTime)
+
+		// Set a minimum cooldown period (e.g., 500 milliseconds)
+		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+
+		// If the elapsed time is less than the cooldown period, ignore the input
+		if elapsed < time.Duration(ratelim)*time.Millisecond {
+			return
+		}
+
+		// Update the last input time to the current time
+		LastInputTime = time.Now()
+
 		switch k.Key {
 		case 'p', 'P':
 			State = types.PROCESSLIST
@@ -100,36 +114,26 @@ func DrawMenu() {
 		case 'd', 'D':
 			State = types.DB_DASHBOARD
 			cancel()
-			t.Close()
 		case 'm', 'M':
 			State = types.MEM_DASHBOARD
 			cancel()
-			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
-			t.Close()
 		case 'l', 'L':
 			State = types.LOCK_LOG
 			cancel()
-			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
-			t.Close()
 		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
-			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
-			t.Close()
 		}
 	}
 
@@ -139,225 +143,9 @@ func DrawMenu() {
 
 }
 
-/*
-Format of this display is:
-
-	container-1 (bottom): txt holds parsed processlist data
-	container-2 (top-left): txt shows uptime & qps
-	container-3 (top-mid): barchart showing sel/ins/del ...
-	container-4 (top-right): graph shows lifeline as graph
-*/
-func DisplayProcesslist() {
-	t, err := tcell.New()
-	ctx, cancel := context.WithCancel(context.Background())
-
-	/*
-		Processlist data (container-1)
-	*/
-	pl_text, _ := text.New()
-	pl_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
-	var processlist []string
-
-	search, err := textinput.New(
-		textinput.Label("Search  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
-		textinput.TextColor(cell.ColorWhite),
-		textinput.MaxWidthCells(45),
-		textinput.ExclusiveKeyboardOnFocus(),
-		textinput.Border(linestyle.Light),
-		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("pl-include-suggestion")),
-	)
-	exclude, err := textinput.New(
-		textinput.Label("Exclude ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
-		textinput.TextColor(cell.ColorWhite),
-		textinput.MaxWidthCells(45),
-		textinput.ExclusiveKeyboardOnFocus(),
-		textinput.Border(linestyle.Light),
-		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("pl-exclude-suggestion")),
-	)
-	group, err := textinput.New(
-		textinput.Label("Group   ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
-		textinput.TextColor(cell.ColorWhite),
-		textinput.MaxWidthCells(45),
-		textinput.ExclusiveKeyboardOnFocus(),
-		textinput.Border(linestyle.Light),
-		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" Group name"),
-	)
-
-	/*
-		QPS/Uptime data (container-2)
-	*/
-	info_text, _ := text.New()
-	info_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
-
-	/*
-		Queries per hour for the past n intervals (container-4)
-	*/
-	var queries []float64
-	queries_lc, err := linechart.New(
-		linechart.YAxisAdaptive(),
-		linechart.YAxisFormattedValues(linechart.ValueFormatterRoundWithSuffix("")),
-		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
-		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
-		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
-	)
-
-	/*
-		SEL/INS/... barchart (container-3)
-	*/
-	acts_bc, err := barchart.New(
-		barchart.BarColors([]cell.Color{
-			cell.ColorNumber(24),
-			cell.ColorNumber(25),
-			cell.ColorNumber(26),
-			cell.ColorNumber(27),
-		}),
-		barchart.ValueColors([]cell.Color{
-			cell.ColorWhite,
-			cell.ColorWhite,
-			cell.ColorWhite,
-			cell.ColorWhite,
-		}),
-		barchart.LabelColors([]cell.Color{
-			cell.ColorWhite,
-			cell.ColorWhite,
-			cell.ColorWhite,
-			cell.ColorWhite,
-		}),
-		barchart.ShowValues(),
-		barchart.BarWidth(6),
-		barchart.Labels([]string{
-			"Sel",
-			"Ins",
-			"Upd",
-			"Del",
-		}),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	go dynProcesslist(ctx, pl_text, processlist, search, exclude, group, Interval)
-	go dynProcesslistInfo(ctx, info_text, Interval)
-	go dynProcesslistGraphs(ctx, queries_lc, acts_bc, queries, Interval)
-
-	cont, err := container.New(
-		t,
-		container.ID("processlist"),
-		container.Border(linestyle.Light),
-		container.BorderTitle("PROCESSLIST (? for help)"),
-		container.BorderColor(cell.ColorGray),
-		container.FocusedColor(cell.ColorWhite),
-		container.SplitHorizontal(
-			container.Top(
-				container.SplitVertical(
-					container.Left(
-						container.SplitHorizontal(
-							container.Top(
-								container.Border(linestyle.Light),
-								container.BorderTitle("Active (scrollable)"),
-								container.PlaceWidget(info_text),
-							),
-							container.Bottom(
-								container.Border(linestyle.Light),
-								container.BorderTitle("Filters"),
-								container.SplitHorizontal(
-									container.Top(
-										container.PlaceWidget(search),
-									),
-									container.Bottom(
-										container.SplitHorizontal(
-											container.Top(
-												container.PlaceWidget(exclude),
-											),
-											container.Bottom(
-												container.PlaceWidget(group),
-											),
-											container.SplitPercent(50),
-										),
-									),
-									container.SplitPercent(33),
-								),
-							),
-							container.SplitPercent(30),
-						),
-					),
-					container.Right(
-						container.SplitVertical(
-							container.Left(
-								container.Border(linestyle.Light),
-								container.PlaceWidget(acts_bc),
-							),
-							container.Right(
-								container.Border(linestyle.Light),
-								container.BorderTitle("QPS"),
-								container.PlaceWidget(queries_lc),
-							),
-							container.SplitPercent(32),
-						),
-					),
-					container.SplitPercent(40),
-				),
-			),
-			container.Bottom(
-				/*
-					Processlist
-				*/
-				container.Border(linestyle.Light),
-				container.BorderTitle("Processes"),
-				container.PlaceWidget(pl_text),
-			),
-			container.SplitPercent(40),
-		),
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	keyreader := func(k *terminalapi.Keyboard) {
-		switch k.Key {
-		case keyboard.KeyArrowLeft:
-			CurrRotateLeft()
-		case keyboard.KeyArrowRight:
-			CurrRotateRight()
-		case '?':
-			State = types.MENU
-			cancel()
-			t.Close()
-		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
-			cancel()
-			t.Close()
-		case keyboard.KeyEsc:
-			State = Laststate
-			cancel()
-			t.Close()
-		case '\\':
-			time.Sleep(100 * time.Millisecond)
-			search.ReadAndClear()
-			exclude.ReadAndClear()
-			group.ReadAndClear()
-		case '/':
-			time.Sleep(100 * time.Millisecond)
-			group.ReadAndClear()
-		case '+':
-			Interval += 100 * time.Millisecond
-		case '-':
-			Interval -= 100 * time.Millisecond
-		}
-	}
-
-	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(keyreader), termdash.RedrawInterval(Interval)); err != nil {
-		panic(err)
-	}
-}
-
 func DisplayConfigs() {
 	t, err := tcell.New()
+	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
@@ -496,6 +284,9 @@ func DisplayConfigs() {
 		panic(err)
 	}
 
+	/*
+		Config has its own keyboard subscriber
+	*/
 	keyninreader := func(k *terminalapi.Keyboard) {
 		switch k.Key {
 		case keyboard.KeyEnter:
@@ -572,15 +363,21 @@ func DisplayConfigs() {
 			dynInstanceDisplay(ctx, instlog)
 
 		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
+			io.SyncConfig(Instances)
+			for _, inst := range Instances {
+				if inst.Driver == nil {
+					var err error
+					inst.Driver, err = db.Connect(inst)
+					if err == nil {
+						ActiveConns = append(ActiveConns, inst.ConnName)
+					}
+				}
+			}
 			cancel()
-			t.Close()
 		case '?':
 			if len(ActiveConns) > 0 {
 				State = types.MENU
 				cancel()
-				t.Close()
 			} else {
 				errlog.Reset()
 				log_msg = "\n   Please make sure to have a minimum of one connection online\n   before changing views."
@@ -590,7 +387,6 @@ func DisplayConfigs() {
 			if len(ActiveConns) > 0 {
 				State = Laststate
 				cancel()
-				t.Close()
 			} else {
 				errlog.Reset()
 				log_msg = "\n   Please make sure to have a minimum of one connection online\n   before changing views."
@@ -610,6 +406,7 @@ container-2 (right): donuts
 */
 func DisplayDbDashboard() {
 	t, err := tcell.New()
+	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	/*
@@ -752,44 +549,47 @@ func DisplayDbDashboard() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
+		// Calculate the time elapsed since the last input
+		elapsed := time.Since(LastInputTime)
+
+		// Set a minimum cooldown period (e.g., 500 milliseconds)
+		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+
+		// If the elapsed time is less than the cooldown period, ignore the input
+		if elapsed < time.Duration(ratelim)*time.Millisecond {
+			return
+		}
+
+		// Update the last input time to the current time
+		LastInputTime = time.Now()
+
 		switch k.Key {
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
-			t.Close()
 		case 'm', 'M':
 			State = types.MEM_DASHBOARD
 			cancel()
-			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
-			t.Close()
 		case 'l', 'L':
 			State = types.LOCK_LOG
 			cancel()
-			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
-			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
-			t.Close()
 		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
-			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
-			t.Close()
 		}
 	}
 
@@ -800,6 +600,7 @@ func DisplayDbDashboard() {
 
 func DisplayMemory() {
 	t, err := tcell.New()
+	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	dballoc1_txt, _ := text.New()
@@ -892,44 +693,47 @@ func DisplayMemory() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
+		// Calculate the time elapsed since the last input
+		elapsed := time.Since(LastInputTime)
+
+		// Set a minimum cooldown period (e.g., 500 milliseconds)
+		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+
+		// If the elapsed time is less than the cooldown period, ignore the input
+		if elapsed < time.Duration(ratelim)*time.Millisecond {
+			return
+		}
+
+		// Update the last input time to the current time
+		LastInputTime = time.Now()
+
 		switch k.Key {
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
-			t.Close()
 		case 'd', 'D':
 			State = types.DB_DASHBOARD
 			cancel()
-			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
-			t.Close()
 		case 'l', 'L':
 			State = types.LOCK_LOG
 			cancel()
-			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
-			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
-			t.Close()
 		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
-			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
-			t.Close()
 		}
 	}
 
@@ -940,6 +744,7 @@ func DisplayMemory() {
 
 func DisplayErrorLog() {
 	t, err := tcell.New()
+	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
@@ -1069,20 +874,29 @@ func DisplayErrorLog() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
+		// Calculate the time elapsed since the last input
+		elapsed := time.Since(LastInputTime)
+
+		// Set a minimum cooldown period (e.g., 500 milliseconds)
+		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+
+		// If the elapsed time is less than the cooldown period, ignore the input
+		if elapsed < time.Duration(ratelim)*time.Millisecond {
+			return
+		}
+
+		// Update the last input time to the current time
+		LastInputTime = time.Now()
+
 		switch k.Key {
 		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
-			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
-			t.Close()
 		case '\\':
 			time.Sleep(100 * time.Millisecond)
 			search.ReadAndClear()
@@ -1101,6 +915,7 @@ func DisplayErrorLog() {
 
 func DisplayLocks() {
 	t, err := tcell.New()
+	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	log, _ := text.New()
@@ -1132,44 +947,47 @@ func DisplayLocks() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
+		// Calculate the time elapsed since the last input
+		elapsed := time.Since(LastInputTime)
+
+		// Set a minimum cooldown period (e.g., 500 milliseconds)
+		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
+
+		// If the elapsed time is less than the cooldown period, ignore the input
+		if elapsed < time.Duration(ratelim)*time.Millisecond {
+			return
+		}
+
+		// Update the last input time to the current time
+		LastInputTime = time.Now()
+
 		switch k.Key {
 		case keyboard.KeyCtrlD:
-			ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-			time.Sleep(time.Duration(ratelim) * time.Millisecond)
 			cancel()
-			t.Close()
 		case 'p', 'P':
 			State = types.PROCESSLIST
 			cancel()
-			t.Close()
 		case 'd', 'D':
 			State = types.DB_DASHBOARD
 			cancel()
-			t.Close()
 		case 'm', 'M':
 			State = types.MEM_DASHBOARD
 			cancel()
-			t.Close()
 		case 'e', 'E':
 			State = types.ERR_LOG
 			cancel()
-			t.Close()
 		case 'c', 'C':
 			State = types.CONFIGS
 			cancel()
-			t.Close()
 		case '?':
 			State = types.MENU
 			cancel()
-			t.Close()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-			t.Close()
 		case 'q', 'Q':
 			State = types.QUIT
 			cancel()
-			t.Close()
 		}
 	}
 

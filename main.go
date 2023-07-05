@@ -9,11 +9,6 @@ import (
 
 func main() {
 
-	/*
-		Ensure keybinds are functioning
-	*/
-	ui.ValidateKeybinds()
-
 	ui.InterfaceLoop()
 
 	fmt.Printf("Bye")
