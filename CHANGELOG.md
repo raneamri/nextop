@@ -104,3 +104,11 @@
 - Added rate limiter on input.
 - Optimised processlist heavily.
 - Reimagination of goroutine system.
+
+## Thu 6 Jul 2023:
+- Optimisations across goroutines.
+- Better commenting.
+- Fixed group filter.
+- Further optimised processlist.
+- Filter enhancement.
+- New configs.

@@ -303,14 +303,16 @@ func fetchProcesslist(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		lookup map[string]func() string = make(map[string]func() string)
-		pldata [][]string               = make([][]string, 0)
+		lookup      map[string]func() string = make(map[string]func() string)
+		pldata      [][]string               = make([][]string, 0)
+		group_found bool
 		/*
 			Formatting variables
 		*/
-		ftime     int64
-		flocktime int64
-		fquery    string
+		ftime                int64
+		flocktime            int64
+		fquery               string
+		maxProcesslistLen, _ = strconv.Atoi(io.FetchSetting("max-processlist-len"))
 		/*
 			Channel message variable
 		*/
@@ -320,13 +322,20 @@ func fetchProcesslist(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			for _, key := range ActiveConns {
+			group_found = false
+			for i, key := range ActiveConns {
 				/*
 					Handle group filter
 				*/
 				if group.Read() != "" {
 					if Instances[key].Group != group.Read() {
+						if i == len(ActiveConns)-1 && !group_found {
+							messages = nil
+							processlistChannel <- messages
+						}
 						continue
+					} else {
+						group_found = true
 					}
 				}
 
@@ -354,6 +363,13 @@ func fetchProcesslist(ctx context.Context,
 					messages = append(messages, fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
 						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
 						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime), fquery))
+
+					/*
+						Cap processlist length
+					*/
+					if len(messages) > maxProcesslistLen {
+						messages = messages[len(messages)-maxProcesslistLen:]
+					}
 				}
 			}
 
@@ -374,9 +390,10 @@ func writeProcesslist(ctx context.Context,
 		/*
 			Parse variables
 		*/
-		re    *regexp.Regexp
-		match []string = make([]string, 0)
-		ms    int
+		re           *regexp.Regexp = regexp.MustCompile(`(\d+)ms`)
+		match        []string       = make([]string, 0)
+		ms           int
+		sens_filters bool
 		/*
 			Display variables
 		*/
@@ -385,6 +402,12 @@ func writeProcesslist(ctx context.Context,
 		color        text.WriteOption
 		colorflipper int
 	)
+
+	if io.FetchSetting("case-sensitive-filters") == "true" {
+		sens_filters = true
+	} else {
+		sens_filters = false
+	}
 
 	for {
 		select {
@@ -397,25 +420,31 @@ func writeProcesslist(ctx context.Context,
 
 			colorflipper = -1
 			for _, process := range message {
-				if !strings.Contains(process, search.Read()) || (strings.Contains(process, exclude.Read()) && exclude.Read() != "") {
-					continue
+				if sens_filters {
+					if !strings.Contains(process, search.Read()) || (strings.Contains(process, exclude.Read()) && exclude.Read() != "") {
+						continue
+					}
+				} else {
+					if !strings.Contains(strings.ToLower(process), strings.ToLower(search.Read())) ||
+						(strings.Contains(strings.ToLower(process), strings.ToLower(exclude.Read())) && exclude.Read() != "") {
+						continue
+					}
 				}
 
-				re = regexp.MustCompile(`(\d+)ms`)
 				match = re.FindStringSubmatch(process)
 				ms, _ = strconv.Atoi(match[1])
 
-				switch ms {
-				case 5_000:
+				switch {
+				case ms >= 5_000 && ms < 10_000:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorTeal))
 					break
-				case 10_000:
+				case ms >= 10_000 && ms < 30_000:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
 					break
-				case 30_000:
+				case ms >= 30_000 && ms < 60_000:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
 					break
-				case 60_000:
+				case ms >= 60_000:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))
 					break
 				default:

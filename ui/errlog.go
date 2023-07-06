@@ -234,8 +234,9 @@ func writeErrors(ctx context.Context,
 	errorChannel <-chan [][4]string) {
 
 	var (
-		msg    string
-		lc_msg [3]float64
+		msg          string
+		lc_msg       [3]float64
+		sens_filters bool
 		/*
 			Display variables
 		*/
@@ -245,6 +246,12 @@ func writeErrors(ctx context.Context,
 		color        text.WriteOption
 		colorflipper int = -1
 	)
+
+	if io.FetchSetting("case-sensitive-filters") == "true" {
+		sens_filters = true
+	} else {
+		sens_filters = false
+	}
 
 	for {
 		select {
@@ -256,8 +263,15 @@ func writeErrors(ctx context.Context,
 				if i == 0 {
 					log.Write(msg, text.WriteCellOpts(cell.Bold()))
 				} else {
-					if !strings.Contains(msg, search.Read()) || (strings.Contains(msg, exclude.Read()) && exclude.Read() != "") {
-						continue
+					if sens_filters {
+						if !strings.Contains(msg, search.Read()) || (strings.Contains(msg, exclude.Read()) && exclude.Read() != "") {
+							continue
+						}
+					} else {
+						if !strings.Contains(strings.ToLower(msg), strings.ToLower(search.Read())) ||
+							(strings.Contains(strings.ToLower(msg), strings.ToLower(exclude.Read())) && exclude.Read() != "") {
+							continue
+						}
 					}
 
 					if colorflipper > 0 {

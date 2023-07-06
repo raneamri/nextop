@@ -39,18 +39,18 @@ func DisplayMenu() {
 
 	help_table1, _ := text.New()
 	help_table1.Write(
-		"P Processlist\nD DB Dashboard\nM Memory Dashboard\nE Error Log\nL Lock Log\nC Configs\n? Help\nESC Previous Page\nQ Quit",
+		"\n P Processlist\n D DB Dashboard\n M Memory Dashboard\n E Error Log\n L Lock Log\n C Configs\n ? Help\n ESC Previous Page\n Q Quit",
 		text.WriteCellOpts(cell.Bold()))
 
 	help_table2, _ := text.New()
 	help_table2.Write(
-		"CTRL+D Reload page\n-> Cycle to next connection\n<- Cycle to previous connection\n\\ Clear all filters\n/ Clear group filters\n+ Increase refresh rate by 100ms\n- Decrease refresh rate by 100ms",
+		"\n CTRL+D Reload page\n -> Cycle to next connection\n <- Cycle to previous connection\n \\ Clear all filters\n / Clear group filters\n + Increase refresh rate by 100ms\n - Decrease refresh rate by 100ms\n\n NOTE: Real-time changes require reload to apply",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
 	help_table3, _ := text.New()
 	help_table3.Write(
-		"REPO https://github.com/raneamri/nextop\nAUTHOR Imrane AMRI\nLICENSE ...\n",
+		"\n Trying to fix the aspect ratio? Adjust this page's size until the logo on the right is correctly\n in frame.\n\n REPO https://github.com/raneamri/nextop\n AUTHOR Imrane AMRI\n LICENSE ...\n",
 		text.WriteCellOpts(cell.Bold()),
 	)
 

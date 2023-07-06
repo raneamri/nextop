@@ -15,5 +15,5 @@ func main() {
 }
 
 func Version() string {
-	return "v0.0.1"
+	return "v0.0.2"
 }

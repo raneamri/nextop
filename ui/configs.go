@@ -98,7 +98,12 @@ func DisplayConfigs() {
 		widget-4
 	*/
 	settings_txt, _ := text.New()
-	settings_headers := []string{"refresh-rate", "errlog-refresh-rate", "default-group"}
+	settings_headers := []string{"refresh-rate",
+		"errlog-refresh-rate",
+		"default-group",
+		"max-processlist-len",
+		"max-errlog-len",
+		"case-sensitive-filters"}
 	dir, _ := os.Getwd()
 	settings_txt.Write("\n   "+dir+"/nextop.conf\n", text.WriteCellOpts(cell.Bold()))
 	for _, header := range settings_headers {
