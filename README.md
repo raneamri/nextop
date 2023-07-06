@@ -1,11 +1,9 @@
-# NEXTOP (Pre-Release)
+# ![Logo]() NEXTOP v0.0.1
 Innotop for MySQL (& other DBMSs) written in GoLang.
 Developed over the course of my 2023 summer internship.
 
-Project name still undecided.
-
 ## Startup
-NEXTOP can be built using the command:
+Nextop can be built using the command:
 ```bash
     make build
 ```
@@ -23,14 +21,14 @@ where quotation marks around the DSN is necessary on Mac M1 zsh and the last arg
 While naming your connection isn't required, it is greatly recommended to name connections if you're monitoring multiple.
 Grouping is also optional, and not grouping your connections has no repercussions.
 
-Upon successful connection, instance will be written in config for easy access in the future.
+Upon successful connection, an instance will be written in config for easy access in the future.
 
 ## Interface
 ### Controls
-Will add
+View menu.
 
 ### Configs
-If NEXTOP is called for the first time with no arguments, you will be sent directly to this page:
+If Nextop is called for the first time with no arguments, you will be sent directly to this page:
 
 ![ConfigPage](https://github.com/raneamri/nextop/blob/main/img/config.png)
 
@@ -53,12 +51,15 @@ The processlist will dynamically show you ongoing processes. Processes will appe
 
 The top left section "Filters" allows the user to ommit unwanted messages and/or find specific messages.
 The way the filter works is by looking for the entered substring in the "Message".
+These filters can be switch from case sensitive to insensitive in configs.
 
-*Group management coming soon
+A group filter is present below these. This allows you to only display a specific group.
+
+To quickly remove all filters, simply press \, and to remove solely group filters, use /.
 
 ### InnoDB Dashboard
 InnoDB Dashboard primarily shows data from the InnoDB engine.
-Note that if a pie chart doesn't render, it is trying to show a value of 0%.
+Note that if a pie chart doesn't render, the value is 0%.
 I'm not sure yet if this is an issue with termdash or my program but I'm looking to fix this soon.
 
 ![InnoDBDashboard](https://github.com/raneamri/nextop/blob/main/img/innodb.png)
@@ -75,15 +76,10 @@ This data is non-historical and the graph is reset upon leaving the page.
 
 The bottom section "Log" displays all retrieved logs from the database and color codes them.
 
-The top left section "Filters" allows the user to ommit unwanted messages and/or find specific messages.
-The way the filter works is by looking for the entered substring in the "Message".
-
-As of now, the filters ignore timestamp and thread. This is on purpose but subject to change based on feedback.
-
 ![ErrorLog](https://github.com/raneamri/nextop/blob/main/img/error.png)
 
 ### Lock Log
 Coming very soon!
 
 ### Plugins
-Coming soon enough.
+Coming less soon.
