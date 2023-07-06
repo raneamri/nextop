@@ -213,23 +213,23 @@ func dynMemoryDashboard(ctx context.Context,
 }
 
 /*
-container-1 & 3
+widgets-1 & 3
 */
 func fetchMemoryDbAlloc(ctx context.Context, dballocChannel chan<- [2]string, lcChannel chan<- []float64, delay time.Duration) {
 	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
 
 	var (
-		lookup       map[string]func() string
-		global_alloc [][]string
-		parts        []string
+		lookup       map[string]func() string = make(map[string]func() string)
+		global_alloc [][]string               = make([][]string, 0)
+		parts        []string                 = make([]string, 0)
 		aps          float64
 
 		/*
 			Channel message variable
 		*/
 		messages    [2]string
-		lc_messages []float64
+		lc_messages []float64 = make([]float64, 0)
 	)
 
 	for {
@@ -270,7 +270,7 @@ func writeMemoryDbAlloc(ctx context.Context,
 			Display variables
 		*/
 		messages    [2]string
-		lc_messages []float64
+		lc_messages []float64 = make([]float64, 0)
 	)
 
 	for {
@@ -303,15 +303,15 @@ func writeMemoryDbAlloc(ctx context.Context,
 }
 
 /*
-container-2
+widget-2
 */
 func fetchMemoryUserAlloc(ctx context.Context, usrallocChannel chan<- [2]string, delay time.Duration) {
 	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
 
 	var (
-		lookup    map[string]func() string
-		usr_alloc [][]string
+		lookup    map[string]func() string = make(map[string]func() string)
+		usr_alloc [][]string               = make([][]string, 0)
 
 		/*
 			Channel message variable
@@ -364,15 +364,15 @@ func writeMemoryUserAlloc(ctx context.Context, usralloc_labels *text.Text, usral
 }
 
 /*
-container-4
+widget-4
 */
 func fetchMemoryHardwAlloc(ctx context.Context, hardwallocChannel chan<- [2]string, delay time.Duration) {
 	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
 
 	var (
-		lookup         map[string]func() string
-		ramndisk_alloc [][]string
+		lookup         map[string]func() string = make(map[string]func() string)
+		ramndisk_alloc [][]string               = make([][]string, 0)
 
 		/*
 			Channel message variable

@@ -265,16 +265,16 @@ func fetchInnoDb(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		varparameters []string
-		variables     []string
+		varparameters []string = make([]string, 0)
+		variables     []string = make([]string, 0)
 		/*
 			Formatting variables
 		*/
 		bf_pool_int         int
-		redolog             []string
+		redolog             []string = make([]string, 0)
 		logfile_int         int
-		checkpoint_info_raw [][]string
-		checkpoint_age_raw  [][]string
+		checkpoint_info_raw [][]string = make([][]string, 0)
+		checkpoint_age_raw  [][]string = make([][]string, 0)
 
 		/*
 			Channel message variable
@@ -353,8 +353,8 @@ func fetchInnoDbBufferPool(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		varparameters []string
-		variables     []string
+		varparameters []string = make([]string, 0)
+		variables     []string = make([]string, 0)
 		/*
 			Formatting variables
 		*/

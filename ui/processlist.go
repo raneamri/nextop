@@ -303,8 +303,8 @@ func fetchProcesslist(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		lookup map[string]func() string
-		pldata [][]string
+		lookup map[string]func() string = make(map[string]func() string)
+		pldata [][]string               = make([][]string, 0)
 		/*
 			Formatting variables
 		*/
@@ -314,7 +314,7 @@ func fetchProcesslist(ctx context.Context,
 		/*
 			Channel message variable
 		*/
-		messages []string
+		messages []string = make([]string, 0)
 	)
 
 	for {
@@ -375,12 +375,12 @@ func writeProcesslist(ctx context.Context,
 			Parse variables
 		*/
 		re    *regexp.Regexp
-		match []string
+		match []string = make([]string, 0)
 		ms    int
 		/*
 			Display variables
 		*/
-		message      []string
+		message      []string = make([]string, 0)
 		headers      string
 		color        text.WriteOption
 		colorflipper int
@@ -448,12 +448,12 @@ func fetchProcesslistInfo(ctx context.Context,
 	defer ticker.Stop()
 
 	var (
-		parameters []string
-		statuses   []string
+		parameters []string = make([]string, 0)
+		statuses   []string = make([]string, 0)
 		qps_int    int
 		uptime     int
 
-		messages []string
+		messages []string = make([]string, 0)
 	)
 
 	for {
@@ -484,7 +484,7 @@ func writeProcesslistInfo(ctx context.Context,
 	infoChannel <-chan []string) {
 
 	var (
-		message []string
+		message []string = make([]string, 0)
 		color   text.WriteOption
 	)
 
@@ -574,11 +574,11 @@ func fetchProcesslistLinechart(ctx context.Context,
 	delay time.Duration) {
 
 	var (
-		parameters []string
-		variables  []string
+		parameters []string = make([]string, 0)
+		variables  []string = make([]string, 0)
 		qps        float64
 
-		messages []float64
+		messages []float64 = make([]float64, 0)
 	)
 
 	ticker := time.NewTicker(delay)
@@ -606,7 +606,7 @@ func writeProcesslistLinechart(ctx context.Context,
 	linechartChannel <-chan []float64) {
 
 	var (
-		message []float64
+		message []float64 = make([]float64, 0)
 	)
 
 	for {

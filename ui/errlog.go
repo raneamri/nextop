@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -24,26 +25,34 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+/*
+Workload:
+	3 goroutines
+	managing 1 query
+	and medium duty formatting
+*/
+
+/*
+Format:
+	widget-1 (top-left): filters
+	widget-2 (bottom): error log
+	widget-3 (top right): linegraphs
+*/
+
 func DisplayErrorLog() {
 	t, err := tcell.New()
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var (
-		err_ot   []float64
-		warn_ot  []float64
-		other_ot []float64
-	)
-
 	/*
-		Error log (container-1)
+		Error log (widget-1)
 	*/
 	log, _ := text.New(
 		text.WrapAtRunes(),
 	)
 
 	/*
-		Error-type frequencies linechart (container-2)
+		Error-type frequencies linechart (widget-2)
 	*/
 	frequencies, _ := linechart.New(
 		linechart.YAxisAdaptive(),
@@ -53,7 +62,7 @@ func DisplayErrorLog() {
 	)
 
 	/*
-		Filters (container-3)
+		Filters (widget-3)
 	*/
 	search, err := textinput.New(
 		textinput.Label("Search  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
@@ -74,42 +83,9 @@ func DisplayErrorLog() {
 		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("err-exclude-suggestion")),
 	)
 
-	log.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	log.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	/*
-		Error log can have heavy fetch / refresh time
-		So we display an error log instantly to account for that
-	*/
-	error_log := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLErrorLogShortQuery())
-	error_log_headers := "Timestamp           " + "Thd " + " Message\n"
-
-	log.Reset()
-	log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
-
-	for i, msg := range error_log {
-		color := text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
-		timestamp := msg[0][:strings.Index(msg[0], ".")] + "  "
-		thread := msg[1] + "   "
-		prio := msg[2]
-		logged := prio + ": " + msg[5] + "\n"
-
-		if prio == "System" {
-			color = text.WriteCellOpts(cell.FgColor(cell.ColorNavy))
-		} else if prio == "Warning" {
-			color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
-		} else {
-			color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
-		}
-
-		if i%2 == 0 {
-			log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-		} else {
-			log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-		}
-		log.Write(logged, color)
-	}
-
-	go dynErrorLog(ctx, log, search, exclude, err_ot, warn_ot, other_ot, frequencies, ErrInterval)
+	go dynErrorLog(ctx, log, search, exclude, frequencies, ErrInterval)
 
 	cont, err := container.New(
 		t,
@@ -192,73 +168,127 @@ func dynErrorLog(ctx context.Context,
 	log *text.Text,
 	search *textinput.TextInput,
 	exclude *textinput.TextInput,
-	err_ot []float64,
-	warn_ot []float64,
-	sys_ot []float64,
 	freqs *linechart.LineChart,
 	delay time.Duration) {
 
-	ticker := time.NewTicker(delay)
+	var (
+		errorChannel chan [][4]string = make(chan [][4]string)
+	)
+
+	go fetchErrors(ctx, errorChannel, delay)
+	go writeErrors(ctx, log, search, exclude, freqs, errorChannel)
+
+	<-ctx.Done()
+}
+
+func fetchErrors(ctx context.Context,
+	errorChannel chan<- [][4]string,
+	delay time.Duration) {
+
+	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
+
+	var (
+		lookup    map[string]func() string = make(map[string]func() string)
+		error_log [][]string               = make([][]string, 0)
+		/*
+			Channel message variable
+		*/
+		messages [][4]string
+	)
+
 	for {
 		select {
 		case <-ticker.C:
-			lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
-			error_log := db.GetLongQuery(Instances[CurrConn].Driver, lookup["err"]())
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			error_log = db.GetLongQuery(Instances[CurrConn].Driver, lookup["err"]())
 
-			error_log_headers := "Timestamp           " + "Thd " + " Message\n"
+			//fmt.Sprintf("%-20v %-5v %-55v\n",
 
-			filterfor := search.Read()
-			ommit := exclude.Read()
+			messages = make([][4]string, len(error_log)+1)
 
-			log.Reset()
-			log.Write(error_log_headers, text.WriteCellOpts(cell.Bold()))
+			messages[0][0] = "Timestamp"
+			messages[0][1] = "Thd"
+			messages[0][2] = "Message"
+			messages[0][3] = " "
 
-			var (
-				flip      int = 1
-				syscount  int
-				warncount int
-				errcount  int
-			)
-
-			for _, msg := range error_log {
-				color := text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
-				timestamp := msg[0][:strings.Index(msg[0], ".")] + "  "
-				thread := msg[1] + "   "
-				prio := msg[2]
-				//err_code := msg[3] + " "
-				//subsys := msg[4] + " "
-				logged := prio + ": " + msg[5] + "\n"
-
-				if prio == "System" {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorNavy))
-					syscount++
-				} else if prio == "Warning" {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
-					warncount++
-				} else if prio == "Error" {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
-					errcount++
-				}
-
-				if !strings.Contains(logged, filterfor) || (strings.Contains(logged, ommit) && ommit != "") {
-					continue
-				}
-
-				if flip > 0 {
-					log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-				} else {
-					log.Write(timestamp+thread, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-				}
-				flip *= -1
-				log.Write(logged, color)
+			for i, msg := range error_log {
+				messages[i+1][0] = msg[0][:strings.Index(msg[0], ".")]
+				messages[i+1][1] = msg[1]
+				messages[i+1][2] = msg[2]
+				messages[i+1][3] = msg[5]
 			}
 
-			err_ot = append(err_ot, float64(errcount))
-			warn_ot = append(warn_ot, float64(warncount))
-			sys_ot = append(sys_ot, float64(syscount))
+			errorChannel <- messages
+		case <-ctx.Done():
+			return
+		}
+	}
+}
 
-			if err := freqs.Series("Errors", err_ot,
+func writeErrors(ctx context.Context,
+	log *text.Text,
+	search *textinput.TextInput,
+	exclude *textinput.TextInput,
+	freqs *linechart.LineChart,
+	errorChannel <-chan [][4]string) {
+
+	var (
+		msg    string
+		lc_msg [3]float64
+		/*
+			Display variables
+		*/
+		messages    [][4]string = make([][4]string, 0)
+		lc_messages [3][]float64
+
+		color        text.WriteOption
+		colorflipper int = -1
+	)
+
+	for {
+		select {
+		case messages = <-errorChannel:
+			log.Reset()
+			for i, row := range messages {
+				msg = fmt.Sprintf("%-20v %-5v %-8v %-55v\n", row[0], row[1], row[2], row[3])
+
+				if i == 0 {
+					log.Write(msg, text.WriteCellOpts(cell.Bold()))
+				} else {
+					if !strings.Contains(msg, search.Read()) || (strings.Contains(msg, exclude.Read()) && exclude.Read() != "") {
+						continue
+					}
+
+					if colorflipper > 0 {
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+					} else {
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+					}
+
+					switch row[2] {
+					case "Error":
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
+						lc_msg[0]++
+					case "Warning":
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
+						lc_msg[1]++
+					case "System":
+						color = text.WriteCellOpts(cell.FgColor(cell.ColorBlue))
+						lc_msg[2]++
+					default:
+						break
+					}
+
+					log.Write(msg, color)
+				}
+			}
+
+			for i, t := range lc_msg {
+				lc_messages[i] = append(lc_messages[i], t)
+			}
+
+			if err := freqs.Series("Errors", lc_messages[0],
 				linechart.SeriesCellOpts(cell.FgColor(cell.ColorRed)),
 				linechart.SeriesXLabels(map[int]string{
 					0: "0",
@@ -267,7 +297,7 @@ func dynErrorLog(ctx context.Context,
 				panic(err)
 			}
 
-			if err := freqs.Series("Warnings", warn_ot,
+			if err := freqs.Series("Warnings", lc_messages[1],
 				linechart.SeriesCellOpts(cell.FgColor(cell.ColorYellow)),
 				linechart.SeriesXLabels(map[int]string{
 					0: "0",
@@ -276,7 +306,7 @@ func dynErrorLog(ctx context.Context,
 				panic(err)
 			}
 
-			if err := freqs.Series("System", sys_ot,
+			if err := freqs.Series("System", lc_messages[2],
 				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNavy)),
 				linechart.SeriesXLabels(map[int]string{
 					0: "0",
@@ -284,6 +314,8 @@ func dynErrorLog(ctx context.Context,
 			); err != nil {
 				panic(err)
 			}
+
+			lc_msg = [3]float64{0, 0, 0}
 
 		case <-ctx.Done():
 			return
