@@ -26,6 +26,9 @@ import (
 
 /*
 Workload:
+	7 goroutines
+	sustaining 22 queries
+	updating 3 read-only widgets
 
 */
 
@@ -240,13 +243,13 @@ func dynDbDashboard(ctx context.Context,
 	)
 
 	go fetchInnoDb(ctx, innodbChannel, delay)
-	go writeInnoDb(ctx, innodb_text, innodbChannel, delay)
+	go writeInnoDb(ctx, innodb_text, innodbChannel)
 
 	go fetchInnoDbBufferPool(ctx, bufferpoolChannel, delay)
-	go writeInnoDbBufferPool(ctx, bufferp_text, bufferpoolChannel, delay)
+	go writeInnoDbBufferPool(ctx, bufferp_text, bufferpoolChannel)
 
 	go fetchInnoDbDonuts(ctx, donutChannel, delay)
-	go writeInnoDbDonuts(ctx, checkpoint_donut, pool_donut, ahi_donut, disk_donut, donutChannel, delay)
+	go writeInnoDbDonuts(ctx, checkpoint_donut, pool_donut, ahi_donut, disk_donut, donutChannel)
 
 	<-ctx.Done()
 }
@@ -318,8 +321,7 @@ func fetchInnoDb(ctx context.Context,
 
 func writeInnoDb(ctx context.Context,
 	innodb_text *text.Text,
-	innodbChannel <-chan string,
-	delay time.Duration) {
+	innodbChannel <-chan string) {
 
 	var (
 		/*
@@ -407,10 +409,10 @@ func fetchInnoDbBufferPool(ctx context.Context,
 		}
 	}
 }
+
 func writeInnoDbBufferPool(ctx context.Context,
 	bufferp_text *text.Text,
-	bufferpoolChannel <-chan string,
-	delay time.Duration) {
+	bufferpoolChannel <-chan string) {
 
 	var (
 		/*
@@ -459,13 +461,13 @@ func fetchInnoDbDonuts(ctx context.Context,
 		}
 	}
 }
+
 func writeInnoDbDonuts(ctx context.Context,
 	checkpoint_donut *donut.Donut,
 	pool_donut *donut.Donut,
 	ahi_donut *donut.Donut,
 	disk_donut *donut.Donut,
-	donutChannel <-chan [4]int,
-	delay time.Duration) {
+	donutChannel <-chan [4]int) {
 
 	var (
 		/*

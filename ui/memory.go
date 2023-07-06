@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -23,30 +24,54 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+/*
+Workload:
+
+*/
+
+/*
+Format:
+
+	widget-1 (top-left): general alloc
+	widget-2 (bottom-left): user alloc
+	widget-3 (top-right): alloc/time
+	widget-4 (bottom-right): disk&ram/alloc
+*/
 func DisplayMemory() {
 	t, err := tcell.New()
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	dballoc1_txt, _ := text.New()
-	dballoc2_txt, _ := text.New()
-	usralloc1_txt, _ := text.New()
-	usralloc2_txt, _ := text.New()
+	dballoc_labels, _ := text.New()
+	dballoc_txt, _ := text.New()
+	dballoc_txt.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+
+	usralloc_labels, _ := text.New()
+	usralloc_txt, _ := text.New()
+	usralloc_txt.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+
 	dballoc_lc, _ := linechart.New(
 		linechart.YAxisAdaptive(),
 		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
 		linechart.XLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 	)
-	hardwalloc1_txt, _ := text.New()
-	hardwalloc2_txt, _ := text.New()
+
+	hardwalloc_labels, _ := text.New()
+	hardwalloc_txt, _ := text.New()
+	hardwalloc_txt.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	/*
 		Slice to hold allocated memory over time
 	*/
 	var alt []float64
 
-	go dynMemoryDashboard(ctx, dballoc1_txt, dballoc2_txt, usralloc1_txt, usralloc2_txt, dballoc_lc, hardwalloc1_txt, hardwalloc2_txt, alt, Interval)
+	go dynMemoryDashboard(ctx,
+		dballoc_labels, dballoc_txt,
+		usralloc_labels, usralloc_txt,
+		dballoc_lc,
+		hardwalloc_labels, hardwalloc_txt,
+		alt, Interval)
 
 	cont, err := container.New(
 		t,
@@ -63,10 +88,10 @@ func DisplayMemory() {
 						container.BorderTitle("Db Memory Allocation"),
 						container.SplitVertical(
 							container.Left(
-								container.PlaceWidget(dballoc1_txt),
+								container.PlaceWidget(dballoc_labels),
 							),
 							container.Right(
-								container.PlaceWidget(dballoc2_txt),
+								container.PlaceWidget(dballoc_txt),
 							),
 							container.SplitPercent(60),
 						),
@@ -76,10 +101,10 @@ func DisplayMemory() {
 						container.BorderTitle("Users Memory Allocation"),
 						container.SplitVertical(
 							container.Left(
-								container.PlaceWidget(usralloc1_txt),
+								container.PlaceWidget(usralloc_labels),
 							),
 							container.Right(
-								container.PlaceWidget(usralloc2_txt),
+								container.PlaceWidget(usralloc_txt),
 							),
 							container.SplitPercent(60),
 						),
@@ -96,13 +121,13 @@ func DisplayMemory() {
 					),
 					container.Bottom(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Disk / RAM"),
+						container.BorderTitle("Disk / RAM Allocation"),
 						container.SplitVertical(
 							container.Left(
-								container.PlaceWidget(hardwalloc1_txt),
+								container.PlaceWidget(hardwalloc_labels),
 							),
 							container.Right(
-								container.PlaceWidget(hardwalloc2_txt),
+								container.PlaceWidget(hardwalloc_txt),
 							),
 							container.SplitPercent(50),
 						),
@@ -118,18 +143,11 @@ func DisplayMemory() {
 	}
 
 	keyreader := func(k *terminalapi.Keyboard) {
-		// Calculate the time elapsed since the last input
 		elapsed := time.Since(LastInputTime)
-
-		// Set a minimum cooldown period (e.g., 500 milliseconds)
 		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
-
-		// If the elapsed time is less than the cooldown period, ignore the input
 		if elapsed < time.Duration(ratelim)*time.Millisecond {
 			return
 		}
-
-		// Update the last input time to the current time
 		LastInputTime = time.Now()
 
 		switch k.Key {
@@ -168,73 +186,108 @@ func DisplayMemory() {
 }
 
 func dynMemoryDashboard(ctx context.Context,
-	dballoc1_txt *text.Text,
-	dballoc2_txt *text.Text,
-	usralloc1_txt *text.Text,
-	usralloc2_txt *text.Text,
+	dballoc_labels *text.Text, dballoc_txt *text.Text,
+	usralloc_labels *text.Text, usralloc_txt *text.Text,
 	dballoc_lc *linechart.LineChart,
-	hardwalloc1_txt *text.Text,
-	hardwalloc2_txt *text.Text,
+	hardwalloc_labels *text.Text, hardwalloc_txt *text.Text,
 	alt []float64,
 	delay time.Duration) {
 
-	ticker := time.NewTicker(delay)
+	var (
+		dballocChannel    chan [2]string = make(chan [2]string)
+		usrallocChannel   chan [2]string = make(chan [2]string)
+		lcChannel         chan []float64 = make(chan []float64)
+		hardwallocChannel chan [2]string = make(chan [2]string)
+	)
+
+	go fetchMemoryDbAlloc(ctx, dballocChannel, lcChannel, delay)
+	go writeMemoryDbAlloc(ctx, dballoc_labels, dballoc_txt, dballoc_lc, dballocChannel, lcChannel)
+
+	go fetchMemoryUserAlloc(ctx, usrallocChannel, delay)
+	go writeMemoryUserAlloc(ctx, usralloc_labels, usralloc_txt, usrallocChannel)
+
+	go fetchMemoryHardwAlloc(ctx, hardwallocChannel, delay)
+	go writeMemoryHardwAlloc(ctx, hardwalloc_labels, hardwalloc_txt, hardwallocChannel)
+
+	<-ctx.Done()
+}
+
+/*
+container-1 & 3
+*/
+func fetchMemoryDbAlloc(ctx context.Context, dballocChannel chan<- [2]string, lcChannel chan<- []float64, delay time.Duration) {
+	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
+
+	var (
+		lookup       map[string]func() string
+		global_alloc [][]string
+		parts        []string
+		aps          float64
+
+		/*
+			Channel message variable
+		*/
+		messages    [2]string
+		lc_messages []float64
+	)
+
 	for {
 		select {
 		case <-ticker.C:
-			lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
-			total_alloc := db.GetLongQuery(Instances[CurrConn].Driver, lookup["global_alloc"]())
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			global_alloc = db.GetLongQuery(Instances[CurrConn].Driver, lookup["global_alloc"]())
 			alloc_by_area := db.GetLongQuery(Instances[CurrConn].Driver, lookup["spec_alloc"]())
-			usr_alloc := db.GetLongQuery(Instances[CurrConn].Driver, lookup["user_alloc"]())
-			ramndisk_alloc := db.GetLongQuery(Instances[CurrConn].Driver, lookup["ramdisk_alloc"]())
 
-			dballoc1_txt.Reset()
-			dballoc2_txt.Reset()
-			dballoc1_txt.Write("\n\n   Total allocated\n\n", text.WriteCellOpts(cell.Bold()))
-			dballoc2_txt.Write("\n\n"+total_alloc[0][0]+"\n\n", text.WriteCellOpts(cell.Bold()))
-			for i, chunk := range alloc_by_area {
-				dballoc1_txt.Write("   "+strings.TrimLeft(chunk[0], " ")+"\n", text.WriteCellOpts(cell.Bold()))
-				if i%2 == 0 {
-					dballoc2_txt.Write(strings.TrimLeft(chunk[1], " ")+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-				} else {
-					dballoc2_txt.Write(strings.TrimLeft(chunk[1], " ")+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-				}
+			messages[0] += "\n\n   Total allocated\n\n"
+			messages[1] += "\n\n" + global_alloc[0][0] + "\n\n"
+			for _, chunk := range alloc_by_area {
+				messages[0] += "   " + strings.TrimLeft(chunk[0], " ") + "\n"
+				messages[1] += strings.TrimLeft(chunk[1], " ") + "\n"
 			}
 
-			usralloc1_txt.Reset()
-			usralloc2_txt.Reset()
-			usralloc1_txt.Write("\n\n   User\n\n", text.WriteCellOpts(cell.Bold()))
-			usralloc2_txt.Write("\n\nCurrent  (Max)\n\n", text.WriteCellOpts(cell.Bold()))
-			for j, chunk := range usr_alloc {
-				usralloc1_txt.Write("   "+chunk[0]+"\n", text.WriteCellOpts(cell.Bold()))
-				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
-				if j%2 == 0 {
-					usralloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-				} else {
-					usralloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-				}
-			}
+			parts = strings.SplitN(global_alloc[0][0], " ", 2)
+			aps, _ = strconv.ParseFloat(parts[0], 64)
+			lc_messages = append(lc_messages, aps)
 
-			hardwalloc1_txt.Reset()
-			hardwalloc2_txt.Reset()
-			hardwalloc1_txt.Write("\n\n\n\n                   Disk\n                    RAM", text.WriteCellOpts(cell.Bold()))
-			hardwalloc2_txt.Write("\n\nCurrent  (Max)\n\n", text.WriteCellOpts(cell.Bold()))
-			for k, chunk := range ramndisk_alloc {
-				chunk[2] = strings.ReplaceAll(chunk[2], " ", "")
-				if k%2 == 0 {
-					hardwalloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
-				} else {
-					hardwalloc2_txt.Write(strings.TrimLeft(chunk[1], " ")+" ("+chunk[2]+")"+"\n", text.WriteCellOpts(cell.FgColor(cell.ColorWhite)))
-				}
-			}
+			dballocChannel <- messages
+			lcChannel <- lc_messages
 
-			parts := strings.SplitN(total_alloc[0][0], " ", 2)
-			aps, _ := strconv.ParseFloat(parts[0], 64)
-			if aps > 0 {
-				alt = append(alt, aps)
-			}
-			if err := dballoc_lc.Series("first", alt,
+			messages = [2]string{""}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func writeMemoryDbAlloc(ctx context.Context,
+	dballoc_labels *text.Text, dballoc_txt *text.Text,
+	dballoc_lc *linechart.LineChart,
+	dballocChannel <-chan [2]string, lcChannel <-chan []float64) {
+
+	var (
+		/*
+			Display variables
+		*/
+		messages    [2]string
+		lc_messages []float64
+	)
+
+	for {
+		select {
+		/*
+			No need to check both channels since we know
+			lcChannel updates right before dballocChannel
+		*/
+		case messages = <-dballocChannel:
+			dballoc_labels.Reset()
+			dballoc_txt.Reset()
+
+			dballoc_labels.Write(messages[0], text.WriteCellOpts(cell.Bold()))
+			dballoc_txt.Write(messages[1])
+
+			lc_messages = <-lcChannel
+			if err := dballoc_lc.Series("first", lc_messages,
 				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
 				linechart.SeriesXLabels(map[int]string{
 					0: "0",
@@ -242,6 +295,128 @@ func dynMemoryDashboard(ctx context.Context,
 			); err != nil {
 				panic(err)
 			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+/*
+container-2
+*/
+func fetchMemoryUserAlloc(ctx context.Context, usrallocChannel chan<- [2]string, delay time.Duration) {
+	var ticker *time.Ticker = time.NewTicker(delay)
+	defer ticker.Stop()
+
+	var (
+		lookup    map[string]func() string
+		usr_alloc [][]string
+
+		/*
+			Channel message variable
+		*/
+		messages [2]string
+	)
+
+	for {
+		select {
+		case <-ticker.C:
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			usr_alloc = db.GetLongQuery(Instances[CurrConn].Driver, lookup["user_alloc"]())
+
+			messages[0] += "\n\n   User\n\n"
+			messages[1] += fmt.Sprintf("\n\n%-11v %-9v\n", "Current", "(Max)")
+			for _, chunk := range usr_alloc {
+				messages[0] += "   " + chunk[0] + "\n"
+				messages[1] += fmt.Sprintf("\n%-11v %-9v", strings.TrimLeft(chunk[1], " "), "("+strings.ReplaceAll(chunk[2], " ", "")+")")
+			}
+
+			usrallocChannel <- messages
+			messages = [2]string{""}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func writeMemoryUserAlloc(ctx context.Context, usralloc_labels *text.Text, usralloc_txt *text.Text, usrallocChannel <-chan [2]string) {
+	var (
+		/*
+			Display variables
+		*/
+		messages [2]string
+	)
+
+	for {
+		select {
+		case messages = <-usrallocChannel:
+			usralloc_labels.Reset()
+			usralloc_txt.Reset()
+
+			usralloc_labels.Write(messages[0], text.WriteCellOpts(cell.Bold()))
+			usralloc_txt.Write(messages[1])
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+/*
+container-4
+*/
+func fetchMemoryHardwAlloc(ctx context.Context, hardwallocChannel chan<- [2]string, delay time.Duration) {
+	var ticker *time.Ticker = time.NewTicker(delay)
+	defer ticker.Stop()
+
+	var (
+		lookup         map[string]func() string
+		ramndisk_alloc [][]string
+
+		/*
+			Channel message variable
+		*/
+		messages [2]string
+	)
+
+	for {
+		select {
+		case <-ticker.C:
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			ramndisk_alloc = db.GetLongQuery(Instances[CurrConn].Driver, lookup["ramdisk_alloc"]())
+
+			messages[0] += "\n\n\n\n                   Disk\n                    RAM"
+			messages[1] += fmt.Sprintf("\n\n%-11v %-9v\n", "Current", "(Max)")
+			for _, chunk := range ramndisk_alloc {
+				messages[1] += fmt.Sprintf("\n%-11v %-9v", strings.TrimLeft(chunk[1], " "), "("+strings.ReplaceAll(chunk[2], " ", "")+")")
+			}
+
+			hardwallocChannel <- messages
+			messages = [2]string{""}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func writeMemoryHardwAlloc(ctx context.Context, hardwalloc_labels *text.Text, hardwalloc_txt *text.Text, hardwallocChannel <-chan [2]string) {
+	var (
+		/*
+			Display variables
+		*/
+		messages [2]string
+	)
+
+	for {
+		select {
+		case messages = <-hardwallocChannel:
+			hardwalloc_labels.Reset()
+			hardwalloc_txt.Reset()
+
+			hardwalloc_labels.Write(messages[0], text.WriteCellOpts(cell.Bold()))
+			hardwalloc_txt.Write(messages[1])
 
 		case <-ctx.Done():
 			return

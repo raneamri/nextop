@@ -277,13 +277,13 @@ func dynProcesslist(ctx context.Context,
 	go writeProcesslist(ctx, pl_text, processlistChannel, search, exclude)
 
 	go fetchProcesslistInfo(ctx, infoChannel, delay)
-	go writeProcesslistInfo(ctx, info_text, infoChannel, delay)
+	go writeProcesslistInfo(ctx, info_text, infoChannel)
 
 	go fetchProcesslistBarchart(ctx, barchartChannel, delay)
-	go writeProcesslistBarchart(ctx, acts_bc, barchartChannel, delay)
+	go writeProcesslistBarchart(ctx, acts_bc, barchartChannel)
 
 	go fetchProcesslistLinechart(ctx, linechartChannel, delay)
-	go writeProcesslistLinechart(ctx, queries_lc, linechartChannel, delay)
+	go writeProcesslistLinechart(ctx, queries_lc, linechartChannel)
 
 	<-ctx.Done()
 }
@@ -481,8 +481,7 @@ func fetchProcesslistInfo(ctx context.Context,
 
 func writeProcesslistInfo(ctx context.Context,
 	info_text *text.Text,
-	infoChannel <-chan []string,
-	delay time.Duration) {
+	infoChannel <-chan []string) {
 
 	var (
 		message []string
@@ -552,8 +551,7 @@ func fetchProcesslistBarchart(ctx context.Context,
 
 func writeProcesslistBarchart(ctx context.Context,
 	acts_bc *barchart.BarChart,
-	barchartChannel <-chan [4]int,
-	delay time.Duration) {
+	barchartChannel <-chan [4]int) {
 
 	var (
 		message [4]int
@@ -605,8 +603,7 @@ func fetchProcesslistLinechart(ctx context.Context,
 
 func writeProcesslistLinechart(ctx context.Context,
 	queries_lc *linechart.LineChart,
-	linechartChannel <-chan []float64,
-	delay time.Duration) {
+	linechartChannel <-chan []float64) {
 
 	var (
 		message []float64

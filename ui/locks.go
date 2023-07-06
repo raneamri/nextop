@@ -20,6 +20,14 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+/*
+Workload:
+
+*/
+
+/*
+Format:
+*/
 func DisplayLocks() {
 	t, err := tcell.New()
 	defer t.Close()
