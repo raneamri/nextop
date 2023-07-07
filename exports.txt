@@ -1,0 +1,2 @@
+Query   892   852            executing                 root@localhost       db                     1624ms     2000µs SELECT    (SELECT COUNT(*) FRO ... IKE 'DELETE%') AS delete_count
+

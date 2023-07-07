@@ -112,3 +112,9 @@
 - Further optimised processlist.
 - Filter enhancement.
 - New configs.
+
+## Fri 7 Jul 2023:
+- Added pausing.
+- Began adding exporting.
+- Optimised some queries.
+- More optimisiations on processlist.

@@ -7,6 +7,7 @@ Having them here declutters the program
 
 func QueryTypeDict() []string {
 	return []string{"processlist",
+		"queries",
 		"innodb/=",
 		"operations",
 		"user_alloc",
@@ -28,6 +29,7 @@ MySQL queries
 
 func MySQLFuncDict() []func() string {
 	return []func() string{MySQLProcesslistLongQuery,
+		MySQLQueriesShortQuery,
 		MySQLInnoDBLongParams,
 		MySQLOperationCountLongQuery,
 		MySQLUserMemoryShortQuery,
@@ -70,6 +72,12 @@ func MySQLProcesslistLongQuery() string {
 			where pps.PROCESSLIST_ID is not null
 			and pps.PROCESSLIST_COMMAND <> 'Daemon'
 			`
+}
+
+func MySQLQueriesShortQuery() string {
+	return `SELECT COUNT(*) AS ongoing_query_count
+			FROM information_schema.processlist
+			WHERE COMMAND <> 'Sleep';`
 }
 
 func MySQLInnoDBLongParams() string {

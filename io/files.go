@@ -323,3 +323,13 @@ func FetchKeybind(param string) string {
 
 	return string("-1")
 }
+
+/*
+Writes processlist contents to a text file
+*/
+func ExportProcesslist(pldata [][]string) {
+	var (
+	//fpath string = "exports.txt"
+	)
+
+}
