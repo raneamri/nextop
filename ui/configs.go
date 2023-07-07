@@ -16,8 +16,8 @@ import (
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/mum4k/termdash/widgets/textinput"
-	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 	"github.com/raneamri/nextop/utility"
 
@@ -225,7 +225,7 @@ func DisplayConfigs() {
 			inst.DSN = []byte(dsn)
 			inst.ConnName = name
 
-			if !db.Ping(inst) {
+			if !queries.Ping(inst) {
 				errlog.Reset()
 				errlog.Write("\n   Authenticating...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 				time.Sleep(1 * time.Second)
@@ -242,7 +242,7 @@ func DisplayConfigs() {
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 			}
 
-			inst.Driver, err = db.Connect(inst)
+			inst.Driver, err = queries.Connect(inst)
 			if err == nil {
 				ActiveConns = append(ActiveConns, inst.ConnName)
 				if len(ActiveConns) == 1 {
@@ -266,7 +266,7 @@ func DisplayConfigs() {
 			for _, inst := range Instances {
 				if inst.Driver == nil {
 					var err error
-					inst.Driver, err = db.Connect(inst)
+					inst.Driver, err = queries.Connect(inst)
 					if err == nil {
 						ActiveConns = append(ActiveConns, inst.ConnName)
 					}

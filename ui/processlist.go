@@ -21,8 +21,8 @@ import (
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/mum4k/termdash/widgets/textinput"
-	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 	"github.com/raneamri/nextop/utility"
 
@@ -385,7 +385,7 @@ func fetchProcesslist(ctx context.Context,
 					Fetch query using DBMS and keyword
 				*/
 				lookup = GlobalQueryMap[Instances[key].DBMS]
-				pldata = db.GetLongQuery(Instances[key].Driver, lookup["processlist"]())
+				pldata = queries.GetLongQuery(Instances[key].Driver, lookup["processlist"]())
 
 				messages = []string{}
 				for _, row := range pldata {
@@ -537,10 +537,10 @@ func fetchProcesslistInfo(ctx context.Context,
 			for _, key := range ActiveConns {
 				lookup = GlobalQueryMap[Instances[key].DBMS]
 				parameters = []string{"uptime", "threads_connected"}
-				statuses = db.GetStatus(Instances[key].Driver, parameters)
+				statuses = queries.GetStatus(Instances[key].Driver, parameters)
 
 				uptime, _ = strconv.Atoi(statuses[0])
-				qps_int, _ = strconv.Atoi(db.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
+				qps_int, _ = strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
 				if Instances[key].ConnName == Instances[CurrConn].ConnName {
 					lc_message = append(lc_message, float64(qps_int))
 					if len(lc_message) > 32 {
@@ -625,7 +625,7 @@ func fetchProcesslistBarchart(ctx context.Context,
 			/*
 				Format data
 			*/
-			operations = db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLOperationCountLongQuery())
+			operations = queries.GetLongQuery(Instances[CurrConn].Driver, queries.MySQLOperationCountLongQuery())
 			selects, _ = strconv.Atoi(operations[0][0])
 			inserts, _ = strconv.Atoi(operations[0][1])
 			updates, _ = strconv.Atoi(operations[0][2])

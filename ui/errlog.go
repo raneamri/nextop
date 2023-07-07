@@ -18,8 +18,8 @@ import (
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/mum4k/termdash/widgets/textinput"
-	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -201,7 +201,7 @@ func fetchErrors(ctx context.Context,
 		select {
 		case <-ticker.C:
 			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			error_log = db.GetLongQuery(Instances[CurrConn].Driver, lookup["err"]())
+			error_log = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["err"]())
 
 			//fmt.Sprintf("%-20v %-5v %-55v\n",
 

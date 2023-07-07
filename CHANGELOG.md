@@ -118,3 +118,4 @@
 - Began adding exporting.
 - Optimised some queries.
 - More optimisiations on processlist.
+- Used data recycling to cut workload in processlist by a goroutine.

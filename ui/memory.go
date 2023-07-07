@@ -17,8 +17,8 @@ import (
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"github.com/mum4k/termdash/widgets/linechart"
 	"github.com/mum4k/termdash/widgets/text"
-	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -236,8 +236,8 @@ func fetchMemoryDbAlloc(ctx context.Context, dballocChannel chan<- [2]string, lc
 		select {
 		case <-ticker.C:
 			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			global_alloc = db.GetLongQuery(Instances[CurrConn].Driver, lookup["global_alloc"]())
-			alloc_by_area := db.GetLongQuery(Instances[CurrConn].Driver, lookup["spec_alloc"]())
+			global_alloc = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["global_alloc"]())
+			alloc_by_area := queries.GetLongQuery(Instances[CurrConn].Driver, lookup["spec_alloc"]())
 
 			messages[0] += "\n\n   Total allocated\n\n"
 			messages[1] += "\n\n" + global_alloc[0][0] + "\n\n"
@@ -323,7 +323,7 @@ func fetchMemoryUserAlloc(ctx context.Context, usrallocChannel chan<- [2]string,
 		select {
 		case <-ticker.C:
 			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			usr_alloc = db.GetLongQuery(Instances[CurrConn].Driver, lookup["user_alloc"]())
+			usr_alloc = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["user_alloc"]())
 
 			messages[0] += "\n\n   User\n\n"
 			messages[1] += fmt.Sprintf("\n\n%-11v %-9v\n", "Current", "(Max)")
@@ -384,7 +384,7 @@ func fetchMemoryHardwAlloc(ctx context.Context, hardwallocChannel chan<- [2]stri
 		select {
 		case <-ticker.C:
 			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			ramndisk_alloc = db.GetLongQuery(Instances[CurrConn].Driver, lookup["ramdisk_alloc"]())
+			ramndisk_alloc = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["ramdisk_alloc"]())
 
 			messages[0] += "\n\n\n\n                   Disk\n                    RAM"
 			messages[1] += fmt.Sprintf("\n\n%-11v %-9v\n", "Current", "(Max)")

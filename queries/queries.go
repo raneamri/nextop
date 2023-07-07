@@ -1,4 +1,4 @@
-package db
+package queries
 
 /*
 All the queries, variables and statuses the program queries for
@@ -8,8 +8,10 @@ Having them here declutters the program
 func QueryTypeDict() []string {
 	return []string{"processlist",
 		"queries",
-		"innodb/=",
 		"operations",
+		"innodb",
+		"ahi",
+		"bufferpool",
 		"user_alloc",
 		"global_alloc",
 		"spec_alloc",
@@ -30,8 +32,10 @@ MySQL queries
 func MySQLFuncDict() []func() string {
 	return []func() string{MySQLProcesslistLongQuery,
 		MySQLQueriesShortQuery,
-		MySQLInnoDBLongParams,
 		MySQLOperationCountLongQuery,
+		MySQLInnoDBLongQuery,
+		MySQLInnoDBAHIQuery,
+		MySQLBufferpoolParams,
 		MySQLUserMemoryShortQuery,
 		MySQLGlobalAllocatedShortQuery,
 		MySQLSpecificAllocatedLongQuery,
@@ -80,19 +84,91 @@ func MySQLQueriesShortQuery() string {
 			WHERE COMMAND <> 'Sleep';`
 }
 
-func MySQLInnoDBLongParams() string {
-	return "innodb_buffer_pool_read_requests% innodb_buffer_pool_write_requests% innodb_buffer_pool_pages_dirty " +
-		"innodb_buffer_pool_reads innodb_buffer_pool_writes innodb_os_log_pending_writes handler_read_first handler_read_key " +
-		"handler_read_next handler_read_prev handler_read_rnd handler_read_rnd_next innodb_data_pending_fsyncs " +
-		"innodb_os_log_pending_fsyncs"
-}
-
 func MySQLOperationCountLongQuery() string {
 	return `SELECT
-			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'SELECT%') AS select_count,
-			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'INSERT%') AS insert_count,
-			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'UPDATE%') AS update_count,
-			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'DELETE%') AS delete_count;`
+		    (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'SELECT%' AND thread_id IS NOT NULL) AS ongoing_select_count,
+			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'INSERT%' AND thread_id IS NOT NULL) AS ongoing_insert_count,
+			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'UPDATE%' AND thread_id IS NOT NULL) AS ongoing_update_count,
+			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'DELETE%' AND thread_id IS NOT NULL) AS ongoing_delete_count;`
+}
+
+func MySQLInnoDBLongQuery() string {
+	return `SELECT
+			FORMAT_BYTES((
+			SELECT variable_value
+			FROM performance_schema.global_variables
+			WHERE variable_name = 'innodb_buffer_pool_size'
+			)) AS BP_Size,
+			(
+			SELECT variable_value
+			FROM performance_schema.global_variables
+			WHERE variable_name = 'innodb_buffer_pool_instances'
+			) AS BP_instances,
+			CONCAT(
+			FORMAT_BYTES(STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'),
+			' / ',
+			FORMAT_BYTES(
+				(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size')
+				* (SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group')
+			)
+			) AS CheckpointInfo,
+			ROUND(
+			(
+			(
+			(SELECT STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"' FROM performance_schema.log_status)
+			/ ((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size') * (SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group'))
+			) * 100
+			),
+			2
+			) AS CheckpointAge,
+			FORMAT_BYTES((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE variable_name = 'innodb_log_file_size')) AS InnoDBLogFileSize,
+			(
+			SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE variable_name = 'innodb_log_files_in_group'
+			) AS NbFiles,
+			(
+			SELECT VARIABLE_VALUE
+			FROM performance_schema.global_status
+			WHERE VARIABLE_NAME = 'Innodb_redo_log_enabled'
+			) AS RedoEnabled
+			FROM performance_schema.log_status;`
+}
+
+func MySQLInnoDBAHIQuery() string {
+	return `SELECT
+			(SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE VARIABLE_NAME = 'innodb_adaptive_hash_index'
+			) AS AHIEnabled,
+			(
+			SELECT VARIABLE_VALUE
+			FROM performance_schema.global_variables
+			WHERE VARIABLE_NAME = 'innodb_adaptive_hash_index_parts'
+			) AS AHIParts,
+			ROUND(
+			((SELECT VARIABLE_VALUE
+			FROM sys.metrics
+			WHERE VARIABLE_NAME = 'adaptive_hash_searches'
+			) /
+			((SELECT VARIABLE_VALUE
+			FROM sys.metrics
+			WHERE VARIABLE_NAME = 'adaptive_hash_searches_btree'
+			) + (
+			SELECT VARIABLE_VALUE
+			FROM sys.metrics
+			WHERE VARIABLE_NAME = 'adaptive_hash_searches'
+			))
+			) * 100,
+			2
+			) AS AHIRatio;`
+}
+
+func MySQLBufferpoolParams() string {
+	return "innodb_buffer_pool_read_requests% innodb_buffer_pool_write_requests% innodb_buffer_pool_pages_dirty " +
+		"innodb_buffer_pool_reads innodb_buffer_pool_writes% innodb_os_log_pending_writes handler_read_first handler_read_key " +
+		"handler_read_next handler_read_prev handler_read_rnd handler_read_rnd_next innodb_data_pending_fsyncs " +
+		"innodb_os_log_pending_fsyncs"
 }
 
 func MySQLUserMemoryShortQuery() string {

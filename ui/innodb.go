@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -16,8 +17,8 @@ import (
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/text"
-	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 	"github.com/raneamri/nextop/utility"
 
@@ -48,17 +49,29 @@ func DisplayInnoDbDashboard() {
 	/*
 		InnoDB info (container-1)
 	*/
-	infoheader := []string{"\n\n         Buffer Pool Size\n", "     Buffer Pool Instance\n\n", "                 Redo Log\n",
-		"      InnoDB Logfile Size\n", "       Num InnoDB Logfile\n\n", "          Checkpoint Info\n",
-		"           Checkpoint Age\n\n", "      Adaptive Hash Index\n", "       Num AHI Partitions"}
+	infoheader := []string{"\n\n   Buffer Pool Size\n",
+		"   Buffer Pool Instance\n",
+		"   Checkpoint Info\n",
+		"   Checkpoint Age\n",
+		"   InnoDB Logfile Size\n",
+		"   Num InnoDB Logfile\n",
+		"   Redo Log\n\n",
+		"   Adaptive Hash Indexing\n",
+		"   AHI Partitions\n"}
 	infolabels, _ := text.New()
 	for _, header := range infoheader {
 		infolabels.Write(header, text.WriteCellOpts(cell.Bold()))
 	}
 
-	bfpheader := []string{"\n\n            Read Requests\n", "           Write Requests\n\n", "               Dirty Data\n\n",
-		"            Pending Reads\n", "           Pending Writes\n\n", "    OS Log Pending Writes\n\n", "               Disk Reads\n\n",
-		"            Pending Fsync\n", "    OS Log Pending Fsyncs\n"}
+	bfpheader := []string{"\n\n   Read Requests\n",
+		"   Write Requests\n\n",
+		"   Dirty Data\n\n",
+		"   Pending Reads\n",
+		"   Pending Writes\n\n",
+		"   OS Log Pending Writes\n\n",
+		"   Disk Reads\n\n",
+		"   Pending Fsync\n",
+		"   OS Log Pending Fsyncs\n"}
 	bfplabels, _ := text.New()
 	for _, header := range bfpheader {
 		bfplabels.Write(header, text.WriteCellOpts(cell.Bold()))
@@ -242,13 +255,12 @@ func dynDbDashboard(ctx context.Context,
 		donutChannel      chan [4]int = make(chan [4]int)
 	)
 
-	go fetchInnoDb(ctx, innodbChannel, delay)
+	go fetchInnoDb(ctx, innodbChannel, donutChannel, delay)
 	go writeInnoDb(ctx, innodb_text, innodbChannel)
 
 	go fetchInnoDbBufferPool(ctx, bufferpoolChannel, delay)
 	go writeInnoDbBufferPool(ctx, bufferp_text, bufferpoolChannel)
 
-	go fetchInnoDbDonuts(ctx, donutChannel, delay)
 	go writeInnoDbDonuts(ctx, checkpoint_donut, pool_donut, ahi_donut, disk_donut, donutChannel)
 
 	<-ctx.Done()
@@ -256,6 +268,7 @@ func dynDbDashboard(ctx context.Context,
 
 func fetchInnoDb(ctx context.Context,
 	innodbChannel chan<- string,
+	donutChannel chan<- [4]int,
 	delay time.Duration) {
 
 	var ticker *time.Ticker = time.NewTicker(delay)
@@ -265,53 +278,33 @@ func fetchInnoDb(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		varparameters []string = make([]string, 0)
+		lookup        map[string]func() string
 		variables     []string = make([]string, 0)
-		/*
-			Formatting variables
-		*/
-		bf_pool_int         int
-		redolog             []string = make([]string, 0)
-		logfile_int         int
-		checkpoint_info_raw [][]string = make([][]string, 0)
-		checkpoint_age_raw  [][]string = make([][]string, 0)
+		ahi_variables []string = make([]string, 0)
 
 		/*
 			Channel message variable
 		*/
-		message string
+		message       string
+		donut_message float64
 	)
 
 	for {
 		select {
 		case <-ticker.C:
-			varparameters = []string{"innodb_buffer_pool_size", "innodb_buffer_pool_instances", "innodb_log_file_size",
-				"innodb_log_files_in_group", "innodb_adaptive_hash_index", "innodb_adaptive_hash_index_parts"}
-			variables = db.GetSchemaVariable(Instances[CurrConn].Driver, varparameters)
-
-			/*
-				Format
-			*/
-			bf_pool_int, _ = strconv.Atoi(variables[0])
-			redolog = db.GetSchemaStatus(Instances[CurrConn].Driver, []string{"innodb_redo_log_enabled"})
-			logfile_int, _ = strconv.Atoi(variables[2])
-			checkpoint_info_raw = db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLCheckpointInfoLongQuery())
-			checkpoint_age_raw = db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLCheckpointAgePctLongQuery())
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["innodb"]())[0]
+			ahi_variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["ahi"]())[0]
 
 			/*
 				Compose message
 			*/
-			message += "\n\n" + utility.BytesToMiB(bf_pool_int) + "\n"
-			message += variables[1] + "\n\n"
-			message += redolog[0] + "\n"
-			message += utility.BytesToMiB(logfile_int) + "\n"
-			message += variables[3] + "\n\n"
-			message += strings.TrimLeft(checkpoint_info_raw[0][0], " ") + "\n"
-			message += checkpoint_age_raw[0][0] + "%\n\n"
-			message += variables[4] + "\n"
-			message += variables[5] + "\n"
+			variables[2] = strings.TrimLeft(variables[2], " ")
+			message = "\n\n" + strings.Join(variables, "\n") + "\n\n" + strings.Join(ahi_variables[:2], "\n")
+			donut_message, _ = strconv.ParseFloat(ahi_variables[2], 64)
 
 			innodbChannel <- message
+			donutChannel <- [4]int{0, 0, int(math.Round(donut_message)), 0}
 			message = ""
 		case <-ctx.Done():
 			return
@@ -376,8 +369,8 @@ func fetchInnoDbBufferPool(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			varparameters = strings.Split(db.MySQLInnoDBLongParams(), " ")
-			variables = db.GetSchemaStatus(Instances[CurrConn].Driver, varparameters)
+			varparameters = strings.Split(queries.MySQLBufferpoolParams(), " ")
+			variables = queries.GetSchemaStatus(Instances[CurrConn].Driver, varparameters)
 
 			read_reqs_int, _ = strconv.Atoi(variables[0])
 			write_reqs_int, _ = strconv.Atoi(variables[1])
@@ -433,35 +426,6 @@ func writeInnoDbBufferPool(ctx context.Context,
 	}
 }
 
-func fetchInnoDbDonuts(ctx context.Context,
-	donutChannel chan<- [4]int,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
-
-	var (
-		/*
-			Channel message variable
-		*/
-		message [4]int
-	)
-
-	for {
-		select {
-		case <-ticker.C:
-			/*
-				Note: implement
-			*/
-			message = [4]int{25, 72, 50, 100}
-
-			donutChannel <- message
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
 func writeInnoDbDonuts(ctx context.Context,
 	checkpoint_donut *donut.Donut,
 	pool_donut *donut.Donut,
@@ -479,10 +443,19 @@ func writeInnoDbDonuts(ctx context.Context,
 	for {
 		select {
 		case message = <-donutChannel:
-			checkpoint_donut.Percent(message[0])
-			pool_donut.Percent(message[1])
-			ahi_donut.Percent(message[2])
-			disk_donut.Percent(message[3])
+
+			if message[0] != 0 {
+				checkpoint_donut.Percent(message[0])
+			}
+			if message[1] != 0 {
+				pool_donut.Percent(message[1])
+			}
+			if message[2] != 0 {
+				ahi_donut.Percent(message[2])
+			}
+			if message[3] != 0 {
+				disk_donut.Percent(message[3])
+			}
 
 		case <-ctx.Done():
 			return

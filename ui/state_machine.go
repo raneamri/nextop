@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/raneamri/nextop/db"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 )
 
@@ -113,7 +113,7 @@ func InterfaceLoop() {
 				flag = false
 			}
 			var err error
-			inst.Driver, err = db.Connect(inst)
+			inst.Driver, err = queries.Connect(inst)
 			Instances[key] = inst
 			if err == nil {
 				ActiveConns = append(ActiveConns, key)
@@ -134,7 +134,7 @@ func InterfaceLoop() {
 	/*
 		Set up query maps
 	*/
-	db.MapMySQL(MySQLQueries)
+	queries.MapMySQL(MySQLQueries)
 	GlobalQueryMap[types.MYSQL] = MySQLQueries
 
 	for true {

@@ -1,4 +1,4 @@
-package db
+package queries
 
 import (
 	"database/sql"
@@ -149,10 +149,6 @@ Looks up variable in performance_schema
 */
 func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
 	var values []string
-
-	if len(parameters) == 0 {
-		return values
-	}
 
 	var query string = `SELECT variable_name, variable_value
 				FROM performance_schema.global_variables
