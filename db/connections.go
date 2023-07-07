@@ -150,16 +150,28 @@ Looks up variable in performance_schema
 func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
 	var values []string
 
+	if len(parameters) == 0 {
+		return values
+	}
+
+	var query string = `SELECT variable_name, variable_value
+				FROM performance_schema.global_variables
+				WHERE variable_name IN (` + strings.Join(parameters, ", ") + `);`
+
+	rows, _ := Query(driver, query)
+	_, result, _ := GetData(rows)
+
+	valuesMap := make(map[string]string)
+	for _, row := range result {
+		valuesMap[row[0]] = row[1]
+	}
+
 	for _, param := range parameters {
-		var query string = `SELECT variable_name, variable_value
-					FROM performance_schema.global_variables
-					WHERE variable_name LIKE '` + param + `';`
-		rows, err := Query(driver, query)
-		_, result, _ := GetData(rows)
-		if err != nil || len(result) == 0 {
+		value, exists := valuesMap[param]
+		if !exists {
 			values = append(values, "-1")
 		} else {
-			values = append(values, result[0][1])
+			values = append(values, value)
 		}
 	}
 

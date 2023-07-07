@@ -8,10 +8,7 @@ Having them here declutters the program
 func QueryTypeDict() []string {
 	return []string{"processlist",
 		"innodb/=",
-		"select",
-		"inserts",
-		"updates",
-		"deletes",
+		"operations",
 		"user_alloc",
 		"global_alloc",
 		"spec_alloc",
@@ -32,10 +29,7 @@ MySQL queries
 func MySQLFuncDict() []func() string {
 	return []func() string{MySQLProcesslistLongQuery,
 		MySQLInnoDBLongParams,
-		MySQLSelectLongQuery,
-		MySQLInsertsLongQuery,
-		MySQLUpdatesLongQuery,
-		MySQLDeletesLongQuery,
+		MySQLOperationCountLongQuery,
 		MySQLUserMemoryShortQuery,
 		MySQLGlobalAllocatedShortQuery,
 		MySQLSpecificAllocatedLongQuery,
@@ -85,24 +79,12 @@ func MySQLInnoDBLongParams() string {
 		"innodb_os_log_pending_fsyncs"
 }
 
-func MySQLSelectLongQuery() string {
-	return `SELECT SUM(IF(digest_text LIKE 'SELECT%', count_star, 0)) AS select_count
-			FROM performance_schema.events_statements_summary_by_digest;`
-}
-
-func MySQLInsertsLongQuery() string {
-	return `SELECT SUM(IF(digest_text LIKE 'INSERTST%', count_star, 0)) AS insert_count
-			FROM performance_schema.events_statements_summary_by_digest;`
-}
-
-func MySQLUpdatesLongQuery() string {
-	return `SELECT SUM(IF(digest_text LIKE 'UPDATES%', count_star, 0)) AS update_count
-			FROM performance_schema.events_statements_summary_by_digest;`
-}
-
-func MySQLDeletesLongQuery() string {
-	return `SELECT SUM(IF(digest_text LIKE 'DELETES%', count_star, 0)) AS delete_count
-			FROM performance_schema.events_statements_summary_by_digest;`
+func MySQLOperationCountLongQuery() string {
+	return `SELECT
+			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'SELECT%') AS select_count,
+			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'INSERT%') AS insert_count,
+			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'UPDATE%') AS update_count,
+			(SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest WHERE digest_text LIKE 'DELETE%') AS delete_count;`
 }
 
 func MySQLUserMemoryShortQuery() string {

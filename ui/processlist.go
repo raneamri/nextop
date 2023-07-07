@@ -303,16 +303,15 @@ func fetchProcesslist(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		lookup      map[string]func() string = make(map[string]func() string)
-		pldata      [][]string               = make([][]string, 0)
+		lookup      map[string]func() string
+		pldata      [][]string
 		group_found bool
 		/*
 			Formatting variables
 		*/
-		ftime                int64
-		flocktime            int64
-		fquery               string
-		maxProcesslistLen, _ = strconv.Atoi(io.FetchSetting("max-processlist-len"))
+		ftime     int64
+		flocktime int64
+		fquery    string
 		/*
 			Channel message variable
 		*/
@@ -352,10 +351,7 @@ func fetchProcesslist(ctx context.Context,
 					ftime, _ = strconv.ParseInt(row[8], 10, 64)
 					flocktime, _ = strconv.ParseInt(row[9], 10, 64)
 					fquery = strings.ReplaceAll(row[7], "\t", " ")
-					fquery = strings.ReplaceAll(row[7], "\n", " ")
-					if len(fquery) > 30 {
-						fquery = fquery[:30] + "..."
-					}
+					fquery = strings.ReplaceAll(fquery, "\n", " ")
 
 					/*
 						Line up items & send to channel
@@ -363,17 +359,11 @@ func fetchProcesslist(ctx context.Context,
 					messages = append(messages, fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
 						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
 						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime), fquery))
-
-					/*
-						Cap processlist length
-					*/
-					if len(messages) > maxProcesslistLen {
-						messages = messages[len(messages)-maxProcesslistLen:]
-					}
 				}
 			}
 
 			processlistChannel <- messages
+			messages = []string{}
 		case <-ctx.Done():
 			return
 		}
@@ -414,11 +404,12 @@ func writeProcesslist(ctx context.Context,
 		case message = <-processlistChannel:
 
 			pl_text.Reset()
-			headers = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
+			headers = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-15v\n",
 				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
-			pl_text.Write(headers, text.WriteCellOpts(cell.Bold()))
 
 			colorflipper = -1
+
+			pl_text.Write(headers, text.WriteCellOpts(cell.Bold()))
 			for _, process := range message {
 				if sens_filters {
 					if !strings.Contains(process, search.Read()) || (strings.Contains(process, exclude.Read()) && exclude.Read() != "") {
@@ -448,13 +439,17 @@ func writeProcesslist(ctx context.Context,
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))
 					break
 				default:
-					if colorflipper > 0 {
+					if colorflipper < 0 {
 						color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 					} else {
 						color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 					}
-					colorflipper *= -1
 					break
+				}
+				colorflipper *= -1
+
+				if len(process) > 100 {
+					process = process[:150] + "...\n"
 				}
 
 				pl_text.Write(process, color)
@@ -513,8 +508,9 @@ func writeProcesslistInfo(ctx context.Context,
 	infoChannel <-chan []string) {
 
 	var (
-		message []string = make([]string, 0)
-		color   text.WriteOption
+		message      []string = make([]string, 0)
+		color        text.WriteOption
+		colorflipper int
 	)
 
 	for {
@@ -523,14 +519,17 @@ func writeProcesslistInfo(ctx context.Context,
 			headers := fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
 				"Connection", "Uptime", "QPS", "Threads")
 
+			colorflipper = -1
+
 			info_text.Reset()
 			info_text.Write(headers, text.WriteCellOpts(cell.Bold()))
-			for i, item := range message {
-				if i%2 == 0 {
+			for _, item := range message {
+				if colorflipper < 0 {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 				} else {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
+				colorflipper *= -1
 
 				info_text.Write(item, color)
 			}
@@ -549,7 +548,12 @@ func fetchProcesslistBarchart(ctx context.Context,
 	defer ticker.Stop()
 
 	var (
-		messages [4]int
+		operations [][]string
+		selects    int
+		inserts    int
+		updates    int
+		deletes    int
+		messages   [4]int
 	)
 
 	for {
@@ -559,15 +563,12 @@ func fetchProcesslistBarchart(ctx context.Context,
 			/*
 				Format data
 			*/
-			selects := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLSelectLongQuery())
-			selects_int, _ := strconv.Atoi(selects[0][0])
-			inserts := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLInsertsLongQuery())
-			inserts_int, _ := strconv.Atoi(inserts[0][0])
-			updates := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLUpdatesLongQuery())
-			updates_int, _ := strconv.Atoi(updates[0][0])
-			deletes := db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLDeletesLongQuery())
-			deletes_int, _ := strconv.Atoi(deletes[0][0])
-			messages = [4]int{selects_int, inserts_int, updates_int, deletes_int}
+			operations = db.GetLongQuery(Instances[CurrConn].Driver, db.MySQLOperationCountLongQuery())
+			selects, _ = strconv.Atoi(operations[0][0])
+			inserts, _ = strconv.Atoi(operations[0][1])
+			updates, _ = strconv.Atoi(operations[0][2])
+			deletes, _ = strconv.Atoi(operations[0][3])
+			messages = [4]int{selects, inserts, updates, deletes}
 
 			barchartChannel <- messages
 
@@ -590,7 +591,7 @@ func writeProcesslistBarchart(ctx context.Context,
 		select {
 		case message = <-barchartChannel:
 
-			acts_bc.Values(message[:], utility.Max(message[:])+500)
+			acts_bc.Values(message[:], utility.Max(message[:])+15)
 		}
 	}
 }

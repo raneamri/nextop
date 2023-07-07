@@ -71,7 +71,7 @@ func DisplayMemory() {
 		usralloc_labels, usralloc_txt,
 		dballoc_lc,
 		hardwalloc_labels, hardwalloc_txt,
-		alt, Interval)
+		alt, 5*time.Second)
 
 	cont, err := container.New(
 		t,
