@@ -55,12 +55,12 @@ func FpicoToMs(duration int64) string {
 	/*
 		int64 -> time.Duration
 	*/
-	ms := duration / int64(time.Millisecond)
+	var ms float32 = float32(duration) / 1e9
 
 	/*
 		Format and concatenate
 	*/
-	ftime := fmt.Sprintf("%dms", ms)
+	ftime := fmt.Sprintf("%.4fms", ms)
 	return ftime
 }
 
@@ -82,33 +82,34 @@ func FpicoToUs(duration int64) string {
 
 /*
 Takes dbms_t and returns the dbms name as string
+^ADD YOUR DBMS HERE
 */
 func Strdbms(dbms types.DBMS_t) string {
-	if dbms == types.MYSQL {
+	switch dbms {
+	case types.MYSQL:
 		return "mysql"
-	} else if dbms == types.ORACLE {
-		return "oracle"
+	case types.POSTGRE:
+		return "postgre"
+	default:
+		return "n/a"
 	}
-
-	/*
-		Remove warning
-	*/
-	return ""
 }
 
 /*
 Inverse function to strdbms
 Takes string and converts to dbms_t
+Returns -1 if dbms is invalid
 */
 func Dbmsstr(dbms string) types.DBMS_t {
 	dbms = Fstr(dbms)
-	if dbms == "MYSQL" {
+	switch dbms {
+	case "MYSQL":
 		return types.MYSQL
-	} else if dbms == "ORACLE" {
-		return types.ORACLE
+	case "POSTGRE":
+		return types.POSTGRE
+	default:
+		return -1
 	}
-
-	return -1
 }
 
 /*

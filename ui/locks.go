@@ -15,6 +15,7 @@ import (
 	"github.com/mum4k/termdash/terminal/terminalapi"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -23,18 +24,25 @@ import (
 /*
 Workload:
 
+	1 query
+	across 3 goroutines
 */
 
 /*
 Format:
+
+	widget-1 (top): blank
+	widget-2 (bottom): locks
 */
 func DisplayLocks() {
 	t, err := tcell.New()
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	log, _ := text.New()
 	active_txt, _ := text.New()
+	log, _ := text.New()
+
+	go dynLockLog(ctx, log, Interval)
 
 	cont, err := container.New(
 		t,
@@ -46,13 +54,12 @@ func DisplayLocks() {
 		container.SplitHorizontal(
 			container.Top(
 				container.Border(linestyle.Light),
-				container.BorderTitle("Active (?)"),
-				container.PlaceWidget(log),
+				container.PlaceWidget(active_txt),
 			),
 			container.Bottom(
 				container.Border(linestyle.Light),
 				container.BorderTitle("Locks"),
-				container.PlaceWidget(active_txt),
+				container.PlaceWidget(log),
 			),
 			container.SplitPercent(20),
 		),
@@ -106,18 +113,59 @@ func DisplayLocks() {
 
 func dynLockLog(ctx context.Context,
 	log *text.Text,
-	err_ot []float64,
-	warn_ot []float64,
-	other_ot []float64,
 	delay time.Duration) {
 
+	var (
+		lockChannel chan string = make(chan string)
+	)
+
+	go fetchLocks(ctx, lockChannel, delay)
+	go writeLocks(ctx, log, lockChannel)
+}
+
+func fetchLocks(ctx context.Context, lockChannel chan<- string, delay time.Duration) {
 	ticker := time.NewTicker(delay)
 	defer ticker.Stop()
+
+	var (
+		lookup map[string]func() string
+
+		messages [][]string
+		message  string
+	)
+
 	for {
 		select {
 		case <-ticker.C:
-			//lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
-			//lock_log := db.GetLongQuery(Instances[CurrConn].Driver, lookup["locks"]())
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			messages = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["locks"]())
+
+			if len(messages) == 0 {
+				message = "No active locks"
+			} else {
+				message = messages[0][0]
+			}
+
+			lockChannel <- message
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func writeLocks(ctx context.Context, log *text.Text, lockChannel <-chan string) {
+
+	var (
+		message string
+	)
+
+	for {
+		select {
+		case message = <-lockChannel:
+
+			log.Reset()
+			log.Write(message)
 
 		case <-ctx.Done():
 			return

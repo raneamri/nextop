@@ -86,22 +86,22 @@ func DisplayInnoDbDashboard() {
 		Donuts (container-2)
 	*/
 	checkpoint_donut, err := donut.New(
-		donut.HolePercent(65),
+		donut.HolePercent(15),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(24))),
 		donut.Label("Checkpoint Age %", cell.FgColor(cell.ColorWhite)),
 	)
 	pool_donut, err := donut.New(
-		donut.HolePercent(65),
+		donut.HolePercent(15),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(25))),
 		donut.Label("Buffer Pool %", cell.FgColor(cell.ColorWhite)),
 	)
 	ahi_donut, err := donut.New(
-		donut.HolePercent(65),
+		donut.HolePercent(15),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(26))),
 		donut.Label("AHI Ratio %", cell.FgColor(cell.ColorWhite)),
 	)
 	disk_donut, err := donut.New(
-		donut.HolePercent(65),
+		donut.HolePercent(15),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(27))),
 		donut.Label("Disk Read %", cell.FgColor(cell.ColorWhite)),
 	)
@@ -346,8 +346,8 @@ func fetchInnoDbBufferPool(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		varparameters []string = make([]string, 0)
-		variables     []string = make([]string, 0)
+		lookup    map[string]func() string
+		variables []string = make([]string, 0)
 		/*
 			Formatting variables
 		*/
@@ -369,8 +369,8 @@ func fetchInnoDbBufferPool(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			varparameters = strings.Split(queries.MySQLBufferpoolParams(), " ")
-			variables = queries.GetSchemaStatus(Instances[CurrConn].Driver, varparameters)
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["bufferpool"]())[0]
 
 			read_reqs_int, _ = strconv.Atoi(variables[0])
 			write_reqs_int, _ = strconv.Atoi(variables[1])

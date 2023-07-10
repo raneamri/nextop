@@ -85,100 +85,10 @@ func Ping(instance types.Instance) bool {
 }
 
 /*
-Establishes a connection to that database and finds the specified status
-*/
-func GetStatus(driver *sql.DB, parameters []string) []string {
-	var results []string
-
-	for _, param := range parameters {
-		var query string = `SHOW STATUS LIKE '` + param + `';`
-		rows, err := Query(driver, query)
-		if err != nil {
-			return []string{"-1"}
-		}
-		_, result, _ := GetData(rows)
-		results = append(results, result[0][1])
-	}
-
-	return results
-}
-
-/*
-Establishes a connection to that database and finds the specified variable
-*/
-func GetVariable(driver *sql.DB, parameters []string) []string {
-	var values []string
-
-	for _, param := range parameters {
-		var query string = `SHOW VARIABLES LIKE '` + param + `';`
-		rows, err := Query(driver, query)
-		if err != nil {
-			values = append(values, "-1")
-		}
-		_, result, _ := GetData(rows)
-		values = append(values, result[0][1])
-	}
-
-	return values
-}
-
-/*
-Looks up status in performance_schema
-*/
-func GetSchemaStatus(driver *sql.DB, parameters []string) []string {
-	var values []string
-
-	for _, param := range parameters {
-		var query string = `SELECT variable_name, variable_value
-					FROM performance_schema.global_status
-					WHERE variable_name LIKE '` + param + `';`
-		rows, err := Query(driver, query)
-		_, result, _ := GetData(rows)
-		if err != nil || len(result) == 0 {
-			values = append(values, "-1")
-		} else {
-			values = append(values, result[0][1])
-		}
-	}
-
-	return values
-}
-
-/*
-Looks up variable in performance_schema
-*/
-func GetSchemaVariable(driver *sql.DB, parameters []string) []string {
-	var values []string
-
-	var query string = `SELECT variable_name, variable_value
-				FROM performance_schema.global_variables
-				WHERE variable_name IN (` + strings.Join(parameters, ", ") + `);`
-
-	rows, _ := Query(driver, query)
-	_, result, _ := GetData(rows)
-
-	valuesMap := make(map[string]string)
-	for _, row := range result {
-		valuesMap[row[0]] = row[1]
-	}
-
-	for _, param := range parameters {
-		value, exists := valuesMap[param]
-		if !exists {
-			values = append(values, "-1")
-		} else {
-			values = append(values, value)
-		}
-	}
-
-	return values
-}
-
-/*
 Queries a custom query
+Works with any query
 */
 func GetLongQuery(driver *sql.DB, query string) [][]string {
-
 	rows, err := Query(driver, query)
 	if err != nil {
 		return nil

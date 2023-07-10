@@ -119,3 +119,13 @@
 - Optimised some queries.
 - More optimisiations on processlist.
 - Used data recycling to cut workload in processlist by a goroutine.
+
+## Mon 10 Jul 2023:
+- Minor fixes.
+- Added regex multi filter.
+- Changed some i/o functions and hid config file.
+- Began adding exports.sql.
+- Implemented exporting in processlist. Investigating truncation.
+- Cleaned up a lot of code and logic to facilitate plugin creation.
+- Began writing PLUGINS.md.
+- Cleaned redundancies.

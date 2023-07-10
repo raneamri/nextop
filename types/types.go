@@ -13,15 +13,16 @@ type (
 
 /*
 DBMS types
+^ADD DBMS FOR PLUGIN HERE
 */
 const (
 	MYSQL DBMS_t = iota
-	ORACLE
 	POSTGRE
 )
 
 /*
 State machine tracking variables
+^ADD STATE FOR PLUGIN HERE
 */
 const (
 	MENU State_t = iota
@@ -30,6 +31,7 @@ const (
 	MEM_DASHBOARD
 	ERR_LOG
 	LOCK_LOG
+	REPLICATION
 	CONFIGS
 	QUIT
 )

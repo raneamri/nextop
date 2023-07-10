@@ -308,7 +308,7 @@ func dynProcesslist(ctx context.Context,
 		linechartChannel   chan []float64 = make(chan []float64)
 	)
 
-	go fetchProcesslist(ctx, processlistChannel, group, delay, pause, export)
+	go fetchProcesslist(ctx, processlistChannel, group, pause, export, delay)
 	go writeProcesslist(ctx, pl_text, processlistChannel, search, exclude)
 
 	go fetchProcesslistInfo(ctx, infoChannel, linechartChannel, delay, pause)
@@ -328,9 +328,9 @@ container-1
 func fetchProcesslist(ctx context.Context,
 	processlistChannel chan<- []string,
 	group *textinput.TextInput,
-	delay time.Duration,
 	pause *atomic.Value,
-	export *atomic.Value) {
+	export *atomic.Value,
+	delay time.Duration) {
 
 	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
@@ -348,6 +348,7 @@ func fetchProcesslist(ctx context.Context,
 		ftime     int64
 		flocktime int64
 		fquery    string
+		builder   strings.Builder = strings.Builder{}
 		/*
 			Channel message variable
 		*/
@@ -357,14 +358,15 @@ func fetchProcesslist(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
+			group_found = false
 			if pause.Load().(bool) {
 				if export.Load().(bool) {
-					io.ExportProcesslist(pldata)
+					io.ExportProcesslist(messages)
 					export.Store(false)
 				}
 				continue
 			}
-			group_found = false
+			messages = []string{}
 			for i, key := range ActiveConns {
 				/*
 					Handle group filter
@@ -387,7 +389,6 @@ func fetchProcesslist(ctx context.Context,
 				lookup = GlobalQueryMap[Instances[key].DBMS]
 				pldata = queries.GetLongQuery(Instances[key].Driver, lookup["processlist"]())
 
-				messages = []string{}
 				for _, row := range pldata {
 					/*
 						Formatting
@@ -400,9 +401,13 @@ func fetchProcesslist(ctx context.Context,
 					/*
 						Line up items & send to channel
 					*/
-					messages = append(messages, fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-65v\n",
+					builder.WriteString(fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v ",
 						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
-						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime), fquery))
+						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime)))
+					builder.WriteString(fquery + "\n")
+
+					messages = append(messages, builder.String())
+					builder.Reset()
 				}
 			}
 
@@ -423,10 +428,12 @@ func writeProcesslist(ctx context.Context,
 		/*
 			Parse variables
 		*/
-		re           *regexp.Regexp = regexp.MustCompile(`(\d+)ms`)
-		match        []string       = make([]string, 0)
-		ms           int
-		sens_filters bool
+		re            *regexp.Regexp = regexp.MustCompile(`(\d+\.\d+)ms`)
+		match         []string       = make([]string, 0)
+		ms            float64
+		sens_filters  bool
+		include_regex *regexp.Regexp
+		exclude_regex *regexp.Regexp
 		/*
 			Display variables
 		*/
@@ -445,7 +452,6 @@ func writeProcesslist(ctx context.Context,
 	for {
 		select {
 		case message = <-processlistChannel:
-
 			pl_text.Reset()
 			headers = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-15v\n",
 				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
@@ -454,32 +460,49 @@ func writeProcesslist(ctx context.Context,
 
 			pl_text.Write(headers, text.WriteCellOpts(cell.Bold()))
 			for _, process := range message {
+				t := strings.Split(search.Read(), ",")
+				for i, word := range t {
+					t[i] = strings.TrimSpace(word)
+				}
+				var pattern string
 				if sens_filters {
-					if !strings.Contains(process, search.Read()) || (strings.Contains(process, exclude.Read()) && exclude.Read() != "") {
-						continue
-					}
+					pattern = strings.Join(t, "|")
 				} else {
-					if !strings.Contains(strings.ToLower(process), strings.ToLower(search.Read())) ||
-						(strings.Contains(strings.ToLower(process), strings.ToLower(exclude.Read())) && exclude.Read() != "") {
-						continue
-					}
+					pattern = "(?i)" + strings.Join(t, "|")
+				}
+				include_regex = regexp.MustCompile(pattern)
+
+				t = strings.Split(exclude.Read(), ",")
+				for i, word := range t {
+					t[i] = strings.TrimSpace(word)
+				}
+				if sens_filters {
+					pattern = strings.Join(t, "|")
+				} else {
+					pattern = "(?i)" + strings.Join(t, "|")
+				}
+				exclude_regex = regexp.MustCompile(pattern)
+
+				if (search.Read() != "" && !include_regex.MatchString(process)) ||
+					(exclude.Read() != "" && exclude_regex.MatchString(process)) {
+					continue
 				}
 
 				match = re.FindStringSubmatch(process)
-				ms, _ = strconv.Atoi(match[1])
+				ms, _ = strconv.ParseFloat(match[1], 64)
 
 				switch {
-				case ms >= 5_000 && ms < 10_000:
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorTeal))
-					break
-				case ms >= 10_000 && ms < 30_000:
+				case ms >= 5 && ms < 10:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
 					break
-				case ms >= 30_000 && ms < 60_000:
+				case ms >= 10 && ms < 50:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
 					break
-				case ms >= 60_000:
+				case ms >= 50 && ms < 100:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))
+					break
+				case ms >= 100:
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorBlack))
 					break
 				default:
 					if colorflipper < 0 {
@@ -490,10 +513,6 @@ func writeProcesslist(ctx context.Context,
 					break
 				}
 				colorflipper *= -1
-
-				if len(process) > 100 {
-					process = process[:150] + "...\n"
-				}
 
 				pl_text.Write(process, color)
 			}
@@ -519,10 +538,9 @@ func fetchProcesslistInfo(ctx context.Context,
 	var (
 		lookup map[string]func() string
 
-		parameters []string = make([]string, 0)
-		statuses   []string = make([]string, 0)
-		qps_int    int
-		uptime     int
+		statuses [][]string = make([][]string, 0)
+		qps_int  int
+		uptime   int
 
 		messages   []string  = make([]string, 0)
 		lc_message []float64 = make([]float64, 0)
@@ -536,10 +554,9 @@ func fetchProcesslistInfo(ctx context.Context,
 			}
 			for _, key := range ActiveConns {
 				lookup = GlobalQueryMap[Instances[key].DBMS]
-				parameters = []string{"uptime", "threads_connected"}
-				statuses = queries.GetStatus(Instances[key].Driver, parameters)
+				statuses = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["uptime"]())
 
-				uptime, _ = strconv.Atoi(statuses[0])
+				uptime, _ = strconv.Atoi(statuses[1][1])
 				qps_int, _ = strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
 				if Instances[key].ConnName == Instances[CurrConn].ConnName {
 					lc_message = append(lc_message, float64(qps_int))
@@ -550,7 +567,7 @@ func fetchProcesslistInfo(ctx context.Context,
 				}
 
 				messages = append(messages, fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
-					key, utility.Ftime(uptime), utility.Fnum(qps_int), statuses[1]))
+					key, utility.Ftime(uptime), utility.Fnum(qps_int), statuses[0][1]))
 			}
 
 			infoChannel <- messages

@@ -54,16 +54,16 @@ var (
 	CurrConn string
 
 	/*
-		Map to hold all queries for ease of selection
-	*/
-	GlobalQueryMap map[types.DBMS_t]map[string]func() string = make(map[types.DBMS_t]map[string]func() string)
-	MySQLQueries   map[string]func() string                  = make(map[string]func() string)
-	//PostGreQueries map[string]func() string                  = make(map[string]func() string)
-
-	/*
 		Tracking variable to limit input
 	*/
 	LastInputTime time.Time
+
+	/*
+		Map to hold all queries for ease of selection
+		^ADD MAP FOR PLUGINS HERE
+	*/
+	GlobalQueryMap map[types.DBMS_t]map[string]func() string = make(map[types.DBMS_t]map[string]func() string)
+	MySQLQueries   map[string]func() string                  = make(map[string]func() string)
 )
 
 func InterfaceLoop() {

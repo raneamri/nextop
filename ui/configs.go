@@ -195,7 +195,7 @@ func DisplayConfigs() {
 			errlog.Reset()
 
 			dbms = dbmsin.ReadAndClear()
-			if utility.Fstr(dbms) == "" || utility.Fstr(dbms) != "MYSQL" {
+			if utility.Dbmsstr(dbms) == -1 {
 				log_msg = "\n   Error: Unknown DBMS: " + dbms + "\n"
 				errlog.Reset()
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))

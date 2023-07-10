@@ -2,7 +2,10 @@ package io
 
 import (
 	"io/ioutil"
+	"os"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/raneamri/nextop/types"
 	"github.com/raneamri/nextop/utility"
@@ -19,13 +22,22 @@ func WriteConfig(instance types.Instance) {
 	/*
 		Parse .conf to find connections section
 	*/
-	fpath := "nextop.conf"
-	parser, _ := ioutil.ReadFile(fpath)
+	var (
+		parser []byte
 
-	connStart := strings.Index(string(parser), "[/connections]")
-	connEnd := strings.Index(string(parser), "[/connections]")
-	beforeSection := string(parser[:connStart])
-	afterSection := string(parser[connEnd:])
+		connStart     int
+		connEnd       int
+		beforeSection string
+		afterSection  string
+	)
+
+	const fpath string = ".nextop.conf"
+	parser, _ = ioutil.ReadFile(fpath)
+
+	connStart = strings.Index(string(parser), "[/connections]")
+	connEnd = strings.Index(string(parser), "[/connections]")
+	beforeSection = string(parser[:connStart])
+	afterSection = string(parser[connEnd:])
 
 	var (
 		fdbms   string = "dbms=" + utility.Strdbms(instance.DBMS) + " "
@@ -47,13 +59,12 @@ func ReadInstances(Instances map[string]types.Instance) {
 		Same parsing as writeConfig
 	*/
 	var (
-		fpath     string
 		connStart int
 		connEnd   int
 		config    string
 	)
 
-	fpath = "nextop.conf"
+	const fpath string = ".nextop.conf"
 	contents, _ := ioutil.ReadFile(fpath)
 
 	/*
@@ -117,14 +128,14 @@ Removes duplicates in config
 */
 func CleanConfig() {
 	var (
-		fpath       string
 		config      string
 		output      string
 		lines       []string
 		uniquelines map[string]struct{}
 		ordered     []string
 	)
-	fpath = "nextop.conf"
+
+	const fpath string = ".nextop.conf"
 	parser, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		panic(err)
@@ -197,7 +208,6 @@ Takes the value of the setting and returns its value as a string
 */
 func FetchSetting(param string) string {
 	var (
-		fpath         string
 		settingsStart int
 		settingsEnd   int
 		config        string
@@ -205,7 +215,7 @@ func FetchSetting(param string) string {
 		parts         []string
 	)
 
-	fpath = "nextop.conf"
+	const fpath string = ".nextop.conf"
 	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		panic(err)
@@ -263,7 +273,6 @@ Takes the value of the setting and returns its value as a string
 */
 func FetchKeybind(param string) string {
 	var (
-		fpath         string
 		settingsStart int
 		settingsEnd   int
 		config        string
@@ -271,7 +280,7 @@ func FetchKeybind(param string) string {
 		parts         []string
 	)
 
-	fpath = "nextop.conf"
+	const fpath string = ".nextop.conf"
 	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		panic(err)
@@ -321,15 +330,55 @@ func FetchKeybind(param string) string {
 		}
 	}
 
-	return string("-1")
+	return string("n/a")
 }
 
 /*
 Writes processlist contents to a text file
 */
-func ExportProcesslist(pldata [][]string) {
+func ExportProcesslist(data []string) {
 	var (
-	//fpath string = "exports.txt"
+		sb        strings.Builder
+		re        *regexp.Regexp
+		err       error
+		out       string
+		partition int
 	)
 
+	const fpath = "exports.sql"
+	re = regexp.MustCompile(`\s+`)
+	curr := time.Now()
+
+	out += "-- " + curr.Format("2006-01-02 15:04:05") + ":\n"
+
+	file, err := os.OpenFile(fpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(out)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, query := range data {
+		query = re.ReplaceAllString(query, " ")
+
+		for _, char := range query {
+			sb.WriteRune(char)
+		}
+
+		out = sb.String()
+		partition = strings.Index(out, "µ") + 3
+
+		out = "--{" + out[:partition] + "}\n" + "\n" + out[partition:] + "\n\n"
+
+		_, err = file.WriteString(out)
+		if err != nil {
+			panic(err)
+		}
+
+		sb.Reset()
+	}
 }
