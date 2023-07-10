@@ -270,7 +270,9 @@ func DisplayProcesslist() {
 		case '+':
 			Interval += 100 * time.Millisecond
 		case '-':
-			Interval -= 100 * time.Millisecond
+			if Interval > 100*time.Millisecond {
+				Interval -= 100 * time.Millisecond
+			}
 		case '=':
 			if pause.Load().(bool) {
 				pause.Store(false)
