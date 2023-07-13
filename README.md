@@ -1,5 +1,6 @@
-# ![Logo]() NEXTOP v0.0.1
+# Nextop
 Innotop for MySQL (& other DBMSs) written in GoLang.
+This program supports plugin creation.
 Developed over the course of my 2023 summer internship.
 
 ## Startup
@@ -18,7 +19,7 @@ or called with arguments:
     ./nextop <dbms> <dsn> <conn-name> <group>
 ```
 where quotation marks around the DSN is necessary on Mac M1 zsh and the last argument is optional.
-While naming your connection isn't required, it is greatly recommended to name connections if you're monitoring multiple.
+While naming your connection isn't required, it is greatly recommended to give your connections unique names if you're monitoring multiple.
 Grouping is also optional, and not grouping your connections has no repercussions.
 
 Upon successful connection, an instance will be written in config for easy access in the future.

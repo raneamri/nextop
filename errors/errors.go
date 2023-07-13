@@ -11,8 +11,7 @@ import (
 Specific error for incorrect arguments
 */
 func ThrowArgError(arguments []string) {
-	fmt.Println("Unknown argument(s):")
-	fmt.Println("    Appropriate arguments: <dbms> <dsn> optional:<conn-name>")
+	fmt.Println("Appropriate startup: <dbms> <dsn> <conn-name> optional:<group-name>")
 	os.Exit(1)
 }
 
