@@ -43,6 +43,7 @@ Format:
 	widget-2 (top-left): uptime & qps
 	widget-3 (top-mid): barchart showing sel/ins/del/upd
 	widget-4 (top-right): query lifeline
+	widget-5 (lower-bottom): kill/thread info
 */
 func DisplayProcesslist() {
 	t, err := tcell.New()
@@ -59,6 +60,9 @@ func DisplayProcesslist() {
 		search  *textinput.TextInput
 		exclude *textinput.TextInput
 		group   *textinput.TextInput
+
+		thread *textinput.TextInput
+		kill   *textinput.TextInput
 
 		acts_bc    *barchart.BarChart
 		queries_lc *linechart.LineChart
@@ -153,6 +157,28 @@ func DisplayProcesslist() {
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 	)
 
+	/*
+		widget-5
+	*/
+	thread, _ = textinput.New(
+		textinput.Label("Analyse  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" Thread ID"),
+	)
+	kill, _ = textinput.New(
+		textinput.Label("Kill ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
+		textinput.TextColor(cell.ColorWhite),
+		textinput.MaxWidthCells(45),
+		textinput.ExclusiveKeyboardOnFocus(),
+		textinput.Border(linestyle.Light),
+		textinput.BorderColor(cell.Color(cell.ColorAqua)),
+		textinput.PlaceHolder(" PID"),
+	)
+
 	go dynProcesslist(ctx, pl_text,
 		info_text,
 		acts_bc,
@@ -223,9 +249,25 @@ func DisplayProcesslist() {
 				),
 			),
 			container.Bottom(
-				container.Border(linestyle.Light),
-				container.BorderTitle("Processes"),
-				container.PlaceWidget(pl_text),
+				container.SplitHorizontal(
+					container.Top(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Processes"),
+						container.PlaceWidget(pl_text),
+					),
+					container.Bottom(
+						container.Border(linestyle.Light),
+						container.SplitVertical(
+							container.Left(
+								container.PlaceWidget(thread),
+							),
+							container.Right(
+								container.PlaceWidget(kill),
+							),
+						),
+					),
+					container.SplitPercent(85),
+				),
 			),
 			container.SplitPercent(40),
 		),
@@ -283,6 +325,16 @@ func DisplayProcesslist() {
 			if pause.Load().(bool) {
 				export.Store(true)
 			}
+		case keyboard.KeyEnter:
+			tokill := kill.ReadAndClear()
+			toanalyse := thread.ReadAndClear()
+
+			if tokill != "" {
+
+			} else if toanalyse != "" {
+
+			}
+
 		}
 	}
 
@@ -354,7 +406,7 @@ func fetchProcesslist(ctx context.Context,
 		/*
 			Channel message variable
 		*/
-		messages []string = make([]string, 0)
+		messages []string = make([]string, 0, 2048)
 	)
 
 	for {
@@ -399,7 +451,6 @@ func fetchProcesslist(ctx context.Context,
 					flocktime, _ = strconv.ParseInt(row[9], 10, 64)
 					fquery = strings.ReplaceAll(row[7], "\t", " ")
 					fquery = strings.ReplaceAll(fquery, "\n", " ")
-
 					/*
 						Line up items & send to channel
 					*/
@@ -516,6 +567,10 @@ func writeProcesslist(ctx context.Context,
 				}
 				colorflipper *= -1
 
+				if len(process) > 256 {
+					process = process[:256] + "\n"
+				}
+
 				pl_text.Write(process, color)
 			}
 
@@ -627,6 +682,8 @@ func fetchProcesslistBarchart(ctx context.Context,
 	defer ticker.Stop()
 
 	var (
+		lookup map[string]func() string
+
 		operations [][]string
 		selects    int
 		inserts    int
@@ -644,7 +701,8 @@ func fetchProcesslistBarchart(ctx context.Context,
 			/*
 				Format data
 			*/
-			operations = queries.GetLongQuery(Instances[CurrConn].Driver, queries.MySQLOperationCountLongQuery())
+			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			operations = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["operations"]())
 			selects, _ = strconv.Atoi(operations[0][0])
 			inserts, _ = strconv.Atoi(operations[0][1])
 			updates, _ = strconv.Atoi(operations[0][2])

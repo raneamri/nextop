@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"os"
 	"strconv"
 	"time"
 
@@ -82,7 +81,7 @@ func InterfaceLoop() {
 
 		If user specifies wrong number of arguments, exit with code 1
 	*/
-	if len(os.Args) > 2 {
+	if len(Instances) == 0 {
 		io.ReadArgs(Instances)
 	}
 
@@ -162,6 +161,10 @@ func InterfaceLoop() {
 		case types.LOCK_LOG:
 			DisplayLocks()
 			Laststate = types.LOCK_LOG
+			break
+		case types.REPLICATION:
+			DisplayReplication()
+			Laststate = types.REPLICATION
 			break
 		case types.CONFIGS:
 			io.SyncConfig(Instances)

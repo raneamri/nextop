@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -38,7 +39,8 @@ Format:
 
 	widget-1 (top-left): general info
 	widget-2 (bottom-left): buffer pool
-	widget-3 (right): donuts
+	widget-3 (center): thread i/o
+	widget-4 (right): donuts
 */
 func DisplayInnoDbDashboard() {
 	t, err := tcell.New()
@@ -46,9 +48,6 @@ func DisplayInnoDbDashboard() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	/*
-		InnoDB info (container-1)
-	*/
 	infoheader := []string{"\n\n   Buffer Pool Size\n",
 		"   Buffer Pool Instance\n",
 		"   Checkpoint Info\n",
@@ -81,32 +80,31 @@ func DisplayInnoDbDashboard() {
 	innodb_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	bufferp_text, _ := text.New()
 	bufferp_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	thdio_text, _ := text.New()
+	thdio_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	/*
-		Donuts (container-2)
-	*/
 	checkpoint_donut, err := donut.New(
-		donut.HolePercent(15),
+		donut.HolePercent(35),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(24))),
 		donut.Label("Checkpoint Age %", cell.FgColor(cell.ColorWhite)),
 	)
 	pool_donut, err := donut.New(
-		donut.HolePercent(15),
+		donut.HolePercent(35),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(25))),
 		donut.Label("Buffer Pool %", cell.FgColor(cell.ColorWhite)),
 	)
 	ahi_donut, err := donut.New(
-		donut.HolePercent(15),
+		donut.HolePercent(35),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(26))),
 		donut.Label("AHI Ratio %", cell.FgColor(cell.ColorWhite)),
 	)
 	disk_donut, err := donut.New(
-		donut.HolePercent(15),
+		donut.HolePercent(35),
 		donut.CellOpts(cell.FgColor(cell.ColorNumber(27))),
 		donut.Label("Disk Read %", cell.FgColor(cell.ColorWhite)),
 	)
 
-	go dynDbDashboard(ctx, innodb_text, bufferp_text, checkpoint_donut, pool_donut, ahi_donut, disk_donut, Interval)
+	go dynDbDashboard(ctx, innodb_text, bufferp_text, thdio_text, checkpoint_donut, pool_donut, ahi_donut, disk_donut, Interval)
 
 	cont, err := container.New(
 		t,
@@ -156,41 +154,49 @@ func DisplayInnoDbDashboard() {
 							container.SplitPercent(60),
 						),
 					),
-					container.SplitPercent(50),
+					container.SplitPercent(45),
 				),
 			),
 			container.Right(
-				container.SplitHorizontal(
-					container.Top(
-						container.SplitVertical(
-							container.Left(
-								container.Border(linestyle.Light),
-								container.PlaceWidget(checkpoint_donut),
+				container.SplitVertical(
+					container.Left(
+						container.Border(linestyle.Light),
+						container.BorderTitle("Thread I/O"),
+					),
+					container.Right(
+						container.SplitHorizontal(
+							container.Top(
+								container.SplitHorizontal(
+									container.Top(
+										container.Border(linestyle.Light),
+										container.PlaceWidget(checkpoint_donut),
+									),
+									container.Bottom(
+										container.Border(linestyle.Light),
+										container.PlaceWidget(pool_donut),
+									),
+									container.SplitPercent(50),
+								),
 							),
-							container.Right(
-								container.Border(linestyle.Light),
-								container.PlaceWidget(pool_donut),
+							container.Bottom(
+								container.SplitHorizontal(
+									container.Top(
+										container.Border(linestyle.Light),
+										container.PlaceWidget(ahi_donut),
+									),
+									container.Bottom(
+										container.Border(linestyle.Light),
+										container.PlaceWidget(disk_donut),
+									),
+									container.SplitPercent(50),
+								),
 							),
 							container.SplitPercent(50),
 						),
 					),
-					container.Bottom(
-						container.SplitVertical(
-							container.Left(
-								container.Border(linestyle.Light),
-								container.PlaceWidget(ahi_donut),
-							),
-							container.Right(
-								container.Border(linestyle.Light),
-								container.PlaceWidget(disk_donut),
-							),
-							container.SplitPercent(50),
-						),
-					),
-					container.SplitPercent(50),
 				),
 			),
-			container.SplitPercent(50),
+			container.SplitPercent(40),
 		),
 	)
 	if err != nil {
@@ -243,6 +249,7 @@ func DisplayInnoDbDashboard() {
 func dynDbDashboard(ctx context.Context,
 	innodb_text *text.Text,
 	bufferp_text *text.Text,
+	thdio_text *text.Text,
 	checkpoint_donut *donut.Donut,
 	pool_donut *donut.Donut,
 	ahi_donut *donut.Donut,
@@ -250,9 +257,10 @@ func dynDbDashboard(ctx context.Context,
 	delay time.Duration) {
 
 	var (
-		innodbChannel     chan string = make(chan string)
-		bufferpoolChannel chan string = make(chan string)
-		donutChannel      chan [4]int = make(chan [4]int)
+		innodbChannel     chan string   = make(chan string)
+		bufferpoolChannel chan string   = make(chan string)
+		donutChannel      chan [4]int   = make(chan [4]int)
+		thdioChannel      chan []string = make(chan []string)
 	)
 
 	go fetchInnoDb(ctx, innodbChannel, donutChannel, delay)
@@ -260,6 +268,9 @@ func dynDbDashboard(ctx context.Context,
 
 	go fetchInnoDbBufferPool(ctx, bufferpoolChannel, delay)
 	go writeInnoDbBufferPool(ctx, bufferp_text, bufferpoolChannel)
+
+	go fetchThreadIO(ctx, thdioChannel, delay)
+	go writeThreadIO(ctx, thdio_text, thdioChannel)
 
 	go writeInnoDbDonuts(ctx, checkpoint_donut, pool_donut, ahi_donut, disk_donut, donutChannel)
 
@@ -419,6 +430,69 @@ func writeInnoDbBufferPool(ctx context.Context,
 		case message = <-bufferpoolChannel:
 			bufferp_text.Reset()
 			bufferp_text.Write(message)
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func fetchThreadIO(ctx context.Context,
+	thdioChannel chan<- []string,
+	delay time.Duration) {
+
+	var ticker *time.Ticker = time.NewTicker(delay)
+	defer ticker.Stop()
+
+	var (
+		/*
+			Fetch variables
+		*/
+		//lookup    map[string]func() string
+		//variables []string = make([]string, 0)
+
+		/*
+			Channel message variable
+		*/
+		message []string
+	)
+
+	for {
+		select {
+		case <-ticker.C:
+			//lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
+			//variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["threadio"]())[0]
+
+			thdioChannel <- message
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func writeThreadIO(ctx context.Context,
+	thdio_text *text.Text,
+	thdioChannel <-chan []string) {
+
+	var (
+		/*
+			Display variables
+		*/
+		headers string
+		message []string
+	)
+
+	for {
+		select {
+		case message = <-thdioChannel:
+			thdio_text.Reset()
+			headers = fmt.Sprintf("%-5v %-17v %-55v\n", "Thread", "Purpose", "Status")
+			thdio_text.Write(headers)
+
+			for _, line := range message {
+				thdio_text.Write(line /*fmt.Sprintf("%-5v %-17v %-55v\n", line)*/)
+			}
 
 		case <-ctx.Done():
 			return

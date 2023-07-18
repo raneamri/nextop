@@ -8,6 +8,7 @@ func QueryTypeDict() []string {
 		"innodb",
 		"ahi",
 		"bufferpool",
+		"threadio",
 		"user_alloc",
 		"global_alloc",
 		"spec_alloc",

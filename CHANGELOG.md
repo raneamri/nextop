@@ -129,3 +129,13 @@
 - Cleaned up a lot of code and logic to facilitate plugin creation.
 - Began writing PLUGINS.md.
 - Cleaned redundancies.
+
+## Mon 17 Jul 2023:
+- Query mapping cleanup.
+- Better export.
+- Began adding thread io.
+- Re arranged InnoDB view.
+- Began adding kill switch and thread analysis.
+- Began adding replication.
+- Other minor changes.
+- Fixed argument startup.

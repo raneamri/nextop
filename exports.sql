@@ -1,9 +1,10 @@
 --  FORMAT
 ------------------------------------------------------------------
---  { cmd | thread | pid | state | user | db | time | lock time }
+--  cmd | thread | pid | state | user | db | time | lock time
 --  
---   query
+--  query
 --  
 ------------------------------------------------------------------
 --   tip: use CTRL+F / CMD+F to easily find what you're looking for
 ------------------------------------------------------------------
+

@@ -1,21 +1,22 @@
 package queries
 
 func MySQLFuncDict() []func() string {
-	return []func() string{MySQLProcesslistLongQuery,
-		MySQLUptimeQuery,
-		MySQLQueriesShortQuery,
-		MySQLOperationCountLongQuery,
-		MySQLInnoDBLongQuery,
-		MySQLInnoDBAHIQuery,
-		MySQLBufferpoolQuery,
-		MySQLUserMemoryShortQuery,
-		MySQLGlobalAllocatedShortQuery,
-		MySQLSpecificAllocatedLongQuery,
-		MySQLRamNDiskLongQuery,
-		MySQLCheckpointInfoLongQuery,
-		MySQLCheckpointAgePctLongQuery,
-		MySQLErrorLogShortQuery,
-		MySQLLocksLongQuery,
+	return []func() string{MySQLProcesslist,
+		MySQLUptime,
+		MySQLQueries,
+		MySQLOperationCount,
+		MySQLInnoDB,
+		MySQLInnoDBAHI,
+		MySQLBufferpool,
+		MySQLThreadIO,
+		MySQLUserMemory,
+		MySQLGlobalAllocated,
+		MySQLSpecificAllocated,
+		MySQLRamNDisk,
+		MySQLCheckpointInfo,
+		MySQLCheckpointAgePct,
+		MySQLErrorLog,
+		MySQLLocks,
 	}
 }
 
@@ -28,39 +29,49 @@ func MapMySQL(MySQLQueries map[string]func() string) {
 	}
 }
 
-func MySQLProcesslistLongQuery() string {
-	return `SELECT pps.PROCESSLIST_COMMAND AS command,
-				pps.THREAD_ID AS thd_id, pps.PROCESSLIST_ID AS conn_id,
-			conattr_pid.ATTR_VALUE AS pid, pps.PROCESSLIST_STATE AS state,
-			if((pps.NAME in ('thread/sql/one_connection','thread/thread_pool/tp_one_connection')),
-			concat(pps.PROCESSLIST_USER,'@',pps.PROCESSLIST_HOST),
-			replace(pps.NAME,'thread/','')) AS user,
-			pps.PROCESSLIST_DB AS db, 
-			IF(CHAR_LENGTH(pps.PROCESSLIST_INFO) > 64, REPLACE(CONCAT(LEFT(pps.PROCESSLIST_INFO, 30), ' ... ', RIGHT(pps.PROCESSLIST_INFO, 30)), '\n', ' '), REPLACE(pps.PROCESSLIST_INFO, '\n', ' ')) AS current_statement,
-			if(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT,NULL) AS statement_latency,
-			esc.LOCK_TIME AS lock_latency,
-			if(isnull(esc.END_EVENT_ID),esc.TIMER_WAIT,0) AS sort_time
-			from (performance_schema.threads pps
-			left join performance_schema.events_statements_current esc
-			on (pps.THREAD_ID = esc.THREAD_ID))
-									left join performance_schema.session_connect_attrs conattr_pid
-									on((conattr_pid.PROCESSLIST_ID = pps.PROCESSLIST_ID) and (conattr_pid.ATTR_NAME = '_pid'))
-			where pps.PROCESSLIST_ID is not null
-			and pps.PROCESSLIST_COMMAND <> 'Daemon'
+func MySQLProcesslist() string {
+	return `SELECT 
+				pps.PROCESSLIST_COMMAND AS command,
+				pps.THREAD_ID AS thd_id,
+				pps.PROCESSLIST_ID AS conn_id,
+				conattr_pid.ATTR_VALUE AS pid,
+				pps.PROCESSLIST_STATE AS state,
+				IF(
+					(pps.NAME in ('thread/sql/one_connection', 'thread/thread_pool/tp_one_connection')),
+					concat(pps.PROCESSLIST_USER, '@', pps.PROCESSLIST_HOST),
+					replace(pps.NAME, 'thread/', '')
+				) AS user,
+				pps.PROCESSLIST_DB AS db,
+				pps.PROCESSLIST_INFO AS current_statement,
+				IF(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT, NULL) AS statement_latency,
+				esc.LOCK_TIME AS lock_latency,
+				IF(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT, 0) AS sort_time
+			FROM 
+				performance_schema.threads pps
+			LEFT JOIN 
+				performance_schema.events_statements_current esc ON (pps.THREAD_ID = esc.THREAD_ID)
+			LEFT JOIN 
+				performance_schema.session_connect_attrs conattr_pid ON (
+					conattr_pid.PROCESSLIST_ID = pps.PROCESSLIST_ID AND 
+					conattr_pid.ATTR_NAME = '_pid'
+				)
+			WHERE 
+				pps.PROCESSLIST_ID IS NOT NULL AND 
+				pps.PROCESSLIST_COMMAND <> 'Daemon';
 			`
 }
 
-func MySQLUptimeQuery() string {
+func MySQLUptime() string {
 	return `SHOW STATUS WHERE Variable_name IN ('uptime', 'threads_connected');`
 }
 
-func MySQLQueriesShortQuery() string {
+func MySQLQueries() string {
 	return `SELECT COUNT(*) AS ongoing_query_count
 			FROM information_schema.processlist
 			WHERE COMMAND <> 'Sleep';`
 }
 
-func MySQLOperationCountLongQuery() string {
+func MySQLOperationCount() string {
 	return `SELECT
 		    (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'SELECT%' AND thread_id IS NOT NULL) AS ongoing_select_count,
 			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'INSERT%' AND thread_id IS NOT NULL) AS ongoing_insert_count,
@@ -68,7 +79,7 @@ func MySQLOperationCountLongQuery() string {
 			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'DELETE%' AND thread_id IS NOT NULL) AS ongoing_delete_count;`
 }
 
-func MySQLInnoDBLongQuery() string {
+func MySQLInnoDB() string {
 	return `SELECT
 			FORMAT_BYTES((
 			SELECT variable_value
@@ -111,7 +122,7 @@ func MySQLInnoDBLongQuery() string {
 			FROM performance_schema.log_status;`
 }
 
-func MySQLInnoDBAHIQuery() string {
+func MySQLInnoDBAHI() string {
 	return `SELECT
 			(SELECT VARIABLE_VALUE
 			FROM performance_schema.global_variables
@@ -140,7 +151,7 @@ func MySQLInnoDBAHIQuery() string {
 			) AS AHIRatio;`
 }
 
-func MySQLBufferpoolQuery() string {
+func MySQLBufferpool() string {
 	return `SELECT
 				MAX(CASE WHEN variable_name = 'innodb_buffer_pool_read_requests' THEN variable_value END) AS innodb_buffer_pool_read_requests,
 				MAX(CASE WHEN variable_name = 'innodb_buffer_pool_write_requests' THEN variable_value END) AS innodb_buffer_pool_write_requests,
@@ -175,17 +186,21 @@ func MySQLBufferpoolQuery() string {
 			);`
 }
 
-func MySQLUserMemoryShortQuery() string {
+func MySQLThreadIO() string {
+	return ``
+}
+
+func MySQLUserMemory() string {
 	return `SELECT user, current_allocated, current_max_alloc
 			FROM sys.memory_by_user_by_current_bytes
 			WHERE user != "background";`
 }
 
-func MySQLGlobalAllocatedShortQuery() string {
+func MySQLGlobalAllocated() string {
 	return `SELECT total_allocated FROM sys.memory_global_total;`
 }
 
-func MySQLSpecificAllocatedLongQuery() string {
+func MySQLSpecificAllocated() string {
 	return `SELECT SUBSTRING_INDEX(event_name,'/',2) AS code_area,
 			format_bytes(SUM(current_alloc)) AS current_alloc,
 			sum(current_alloc) current_alloc_num
@@ -194,7 +209,7 @@ func MySQLSpecificAllocatedLongQuery() string {
 			ORDER BY SUM(current_alloc) DESC;`
 }
 
-func MySQLRamNDiskLongQuery() string {
+func MySQLRamNDisk() string {
 	return `SELECT event_name,
 			format_bytes(CURRENT_NUMBER_OF_BYTES_USED) AS current_alloc,
 			format_bytes(HIGH_NUMBER_OF_BYTES_USED) AS high_alloc
@@ -202,7 +217,7 @@ func MySQLRamNDiskLongQuery() string {
 			WHERE event_name LIKE 'memory/temptable/%';`
 }
 
-func MySQLCheckpointInfoLongQuery() string {
+func MySQLCheckpointInfo() string {
 	return `SELECT CONCAT(
 			(
 			SELECT FORMAT_BYTES(
@@ -221,7 +236,7 @@ func MySQLCheckpointInfoLongQuery() string {
 			) CheckpointInfo;`
 }
 
-func MySQLCheckpointAgePctLongQuery() string {
+func MySQLCheckpointAgePct() string {
 	return `SELECT ROUND(((
 			SELECT STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'
 			FROM performance_schema.log_status) / ((
@@ -234,11 +249,11 @@ func MySQLCheckpointAgePctLongQuery() string {
 			WHERE VARIABLE_NAME = 'innodb_log_files_in_group')) * 100));`
 }
 
-func MySQLErrorLogShortQuery() string {
+func MySQLErrorLog() string {
 	return `SELECT *, cast(unix_timestamp(logged)*1000000 as unsigned) logged_int FROM performance_schema.error_log`
 }
 
-func MySQLLocksLongQuery() string {
+func MySQLLocks() string {
 	return `SELECT
 			r.trx_id waiting_trx_id,
 			r.trx_mysql_thread_id waiting_thread,

@@ -362,17 +362,20 @@ func ExportProcesslist(data []string) {
 		panic(err)
 	}
 
-	for _, query := range data {
-		query = re.ReplaceAllString(query, " ")
+	for _, line := range data {
+		line = re.ReplaceAllString(line, " ")
 
-		for _, char := range query {
+		for i, char := range line {
 			sb.WriteRune(char)
+			if (i+1)%124 == 0 {
+				sb.WriteRune('\n')
+			}
 		}
 
 		out = sb.String()
 		partition = strings.Index(out, "µ") + 3
 
-		out = "--{" + out[:partition] + "}\n" + "\n" + out[partition:] + "\n\n"
+		out = " " + out[:partition] + "\n" + "\n" + out[partition:] + "\n\n"
 
 		_, err = file.WriteString(out)
 		if err != nil {
