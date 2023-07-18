@@ -5,6 +5,8 @@ func QueryTypeDict() []string {
 		"uptime",
 		"queries",
 		"operations",
+		"thread_analysis",
+		"kill",
 		"innodb",
 		"ahi",
 		"bufferpool",
@@ -17,5 +19,7 @@ func QueryTypeDict() []string {
 		"checkpoint_age",
 		"err",
 		"locks",
+		"replication",
+		"transactions",
 	}
 }

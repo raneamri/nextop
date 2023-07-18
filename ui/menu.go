@@ -39,7 +39,7 @@ func DisplayMenu() {
 
 	help_table1, _ := text.New()
 	help_table1.Write(
-		"\n P Processlist\n D DB Dashboard\n M Memory Dashboard\n E Error Log\n L Lock Log\n R Replication\n C Configs\n ? Help\n ESC Previous Page\n Q Quit",
+		"\n P Processlist\n D DB Dashboard\n M Memory Dashboard\n E Error Log\n L Lock Log\n R Replication\n T Transactions\n C Configs\n ? Help\n ESC Previous Page\n Q Quit",
 		text.WriteCellOpts(cell.Bold()))
 
 	help_table2, _ := text.New()
@@ -123,6 +123,9 @@ func DisplayMenu() {
 			cancel()
 		case 'r', 'R':
 			State = types.REPLICATION
+			cancel()
+		case 't', 'T':
+			State = types.TRANSACTIONS
 			cancel()
 		case 'c', 'C':
 			State = types.CONFIGS

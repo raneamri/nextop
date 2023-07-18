@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -29,8 +28,6 @@ func DisplayReplication() {
 	t, err := tcell.New()
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
-
-	fmt.Printf("Hello world!")
 
 	cont, err := container.New(
 		t,

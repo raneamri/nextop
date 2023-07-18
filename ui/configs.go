@@ -24,20 +24,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Workload:
-
-	Minimal (dynamic ticker-less display, refresh on input)
-*/
-
-/*
-Format:
-
-	widget-1 (top-left): feedback log
-	widget-2 (bottom-left): configurated instances
-	widget-3 (top-right): input prompt
-	widget-4 (bottom-right): settings
-*/
 func DisplayConfigs() {
 	t, err := tcell.New()
 	defer t.Close()

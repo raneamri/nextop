@@ -166,6 +166,10 @@ func InterfaceLoop() {
 			DisplayReplication()
 			Laststate = types.REPLICATION
 			break
+		case types.TRANSACTIONS:
+			DisplayTransactions()
+			Laststate = types.TRANSACTIONS
+			break
 		case types.CONFIGS:
 			io.SyncConfig(Instances)
 			DisplayConfigs()

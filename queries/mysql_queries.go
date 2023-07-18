@@ -5,6 +5,8 @@ func MySQLFuncDict() []func() string {
 		MySQLUptime,
 		MySQLQueries,
 		MySQLOperationCount,
+		MySQLThreadAnalysis,
+		MySQLKill,
 		MySQLInnoDB,
 		MySQLInnoDBAHI,
 		MySQLBufferpool,
@@ -17,6 +19,8 @@ func MySQLFuncDict() []func() string {
 		MySQLCheckpointAgePct,
 		MySQLErrorLog,
 		MySQLLocks,
+		MySQLReplication,
+		MySQLTransactions,
 	}
 }
 
@@ -77,6 +81,14 @@ func MySQLOperationCount() string {
 			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'INSERT%' AND thread_id IS NOT NULL) AS ongoing_insert_count,
 			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'UPDATE%' AND thread_id IS NOT NULL) AS ongoing_update_count,
 			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'DELETE%' AND thread_id IS NOT NULL) AS ongoing_delete_count;`
+}
+
+func MySQLThreadAnalysis() string {
+	return `EXPLAIN %d;`
+}
+
+func MySQLKill() string {
+	return `KILL %d;`
 }
 
 func MySQLInnoDB() string {
@@ -266,4 +278,24 @@ func MySQLLocks() string {
 			ON b.trx_id = w.blocking_engine_transaction_id
 			INNER JOIN information_schema.innodb_trx r
 			ON r.trx_id = w.requesting_engine_transaction_id;`
+}
+
+func MySQLReplication() string {
+	return `SHOW REPLICA STATUS\G`
+}
+
+func MySQLTransactions() string {
+	return `SELECT thr.processlist_id AS mysql_thread_id,
+				concat(PROCESSLIST_USER,'@',PROCESSLIST_HOST) User,
+				Command,
+				FORMAT_PICO_TIME(trx.timer_wait) AS trx_duration,
+				current_statement as "latest_statement"
+			FROM performance_schema.events_transactions_current trx
+			INNER JOIN performance_schema.threads thr USING (thread_id)
+			LEFT JOIN sys.processlist p ON p.thd_id=thread_id
+			WHERE thr.processlist_id IS NOT NULL 
+			AND PROCESSLIST_USER IS NOT NULL 
+			AND trx.state = 'ACTIVE'
+			GROUP BY thread_id, timer_wait 
+			ORDER BY TIMER_WAIT DESC;`
 }

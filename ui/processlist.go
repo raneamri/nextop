@@ -179,7 +179,8 @@ func DisplayProcesslist() {
 		textinput.PlaceHolder(" PID"),
 	)
 
-	go dynProcesslist(ctx, pl_text,
+	go dynProcesslist(ctx,
+		pl_text,
 		info_text,
 		acts_bc,
 		queries_lc,
