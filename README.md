@@ -48,6 +48,10 @@ A group filter is available below the filters, allowing users to display process
 
 To clear all filters quickly, press backslash "\", and to remove only group filters, use the forward slash "/".
 
+### Thread Analysis
+
+![ThreadAnalysis](https://github.com/raneamri/nextop/blob/main/img/thread_analysis.png)
+
 ### InnoDB Dashboard
 The InnoDB Dashboard provides essential data from the InnoDB engine, including pie charts that represent statistics. If a pie chart does not render and shows 0%, it may be an issue with termdash or the program, and we are actively working to resolve it.
 
@@ -59,11 +63,19 @@ The Memory Dashboard presents memory-related statistics.
 ![MemoryDashboard](https://github.com/raneamri/nextop/blob/main/img/memory.png)
 
 ### Error Log
+The error log page comes equipped with a filter similar to the processlist.
 
 ![ErrorLog](https://github.com/raneamri/nextop/blob/main/img/error.png)
 
 ### Lock Log
 
+![ErrorLog](https://github.com/raneamri/nextop/blob/main/img/lock_log.png)
 
-### Plugins
-Coming less soon.
+
+### Replication
+
+![Replication](https://github.com/raneamri/nextop/blob/main/img/replication.png)
+
+### Transactions
+
+![ErrorLog](https://github.com/raneamri/nextop/blob/main/img/transactions.png)
