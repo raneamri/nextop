@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -52,6 +53,9 @@ func DisplayConfigs() {
 	/*
 		widget-3
 	*/
+	roll_text, _ := text.New()
+	go rollText(ctx, roll_text, Interval)
+
 	dbmsin, err := textinput.New(
 		textinput.Label("DBMS ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
@@ -59,7 +63,6 @@ func DisplayConfigs() {
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" <mysql, oracle ...>"),
 	)
 	dsnin, err := textinput.New(
 		textinput.Label("DSN  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
@@ -77,7 +80,6 @@ func DisplayConfigs() {
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" <recommended>"),
 	)
 
 	/*
@@ -120,7 +122,14 @@ func DisplayConfigs() {
 						container.BorderTitle("Input"),
 						container.SplitHorizontal(
 							container.Top(
-								container.PlaceWidget(dbmsin),
+								container.SplitHorizontal(
+									container.Top(
+										container.PlaceWidget(roll_text),
+									),
+									container.Bottom(
+										container.PlaceWidget(dbmsin),
+									),
+								),
 							),
 							container.Bottom(
 								container.SplitHorizontal(
@@ -297,6 +306,29 @@ func instanceDisplay(ctx context.Context,
 			instlog.Write(" ONLINE", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 		} else {
 			instlog.Write(" OFFLINE", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+		}
+	}
+}
+
+func rollText(ctx context.Context,
+	roll_text *text.Text,
+	delay time.Duration) {
+
+	var ticker *time.Ticker = time.NewTicker(delay)
+	defer ticker.Stop()
+
+	var message string = fmt.Sprintf("%-64v", "MySQL")
+
+	for {
+		select {
+		case <-ticker.C:
+			roll_text.Reset()
+
+			roll_text.Write("       " + message)
+			message = message[1:] + message[:1]
+
+		case <-ctx.Done():
+			return
 		}
 	}
 }
