@@ -146,3 +146,7 @@
 
 ## Fri 21 Jul 2023:
 - Re-wrote README.
+- Better connection pointer, clearer information on active current connection, better rotator.
+- Code cleanup.
+- New thread analysis interface.
+- Thread io section added in innodb.

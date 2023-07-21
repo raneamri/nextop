@@ -54,6 +54,9 @@ func DisplayMenu() {
 		text.WriteCellOpts(cell.Bold()),
 	)
 
+	logo_text, _ := text.New()
+	logo_text.Write(logo())
+
 	cont, err := container.New(
 		t,
 		container.ID("menu_screen"),
@@ -88,7 +91,8 @@ func DisplayMenu() {
 				),
 			),
 			container.Right(
-				container.Border(linestyle.Double),
+				container.Border(linestyle.Light),
+				container.PlaceWidget(logo_text),
 			),
 			container.SplitPercent(65),
 		),
@@ -144,4 +148,8 @@ func DisplayMenu() {
 	if err := termdash.Run(ctx, t, cont, termdash.KeyboardSubscriber(keyreader), termdash.RedrawInterval(100*time.Millisecond)); err != nil {
 		panic(err)
 	}
+}
+
+func logo() string {
+	return `![]()`
 }

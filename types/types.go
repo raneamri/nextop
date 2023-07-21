@@ -27,6 +27,7 @@ State machine tracking variables
 const (
 	MENU State_t = iota
 	PROCESSLIST
+	THREAD_ANALYSIS
 	DB_DASHBOARD
 	MEM_DASHBOARD
 	ERR_LOG

@@ -137,8 +137,8 @@ func fetchLocks(ctx context.Context, lockChannel chan<- string, delay time.Durat
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			messages = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["locks"]())
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["locks"]())
 
 			if len(messages) == 0 {
 				message = "No active locks"

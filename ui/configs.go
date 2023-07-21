@@ -231,9 +231,6 @@ func DisplayConfigs() {
 			inst.Driver, err = queries.Connect(inst)
 			if err == nil {
 				ActiveConns = append(ActiveConns, inst.ConnName)
-				if len(ActiveConns) == 1 {
-					CurrConn = ActiveConns[0]
-				}
 			}
 
 			/*

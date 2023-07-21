@@ -156,6 +156,8 @@ func Statestr(str string) types.State_t {
 		return types.MENU
 	case "PROCESSLIST":
 		return types.PROCESSLIST
+	case "THREAD_ANALYSIS":
+		return types.THREAD_ANALYSIS
 	case "DB_DASHBOARD":
 		return types.DB_DASHBOARD
 	case "MEM_DASHBOARD":

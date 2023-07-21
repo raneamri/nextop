@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func DisplayInnoDbDashboard() {
 	bufferp_text, _ := text.New()
 	bufferp_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	thdio_text, _ := text.New()
-	thdio_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	thdio_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	checkpoint_donut, err := donut.New(
 		donut.HolePercent(35),
@@ -162,6 +163,7 @@ func DisplayInnoDbDashboard() {
 					container.Left(
 						container.Border(linestyle.Light),
 						container.BorderTitle("Thread I/O"),
+						container.PlaceWidget(thdio_text),
 					),
 					container.Right(
 						container.SplitHorizontal(
@@ -194,6 +196,7 @@ func DisplayInnoDbDashboard() {
 							container.SplitPercent(50),
 						),
 					),
+					container.SplitPercent(75),
 				),
 			),
 			container.SplitPercent(40),
@@ -303,9 +306,9 @@ func fetchInnoDb(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["innodb"]())[0]
-			ahi_variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["ahi"]())[0]
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["innodb"]())[0]
+			ahi_variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["ahi"]())[0]
 
 			/*
 				Compose message
@@ -380,8 +383,8 @@ func fetchInnoDbBufferPool(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["bufferpool"]())[0]
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["bufferpool"]())[0]
 
 			read_reqs_int, _ = strconv.Atoi(variables[0])
 			write_reqs_int, _ = strconv.Atoi(variables[1])
@@ -448,8 +451,11 @@ func fetchThreadIO(ctx context.Context,
 		/*
 			Fetch variables
 		*/
-		//lookup    map[string]func() string
-		//variables []string = make([]string, 0)
+		lookup    map[string]func() string
+		variables string
+		pattern   *regexp.Regexp = regexp.MustCompile(`I/O thread (\d+) state: ([^(]+) \(([^)]*)\)`)
+
+		matches [][]string
 
 		/*
 			Channel message variable
@@ -460,10 +466,17 @@ func fetchThreadIO(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			//lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			//variables = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["threadio"]())[0]
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["threadio"]())[0][2]
+
+			matches = pattern.FindAllStringSubmatch(variables, -1)
+
+			for _, match := range matches {
+				message = append(message, fmt.Sprintf("%-15v %-17v %-55v\n", match[0], match[1], match[2]))
+			}
 
 			thdioChannel <- message
+			message = []string{}
 
 		case <-ctx.Done():
 			return
@@ -479,19 +492,25 @@ func writeThreadIO(ctx context.Context,
 		/*
 			Display variables
 		*/
-		headers string
 		message []string
+
+		color        text.WriteOption
+		colorflipper int
 	)
 
 	for {
 		select {
 		case message = <-thdioChannel:
 			thdio_text.Reset()
-			headers = fmt.Sprintf("%-5v %-17v %-55v\n", "Thread", "Purpose", "Status")
-			thdio_text.Write(headers)
 
 			for _, line := range message {
-				thdio_text.Write(line /*fmt.Sprintf("%-5v %-17v %-55v\n", line)*/)
+				if colorflipper < 0 {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+				}
+				colorflipper *= -1
+				thdio_text.Write(line, color)
 			}
 
 		case <-ctx.Done():

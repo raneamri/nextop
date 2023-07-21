@@ -1,5 +1,8 @@
 package queries
 
+/*
+Note that these are ordinally matched to their queries
+*/
 func QueryTypeDict() []string {
 	return []string{"processlist",
 		"uptime",

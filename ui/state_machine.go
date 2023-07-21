@@ -10,12 +10,6 @@ import (
 	"github.com/raneamri/nextop/utility"
 )
 
-/*
-Standard state machine to alter program states
-Also tracks previous state
-I believe it's guilty for irregular flash page buffering
-*/
-
 var (
 	/*
 		State trackers
@@ -35,23 +29,18 @@ var (
 
 	/*
 		Map to hold all instances, including drivers, groups & DBMS
-		Key is made of connection name, an indicative character to show there is a group and the group name
 	*/
 	Instances map[string]types.Instance = make(map[string]types.Instance)
 
 	/*
 		Contains the key to all active connections that should be displayed
+		[0] will be the current connection
 	*/
 	ActiveConns []string
 	/*
 		Keychain for ActiveConns popped keys
 	*/
 	IdleConns []string
-	/*
-		Holds key to main connection to be displayed
-		since some displays aren't big enough to show all instances
-	*/
-	CurrConn string
 
 	/*
 		Tracking variable to limit input
@@ -67,9 +56,6 @@ var (
 )
 
 func InterfaceLoop() {
-	/*
-		Attempt to fetch config from .conf
-	*/
 	io.ReadInstances(Instances)
 
 	/*
@@ -86,15 +72,8 @@ func InterfaceLoop() {
 		io.ReadArgs(Instances)
 	}
 
-	/*
-		Syncs dynamically stored configs to statically stored configs
-		Syncing involves writing to config (view files.go)
-	*/
 	io.SyncConfig(Instances)
 
-	/*
-		Fetch refresh rate from config
-	*/
 	interval_int, _ := strconv.Atoi(io.FetchSetting("refresh-rate"))
 	Interval = time.Duration(interval_int) * time.Millisecond
 	err_interval_int, _ := strconv.Atoi(io.FetchSetting("errlog-refresh-rate"))
@@ -104,14 +83,9 @@ func InterfaceLoop() {
 		Open & map all connections
 		Set first connection as current
 	*/
-	var flag bool = true
 	if len(Instances) > 0 {
 		for _, inst := range Instances {
 			var key string = inst.ConnName
-			if flag {
-				CurrConn = key
-				flag = false
-			}
 			var err error
 			inst.Driver, err = queries.Connect(inst)
 			Instances[key] = inst
@@ -146,6 +120,10 @@ func InterfaceLoop() {
 		case types.PROCESSLIST:
 			DisplayProcesslist()
 			Laststate = types.PROCESSLIST
+			break
+		case types.THREAD_ANALYSIS:
+			DisplayThreadAnalysis()
+			Laststate = types.THREAD_ANALYSIS
 			break
 		case types.DB_DASHBOARD:
 			DisplayInnoDbDashboard()

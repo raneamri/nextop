@@ -105,7 +105,7 @@ Go in your newly made file and create a function dictionary:
 ```
 
 Make sure that for each keyword in the keys list, there is a matching pointer to a function that 
-returns a query.
+returns a query at the same index.
 
 Lastly, write all your queries in functions matching those named in your function dictionary.
 If this confuses you, visit mysql_queries.go.

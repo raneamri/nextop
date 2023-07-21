@@ -2,9 +2,11 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/mum4k/termdash"
 	"github.com/mum4k/termdash/cell"
 	"github.com/mum4k/termdash/container"
@@ -12,30 +14,54 @@ import (
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/terminalapi"
+	"github.com/mum4k/termdash/widgets/text"
 	"github.com/raneamri/nextop/io"
+	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 /*
 Workload:
+
 */
 
 /*
-Formats:
+Format:
 */
-
-func DisplayReplication() {
+func DisplayThreadAnalysis() {
 	t, err := tcell.New()
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var (
+		lookup  map[string]func() string
+		message []string
+	)
+
+	analysis_text, _ := text.New()
+
+	_, err = strconv.Atoi(CurrentThread)
+	if err != nil {
+		message = []string{"Invalid Thread ID"}
+	} else {
+		lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+		message = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["processlist"](), CurrentThread))[0]
+	}
+
+	for _, line := range message {
+		analysis_text.Write(line + "\n")
+	}
+
 	cont, err := container.New(
 		t,
-		container.ID("replication"),
+		container.ID("thread_analysis"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("REPLICATION (? for help)"),
+		container.BorderTitle("THREAD ANALYSIS (ESC to return)"),
 		container.BorderColor(cell.ColorGray),
 		container.FocusedColor(cell.ColorWhite),
+		container.PlaceWidget(analysis_text),
 	)
 
 	if err != nil {
@@ -43,6 +69,9 @@ func DisplayReplication() {
 	}
 
 	var keyreader func(k *terminalapi.Keyboard) = func(k *terminalapi.Keyboard) {
+		/*
+			Rate limiter
+		*/
 		elapsed := time.Since(LastInputTime)
 		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
 		if elapsed < time.Duration(ratelim)*time.Millisecond {
@@ -59,12 +88,6 @@ func DisplayReplication() {
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
-		case '+':
-			Interval += 100 * time.Millisecond
-		case '-':
-			if Interval > 100*time.Millisecond {
-				Interval -= 100 * time.Millisecond
-			}
 		}
 	}
 

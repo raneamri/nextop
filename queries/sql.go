@@ -13,30 +13,6 @@ import (
 )
 
 /*
-	By default, they evaluate to {
-			ConnMaxLifetime time.Minute * 3
-			SetMaxOpenConns 10
-			SetMaxIdleConns  "
-	}
-
-Quoting https://github.com/go-sql-driver/mysql#features:
-
-	".SetConnMaxLifetime() is required to ensure connections are closed by the driver
-	safely before connection is closed by MySQL server, OS, or other middlewares. Since
-	some middlewares close idle connections by 5 minutes, we recommend timeout shorter
-	than 5 minutes. This setting helps load balancing and changing system variables too.
-
-	.SetMaxOpenConns() is highly recommended to limit the number of connection used by
-	the application. There is no recommended limit number because it depends on application
-	and MySQL server.
-
-	.SetMaxIdleConns() is recommended to be set same to .SetMaxOpenConns(). When it is
-	smaller than SetMaxOpenConns(), connections can be opened and closed much more frequently
-	than you expect. Idle connections can be closed by the .SetConnMaxLifetime(). If you
-	want to close idle connections more rapidly, you can use .SetConnMaxIdleTime() since Go 1.15.
-	"
-*/
-/*
 Unwrap instance into db pointer
 */
 func Connect(instance types.Instance) (*sql.DB, error) {
@@ -49,11 +25,14 @@ func Connect(instance types.Instance) (*sql.DB, error) {
 		driver.Close()
 		return nil, err
 	}
-	if instance.DBMS == types.MYSQL {
+
+	switch instance.DBMS {
+	case types.MYSQL:
 		driver.SetConnMaxLifetime(time.Minute * 3)
 		driver.SetMaxOpenConns(10)
 		driver.SetMaxIdleConns(10)
 	}
+
 	if err := driver.Ping(); err != nil {
 		driver.Close()
 		return nil, err

@@ -45,6 +45,8 @@ Format:
 	widget-4 (top-right): query lifeline
 	widget-5 (lower-bottom): kill/thread info
 */
+var CurrentThread string
+
 func DisplayProcesslist() {
 	t, err := tcell.New()
 	defer t.Close()
@@ -205,7 +207,7 @@ func DisplayProcesslist() {
 						container.SplitHorizontal(
 							container.Top(
 								container.Border(linestyle.Light),
-								container.BorderTitle("Active (scrollable)"),
+								container.BorderTitle("Active"),
 								container.PlaceWidget(info_text),
 							),
 							container.Bottom(
@@ -291,9 +293,9 @@ func DisplayProcesslist() {
 
 		switch k.Key {
 		case keyboard.KeyArrowLeft:
-			CurrRotateLeft()
+			RotateConnsLeft()
 		case keyboard.KeyArrowRight:
-			CurrRotateRight()
+			RotateConnsRight()
 		case '?':
 			State = types.MENU
 			cancel()
@@ -331,10 +333,12 @@ func DisplayProcesslist() {
 			toanalyse := thread.ReadAndClear()
 
 			if tokill != "" {
-				lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
-				queries.GetLongQuery(Instances[CurrConn].Driver, fmt.Sprintf(lookup["kill"](), tokill))
+				lookup := GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+				queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["kill"](), tokill))
 			} else if toanalyse != "" {
-
+				CurrentThread = toanalyse
+				State = types.THREAD_ANALYSIS
+				cancel()
 			}
 
 		}
@@ -509,7 +513,7 @@ func writeProcesslist(ctx context.Context,
 		case message = <-processlistChannel:
 			pl_text.Reset()
 			headers = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-15v\n",
-				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock Time", "Query")
+				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock-Time", "Query")
 
 			colorflipper = -1
 
@@ -613,11 +617,11 @@ func fetchProcesslistInfo(ctx context.Context,
 			}
 			for _, key := range ActiveConns {
 				lookup = GlobalQueryMap[Instances[key].DBMS]
-				statuses = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["uptime"]())
+				statuses = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["uptime"]())
 
 				uptime, _ = strconv.Atoi(statuses[1][1])
 				qps_int, _ = strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
-				if Instances[key].ConnName == Instances[CurrConn].ConnName {
+				if Instances[key].ConnName == Instances[ActiveConns[0]].ConnName {
 					lc_message = append(lc_message, float64(qps_int))
 					if len(lc_message) > 32 {
 						lc_message = lc_message[1:]
@@ -659,7 +663,10 @@ func writeProcesslistInfo(ctx context.Context,
 			info_text.Reset()
 			info_text.Write(headers, text.WriteCellOpts(cell.Bold()))
 			for _, item := range message {
-				if colorflipper < 0 {
+				key := strings.Split(item, " ")[0]
+				if key == ActiveConns[0] {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGreen))
+				} else if colorflipper < 0 {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 				} else {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
@@ -703,8 +710,8 @@ func fetchProcesslistBarchart(ctx context.Context,
 			/*
 				Format data
 			*/
-			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			operations = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["operations"]())
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			operations = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["operations"]())
 			selects, _ = strconv.Atoi(operations[0][0])
 			inserts, _ = strconv.Atoi(operations[0][1])
 			updates, _ = strconv.Atoi(operations[0][2])

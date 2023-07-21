@@ -200,8 +200,8 @@ func fetchErrors(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[CurrConn].DBMS]
-			error_log = queries.GetLongQuery(Instances[CurrConn].Driver, lookup["err"]())
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			error_log = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["err"]())
 
 			//fmt.Sprintf("%-20v %-5v %-55v\n",
 

@@ -15,9 +15,7 @@ import (
 func ReadArgs(Instances map[string]types.Instance) {
 	if len(os.Args) > 2 && len(os.Args) < 6 {
 		var inst types.Instance
-		/*
-			Unpack values
-		*/
+
 		inst.DBMS = utility.Dbmsstr(os.Args[1])
 		if inst.DBMS == -1 {
 			errors.ThrowArgError(os.Args)

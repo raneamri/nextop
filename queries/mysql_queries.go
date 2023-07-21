@@ -199,7 +199,7 @@ func MySQLBufferpool() string {
 }
 
 func MySQLThreadIO() string {
-	return ``
+	return `Show engine innodb status;`
 }
 
 func MySQLUserMemory() string {

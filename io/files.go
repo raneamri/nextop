@@ -19,9 +19,6 @@ Handles file i/o
 Writes an instance to config
 */
 func WriteConfig(instance types.Instance) {
-	/*
-		Parse .conf to find connections section
-	*/
 	var (
 		parser []byte
 
@@ -55,9 +52,6 @@ func WriteConfig(instance types.Instance) {
 Reads preset instances and puts them in slice by default
 */
 func ReadInstances(Instances map[string]types.Instance) {
-	/*
-		Same parsing as writeConfig
-	*/
 	var (
 		connStart int
 		connEnd   int
@@ -67,16 +61,10 @@ func ReadInstances(Instances map[string]types.Instance) {
 	const fpath string = ".nextop.conf"
 	contents, _ := ioutil.ReadFile(fpath)
 
-	/*
-		Only keep 'connections' section
-	*/
 	connStart = strings.Index(string(contents), "[connections]")
 	connEnd = strings.Index(string(contents), "[/connections]")
 	config = string(contents[connStart+13 : connEnd-1])
 
-	/*
-		Parse each line
-	*/
 	var lines []string = strings.Split(config, "\n")
 	for _, line := range lines {
 		var (
@@ -145,37 +133,22 @@ func CleanConfig() {
 	uniquelines = make(map[string]struct{})
 
 	for _, line := range lines {
-		/*
-			Skip empty lines
-		*/
 		if line == "" || line == "\n" {
 			uniquelines[line] = struct{}{}
 			ordered = append(ordered, line)
 			continue
 		}
 
-		/*
-			Check if line exists
-		*/
 		if _, exists := uniquelines[line]; exists {
 			continue
 		}
 
-		/*
-			Map line as unique
-		*/
 		uniquelines[line] = struct{}{}
 		ordered = append(ordered, line)
 	}
 
-	/*
-		Format the unique lines
-	*/
 	output = strings.Join(ordered, "\n")
 
-	/*
-		Re-write config
-	*/
 	err = ioutil.WriteFile(fpath, []byte(output), 0644)
 	if err != nil {
 		panic(err)
@@ -186,19 +159,12 @@ func CleanConfig() {
 Syncs []Instance slice to config
 */
 func SyncConfig(Instances map[string]types.Instance) {
-	/*
-		Write all instances in object to file
-	*/
 	for _, inst := range Instances {
 		WriteConfig(inst)
 	}
-	/*
-		Remove duplicates accross object & file
-	*/
+
 	CleanConfig()
-	/*
-		Clean instances and read cleaned config
-	*/
+
 	Instances = make(map[string]types.Instance)
 	ReadInstances(Instances)
 }
@@ -221,16 +187,10 @@ func FetchSetting(param string) string {
 		panic(err)
 	}
 
-	/*
-		Only keep 'settings' section
-	*/
 	settingsStart = strings.Index(string(contents), "[settings]")
 	settingsEnd = strings.Index(string(contents), "[/settings]")
 	config = string(contents[settingsStart+10 : settingsEnd-1])
 
-	/*
-		Parse each line
-	*/
 	var lines []string = strings.Split(config, "\n")
 	for _, line := range lines {
 		var (
@@ -286,16 +246,10 @@ func FetchKeybind(param string) string {
 		panic(err)
 	}
 
-	/*
-		Only keep 'settings' section
-	*/
 	settingsStart = strings.Index(string(contents), "[keybinds]")
 	settingsEnd = strings.Index(string(contents), "[/keybinds]")
 	config = string(contents[settingsStart+10 : settingsEnd-1])
 
-	/*
-		Parse each line
-	*/
 	var lines []string = strings.Split(config, "\n")
 	for _, line := range lines {
 		var (
