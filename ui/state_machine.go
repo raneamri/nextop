@@ -7,6 +7,7 @@ import (
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 )
 
 /*
@@ -127,7 +128,7 @@ func InterfaceLoop() {
 	if len(ActiveConns) == 0 {
 		State = types.CONFIGS
 	} else {
-		State = types.PROCESSLIST
+		State = utility.Statestr(io.FetchSetting("startup-view"))
 	}
 
 	/*

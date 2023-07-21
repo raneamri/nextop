@@ -140,5 +140,9 @@
 - Other minor changes.
 - Fixed argument startup.
 
-## Tue 17 Jul 2023
--
+## Wed 18 Jul 2023:
+- Formatted transactions.
+- Added conversion from string to state type.
+
+## Fri 21 Jul 2023:
+- Re-wrote README.

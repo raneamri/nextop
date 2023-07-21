@@ -146,3 +146,33 @@ func Fnum(num int) string {
 
 	return formattedNum.String()
 }
+
+/*
+Takes in string name and returns state type
+*/
+func Statestr(str string) types.State_t {
+	switch str {
+	case "MENU":
+		return types.MENU
+	case "PROCESSLIST":
+		return types.PROCESSLIST
+	case "DB_DASHBOARD":
+		return types.DB_DASHBOARD
+	case "MEM_DASHBOARD":
+		return types.MEM_DASHBOARD
+	case "ERR_LOG":
+		return types.ERR_LOG
+	case "LOCK_LOG":
+		return types.LOCK_LOG
+	case "REPLICATION":
+		return types.REPLICATION
+	case "TRANSACTIONS":
+		return types.TRANSACTIONS
+	case "CONFIGS":
+		return types.CONFIGS
+	case "QUIT":
+		return types.QUIT
+	default:
+		return types.MENU
+	}
+}

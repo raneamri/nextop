@@ -176,7 +176,7 @@ func DisplayProcesslist() {
 		textinput.ExclusiveKeyboardOnFocus(),
 		textinput.Border(linestyle.Light),
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
-		textinput.PlaceHolder(" PID"),
+		textinput.PlaceHolder(" Conn ID"),
 	)
 
 	go dynProcesslist(ctx,
@@ -331,7 +331,8 @@ func DisplayProcesslist() {
 			toanalyse := thread.ReadAndClear()
 
 			if tokill != "" {
-
+				lookup := GlobalQueryMap[Instances[CurrConn].DBMS]
+				queries.GetLongQuery(Instances[CurrConn].Driver, fmt.Sprintf(lookup["kill"](), tokill))
 			} else if toanalyse != "" {
 
 			}

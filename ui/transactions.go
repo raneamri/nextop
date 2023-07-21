@@ -33,6 +33,7 @@ func DisplayTransactions() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	txns_text, _ := text.New()
+	txns_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	go dynTransactions(ctx,
 		txns_text,
@@ -45,7 +46,18 @@ func DisplayTransactions() {
 		container.BorderTitle("TRANSACTIONS (? for help)"),
 		container.BorderColor(cell.ColorGray),
 		container.FocusedColor(cell.ColorWhite),
-		container.PlaceWidget(txns_text),
+		container.SplitHorizontal(
+			container.Top(
+				container.Border(linestyle.Light),
+				container.BorderTitle("Transactions"),
+				container.PlaceWidget(txns_text),
+			),
+			container.Bottom(
+				container.Border(linestyle.Light),
+				container.BorderTitle(""),
+			),
+			container.SplitPercent(90),
+		),
 	)
 
 	if err != nil {
@@ -150,8 +162,10 @@ func writeTransactions(ctx context.Context,
 		/*
 			Display variables
 		*/
-		header  string
-		message [][]string = make([][]string, 0)
+		color        text.WriteOption
+		colorflipper int = 1
+		header       string
+		message      [][]string = make([][]string, 0)
 	)
 
 	for {
@@ -159,14 +173,18 @@ func writeTransactions(ctx context.Context,
 		case message = <-txnsChannel:
 			txns_text.Reset()
 
-			header = fmt.Sprintf("%-5v %-15v\n", "H1", "H2")
+			header = fmt.Sprintf("%-5v %-25v %-15v %-15v %-90v\n", "Thd", "User", "Cmd", "Duration", "Stmt")
 
-			txns_text.Write(header)
+			txns_text.Write(header, text.WriteCellOpts(cell.Bold()))
 
 			for _, line := range message {
-				for _, item := range line {
-					txns_text.Write(item)
+				if colorflipper < 0 {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
+				colorflipper *= -1
+				txns_text.Write(fmt.Sprintf("%-5v %-25v %-15v %-15v %-90v\n", line[0], line[1], line[2], line[3], line[4]), color)
 			}
 
 		case <-ctx.Done():

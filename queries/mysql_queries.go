@@ -84,11 +84,11 @@ func MySQLOperationCount() string {
 }
 
 func MySQLThreadAnalysis() string {
-	return `EXPLAIN %d;`
+	return `EXPLAIN %s;`
 }
 
 func MySQLKill() string {
-	return `KILL %d;`
+	return `KILL %s;`
 }
 
 func MySQLInnoDB() string {

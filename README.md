@@ -1,48 +1,40 @@
 # Nextop
-Innotop for MySQL (& other DBMSs) written in GoLang.
-This program supports plugin creation.
-Developed over the course of my 2023 summer internship.
+Nextop is a powerful program designed for monitoring MySQL and other Database Management Systems (DBMSs), developed during a summer internship in 2023. This versatile tool provides support for plugin creation, allowing users to extend its functionality according to their specific needs.
 
 ## Startup
-Nextop can be built using the command:
+To build Nextop, execute the following command:
 ```bash
     make build
 ```
 
-and can be called using the commands:
+Once built, you can run Nextop with the following command:
 ```bash
     ./nextop
 ```
 
-or called with arguments:
+Alternatively, you can provide arguments to customize the behavior:
 ```bash
     ./nextop <dbms> <dsn> <conn-name> <group>
 ```
-where quotation marks around the DSN is necessary on Mac M1 zsh and the last argument is optional.
-While naming your connection isn't required, it is greatly recommended to give your connections unique names if you're monitoring multiple.
-Grouping is also optional, and not grouping your connections has no repercussions.
+Please note that on Mac M1 zsh, it is necessary to use quotation marks around the DSN. The last argument is optional. Although naming your connections is not mandatory, we strongly recommend giving them unique names, especially when monitoring multiple connections. Grouping connections is also an optional feature that allows you to manage them as a unit.
 
-Upon successful connection, an instance will be written in config for easy access in the future.
+Upon establishing a successful connection, Nextop will create an instance in the configuration for easy future access.
 
 ## Interface
 ### Controls
 View menu.
 
-### Configs
-If Nextop is called for the first time with no arguments, you will be sent directly to this page:
+### Configurations
+When running Nextop for the first time, without any arguments, or without any pre-configured connections, you will be directed to the configuration page:
 
 ![ConfigPage](https://github.com/raneamri/nextop/blob/main/img/config.png)
 
-It is strongly advised to name connections and to give them unique names.
-Grouping allows relation of multiple connections as to be able manage them as a unit.
+We highly recommend naming connections and giving them unique identifiers. Grouping connections facilitates managing them efficiently. Currently, to remove connections or modify configurations, you need to access the nextop.conf file manually. After submitting changes, the program will attempt to connect with the specified DSN.
 
-Currently, to remove connections or edit configurations, you will have to access nextop.conf and do it manually.
-Upon submission, the program will attempt to connect with the specified DSN.
-
-*As of Fri 23rd June 2023, the only DBMS supported is MySQL.
+*As of Fri 23rd June 2023, Nextop supports MySQL as the only DBMS.
 
 ### Processlist
-The processlist will dynamically show you ongoing processes. Processes will appear in different colors depending on their latency:
+The processlist dynamically displays ongoing processes, with different colors indicating their latency:
 - 5 seconds -> blue
 - 10 seconds -> yellow
 - 30 seconds -> red
@@ -50,37 +42,28 @@ The processlist will dynamically show you ongoing processes. Processes will appe
 
 ![Processlist](https://github.com/raneamri/nextop/blob/main/img/processlist.png)
 
-The top left section "Filters" allows the user to ommit unwanted messages and/or find specific messages.
-The way the filter works is by looking for the entered substring in the "Message".
-These filters can be switch from case sensitive to insensitive in configs.
+The "Filters" section in the top left corner enables users to omit unwanted messages or search for specific messages based on substrings. The case sensitivity of filters can be adjusted in configurations. To filter for multiple items, separate them with commas.
 
-A group filter is present below these. This allows you to only display a specific group.
+A group filter is available below the filters, allowing users to display processes specific to a particular group.
 
-To quickly remove all filters, simply press \, and to remove solely group filters, use /.
+To clear all filters quickly, press backslash "\", and to remove only group filters, use the forward slash "/".
 
 ### InnoDB Dashboard
-InnoDB Dashboard primarily shows data from the InnoDB engine.
-Note that if a pie chart doesn't render, the value is 0%.
-I'm not sure yet if this is an issue with termdash or my program but I'm looking to fix this soon.
+The InnoDB Dashboard provides essential data from the InnoDB engine, including pie charts that represent statistics. If a pie chart does not render and shows 0%, it may be an issue with termdash or the program, and we are actively working to resolve it.
 
 ![InnoDBDashboard](https://github.com/raneamri/nextop/blob/main/img/innodb.png)
 
 ### Memory Dashboard
+The Memory Dashboard presents memory-related statistics.
+
 ![MemoryDashboard](https://github.com/raneamri/nextop/blob/main/img/memory.png)
 
 ### Error Log
-In the top right section of the interface "Statistics" is a line graph which will show change in log types, where:
-- blue line = system count
-- yellow line = warning count
-- red line = error count
-This data is non-historical and the graph is reset upon leaving the page.
-
-The bottom section "Log" displays all retrieved logs from the database and color codes them.
 
 ![ErrorLog](https://github.com/raneamri/nextop/blob/main/img/error.png)
 
 ### Lock Log
-Coming very soon!
+
 
 ### Plugins
 Coming less soon.

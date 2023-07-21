@@ -13,10 +13,6 @@ import (
 )
 
 /*
-Note: add SQL to function names once development for over DBMS starts
-*/
-
-/*
 	By default, they evaluate to {
 			ConnMaxLifetime time.Minute * 3
 			SetMaxOpenConns 10
@@ -53,9 +49,11 @@ func Connect(instance types.Instance) (*sql.DB, error) {
 		driver.Close()
 		return nil, err
 	}
-	driver.SetConnMaxLifetime(time.Minute * 3)
-	driver.SetMaxOpenConns(10)
-	driver.SetMaxIdleConns(10)
+	if instance.DBMS == types.MYSQL {
+		driver.SetConnMaxLifetime(time.Minute * 3)
+		driver.SetMaxOpenConns(10)
+		driver.SetMaxIdleConns(10)
+	}
 	if err := driver.Ping(); err != nil {
 		driver.Close()
 		return nil, err

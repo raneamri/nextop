@@ -66,7 +66,7 @@ type Instance struct {
 	ConnName string
 
 	/*
-		Group name
+		Group name (optional)
 	*/
 	Group string
 }
