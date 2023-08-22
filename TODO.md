@@ -3,6 +3,8 @@
 - Thread analysis query.
 - Fix txns.
 
+- Re-assign refresh keybind.
+
 - Setup repl for testing.
 - Setup locks.
 - Simulate trafic.

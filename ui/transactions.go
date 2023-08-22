@@ -181,6 +181,7 @@ func writeTransactions(ctx context.Context,
 		colorflipper int = 1
 		header       string
 		message      [][]string = make([][]string, 0)
+		out          string
 	)
 
 	for {
@@ -188,7 +189,7 @@ func writeTransactions(ctx context.Context,
 		case message = <-txnsChannel:
 			txns_text.Reset()
 
-			header = fmt.Sprintf("%-5v %-25v %-15v %-15v %-90v\n", "Thd", "User", "Cmd", "Duration", "Stmt")
+			header = fmt.Sprintf("%-5v %-25v %-15v %-15v %-64v\n", "Thd", "User", "Cmd", "Duration", "Stmt")
 
 			txns_text.Write(header, text.WriteCellOpts(cell.Bold()))
 
@@ -199,10 +200,7 @@ func writeTransactions(ctx context.Context,
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
 				colorflipper *= -1
-				out := fmt.Sprintf("%-5v %-25v %-15v %-15v %-90v\n", line[0], line[1], line[2], line[3], line[4])
-				if len(out) > 128 {
-					out = out[:128]
-				}
+				out = fmt.Sprintf("%-5v %-25v %-15v %-15v %-64v\n", line[0], line[1], line[2], line[3], line[4])
 				txns_text.Write(out, color)
 			}
 

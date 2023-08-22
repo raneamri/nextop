@@ -36,6 +36,18 @@ func DisplayReplication() {
 		container.BorderTitle("REPLICATION (? for help)"),
 		container.BorderColor(cell.ColorGray),
 		container.FocusedColor(cell.ColorWhite),
+		container.SplitHorizontal(
+			container.Top(
+				container.Border(linestyle.Light),
+				container.BorderColor(cell.ColorGray),
+				container.FocusedColor(cell.ColorWhite),
+			),
+			container.Bottom(
+				container.Border(linestyle.Light),
+				container.BorderColor(cell.ColorGray),
+				container.FocusedColor(cell.ColorWhite),
+			),
+		),
 	)
 
 	if err != nil {

@@ -1,8 +1,5 @@
 package ui
 
-/*
-Management of connection drivers
-*/
 func RotateConnsLeft() {
 	if len(ActiveConns) <= 1 {
 		return

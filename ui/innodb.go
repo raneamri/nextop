@@ -199,7 +199,7 @@ func DisplayInnoDbDashboard() {
 					container.SplitPercent(75),
 				),
 			),
-			container.SplitPercent(40),
+			container.SplitPercent(45),
 		),
 	)
 	if err != nil {
@@ -472,7 +472,8 @@ func fetchThreadIO(ctx context.Context,
 			matches = pattern.FindAllStringSubmatch(variables, -1)
 
 			for _, match := range matches {
-				message = append(message, fmt.Sprintf("%-15v %-17v %-55v\n", match[0], match[1], match[2]))
+				parts := strings.SplitN(match[0], ":", 2)
+				message = append(message, fmt.Sprintf("\n  %-15v:\n  %-22v\n", parts[0], parts[1]))
 			}
 
 			thdioChannel <- message
@@ -503,6 +504,7 @@ func writeThreadIO(ctx context.Context,
 		case message = <-thdioChannel:
 			thdio_text.Reset()
 
+			colorflipper = 1
 			for _, line := range message {
 				if colorflipper < 0 {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))

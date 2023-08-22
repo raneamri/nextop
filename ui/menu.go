@@ -44,7 +44,7 @@ func DisplayMenu() {
 
 	help_table2, _ := text.New()
 	help_table2.Write(
-		"\n CTRL+D Reload page\n -> Cycle to next connection\n <- Cycle to previous connection\n \\ Clear all filters\n / Clear group filters\n = Pause\n + Increase refresh rate by 100ms\n - Decrease refresh rate by 100ms\n\n NOTE: Real-time changes require reload to apply",
+		"\n CTRL/CMD+D Reload page\n -> Cycle to next connection\n <- Cycle to previous connection\n \\ Clear all filters\n / Clear group filters\n = Pause\n + Increase refresh rate by 100ms\n - Decrease refresh rate by 100ms\n\n NOTE: Real-time changes require reload to apply",
 		text.WriteCellOpts(cell.Bold()),
 	)
 

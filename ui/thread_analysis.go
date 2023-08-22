@@ -38,16 +38,27 @@ func DisplayThreadAnalysis() {
 	var (
 		lookup  map[string]func() string
 		message []string
+		fetch   [][]string
 	)
 
 	analysis_text, _ := text.New()
 
 	_, err = strconv.Atoi(CurrentThread)
 	if err != nil {
-		message = []string{"Invalid Thread ID"}
+		message = append(message, "Non-numeric Thread ID\nESC to return to previous view")
+	} else if len(CurrentQuery) == 0 {
+		message = append(message, "Invalid or inactive thread")
 	} else {
 		lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-		message = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["processlist"](), CurrentThread))[0]
+		fetch = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["thread_analysis"](), CurrentQuery))
+	}
+
+	if len(fetch) > 0 {
+		message = fetch[0]
+	}
+
+	if len(CurrentQuery) > 0 {
+		analysis_text.Write("Query: " + CurrentQuery + "\n\n")
 	}
 
 	for _, line := range message {
@@ -69,9 +80,6 @@ func DisplayThreadAnalysis() {
 	}
 
 	var keyreader func(k *terminalapi.Keyboard) = func(k *terminalapi.Keyboard) {
-		/*
-			Rate limiter
-		*/
 		elapsed := time.Since(LastInputTime)
 		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
 		if elapsed < time.Duration(ratelim)*time.Millisecond {
@@ -81,11 +89,13 @@ func DisplayThreadAnalysis() {
 
 		switch k.Key {
 		case '?':
+			CurrentQuery = ""
 			State = types.MENU
 			cancel()
 		case keyboard.KeyCtrlD:
 			cancel()
 		case keyboard.KeyEsc:
+			CurrentQuery = ""
 			State = Laststate
 			cancel()
 		}

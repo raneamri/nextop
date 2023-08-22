@@ -46,6 +46,7 @@ Format:
 	widget-5 (lower-bottom): kill/thread info
 */
 var CurrentThread string
+var CurrentQuery string
 
 func DisplayProcesslist() {
 	t, err := tcell.New()
@@ -53,8 +54,9 @@ func DisplayProcesslist() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var (
-		pause  atomic.Value
-		export atomic.Value
+		pause   atomic.Value
+		export  atomic.Value
+		analyse atomic.Value
 
 		pl_text   *text.Text
 		info_text *text.Text
@@ -75,6 +77,7 @@ func DisplayProcesslist() {
 	*/
 	pause.Store(false)
 	export.Store(false)
+	analyse.Store(false)
 
 	/*
 		widget-1
@@ -191,7 +194,8 @@ func DisplayProcesslist() {
 		group,
 		Interval,
 		&pause,
-		&export)
+		&export,
+		&analyse)
 
 	cont, err := container.New(
 		t,
@@ -314,10 +318,12 @@ func DisplayProcesslist() {
 			group.ReadAndClear()
 		case '+':
 			Interval += 100 * time.Millisecond
+			cancel()
 		case '-':
 			if Interval > 100*time.Millisecond {
 				Interval -= 100 * time.Millisecond
 			}
+			cancel()
 		case '=':
 			if pause.Load().(bool) {
 				pause.Store(false)
@@ -337,10 +343,13 @@ func DisplayProcesslist() {
 				queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["kill"](), tokill))
 			} else if toanalyse != "" {
 				CurrentThread = toanalyse
+				analyse.Store(true)
+
+				time.Sleep(500 * time.Millisecond)
+
 				State = types.THREAD_ANALYSIS
 				cancel()
 			}
-
 		}
 	}
 
@@ -359,7 +368,8 @@ func dynProcesslist(ctx context.Context,
 	group *textinput.TextInput,
 	delay time.Duration,
 	pause *atomic.Value,
-	export *atomic.Value) {
+	export *atomic.Value,
+	analyse *atomic.Value) {
 
 	var (
 		processlistChannel chan []string  = make(chan []string)
@@ -368,7 +378,7 @@ func dynProcesslist(ctx context.Context,
 		linechartChannel   chan []float64 = make(chan []float64)
 	)
 
-	go fetchProcesslist(ctx, processlistChannel, group, pause, export, delay)
+	go fetchProcesslist(ctx, processlistChannel, group, pause, export, analyse, delay)
 	go writeProcesslist(ctx, pl_text, processlistChannel, search, exclude)
 
 	go fetchProcesslistInfo(ctx, infoChannel, linechartChannel, delay, pause)
@@ -390,6 +400,7 @@ func fetchProcesslist(ctx context.Context,
 	group *textinput.TextInput,
 	pause *atomic.Value,
 	export *atomic.Value,
+	analyse *atomic.Value,
 	delay time.Duration) {
 
 	var ticker *time.Ticker = time.NewTicker(delay)
@@ -419,7 +430,7 @@ func fetchProcesslist(ctx context.Context,
 		select {
 		case <-ticker.C:
 			group_found = false
-			if pause.Load().(bool) {
+			if pause.Load().(bool) && !analyse.Load().(bool) {
 				if export.Load().(bool) {
 					io.ExportProcesslist(messages)
 					export.Store(false)
@@ -457,12 +468,22 @@ func fetchProcesslist(ctx context.Context,
 					flocktime, _ = strconv.ParseInt(row[9], 10, 64)
 					fquery = strings.ReplaceAll(row[7], "\t", " ")
 					fquery = strings.ReplaceAll(fquery, "\n", " ")
+
+					if analyse.Load().(bool) {
+						if CurrentThread == row[1] {
+							CurrentQuery = fquery
+							analyse.Store(false)
+							return
+						}
+					}
+
 					/*
 						Line up items & send to channel
 					*/
 					builder.WriteString(fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v ",
 						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
 						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime)))
+
 					builder.WriteString(fquery + "\n")
 
 					messages = append(messages, builder.String())

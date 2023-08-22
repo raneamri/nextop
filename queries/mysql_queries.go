@@ -40,28 +40,28 @@ func MySQLProcesslist() string {
 				pps.PROCESSLIST_ID AS conn_id,
 				conattr_pid.ATTR_VALUE AS pid,
 				pps.PROCESSLIST_STATE AS state,
-				IF(
-					(pps.NAME in ('thread/sql/one_connection', 'thread/thread_pool/tp_one_connection')),
-					concat(pps.PROCESSLIST_USER, '@', pps.PROCESSLIST_HOST),
-					replace(pps.NAME, 'thread/', '')
-				) AS user,
-				pps.PROCESSLIST_DB AS db,
-				pps.PROCESSLIST_INFO AS current_statement,
-				IF(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT, NULL) AS statement_latency,
-				esc.LOCK_TIME AS lock_latency,
-				IF(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT, 0) AS sort_time
-			FROM 
-				performance_schema.threads pps
-			LEFT JOIN 
-				performance_schema.events_statements_current esc ON (pps.THREAD_ID = esc.THREAD_ID)
-			LEFT JOIN 
-				performance_schema.session_connect_attrs conattr_pid ON (
-					conattr_pid.PROCESSLIST_ID = pps.PROCESSLIST_ID AND 
-					conattr_pid.ATTR_NAME = '_pid'
-				)
-			WHERE 
-				pps.PROCESSLIST_ID IS NOT NULL AND 
-				pps.PROCESSLIST_COMMAND <> 'Daemon';
+					IF(
+						(pps.NAME in ('thread/sql/one_connection', 'thread/thread_pool/tp_one_connection')),
+						concat(pps.PROCESSLIST_USER, '@', pps.PROCESSLIST_HOST),
+						replace(pps.NAME, 'thread/', '')
+					) AS user,
+					pps.PROCESSLIST_DB AS db,
+					pps.PROCESSLIST_INFO AS current_statement,
+					IF(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT, NULL) AS statement_latency,
+					esc.LOCK_TIME AS lock_latency,
+					IF(isnull(esc.END_EVENT_ID), esc.TIMER_WAIT, 0) AS sort_time
+				FROM 
+					performance_schema.threads pps
+				LEFT JOIN 
+					performance_schema.events_statements_current esc ON (pps.THREAD_ID = esc.THREAD_ID)
+				LEFT JOIN 
+					performance_schema.session_connect_attrs conattr_pid ON (
+						conattr_pid.PROCESSLIST_ID = pps.PROCESSLIST_ID AND 
+						conattr_pid.ATTR_NAME = '_pid'
+					)
+				WHERE 
+					pps.PROCESSLIST_ID IS NOT NULL AND 
+					pps.PROCESSLIST_COMMAND <> 'Daemon';
 			`
 }
 
