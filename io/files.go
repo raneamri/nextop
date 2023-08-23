@@ -229,69 +229,11 @@ func FetchSetting(param string) string {
 }
 
 /*
-Takes the value of the setting and returns its value as a string
-*/
-func FetchKeybind(param string) string {
-	var (
-		settingsStart int
-		settingsEnd   int
-		config        string
-		pairs         []string
-		parts         []string
-	)
-
-	const fpath string = ".nextop.conf"
-	contents, err := ioutil.ReadFile(fpath)
-	if err != nil {
-		panic(err)
-	}
-
-	settingsStart = strings.Index(string(contents), "[keybinds]")
-	settingsEnd = strings.Index(string(contents), "[/keybinds]")
-	config = string(contents[settingsStart+10 : settingsEnd-1])
-
-	var lines []string = strings.Split(config, "\n")
-	for _, line := range lines {
-		var (
-			value string
-			key   string
-		)
-
-		line = strings.TrimSpace(line)
-		if line == "" || line == "\n" {
-			continue
-		}
-
-		pairs = strings.Split(line, " ")
-		for _, pair := range pairs {
-			pair = strings.TrimSpace(pair)
-			if pair == "" {
-				continue
-			}
-
-			parts = strings.Split(pair, "=")
-			if len(parts) != 2 {
-				continue
-			}
-
-			key = strings.TrimSpace(parts[0])
-			value = strings.TrimSpace(parts[1])
-
-			switch key {
-			case param:
-				return value
-			}
-		}
-	}
-
-	return string("n/a")
-}
-
-/*
 Writes processlist contents to a text file
 */
 func ExportProcesslist(data []string) {
 	var (
+		fpath     string
 		sb        strings.Builder
 		re        *regexp.Regexp
 		err       error
@@ -299,7 +241,7 @@ func ExportProcesslist(data []string) {
 		partition int
 	)
 
-	const fpath = "exports.sql"
+	fpath = FetchSetting("export-path")
 	re = regexp.MustCompile(`\s+`)
 	curr := time.Now()
 
@@ -319,9 +261,9 @@ func ExportProcesslist(data []string) {
 	for _, line := range data {
 		line = re.ReplaceAllString(line, " ")
 
-		for i, char := range line {
+		for _, char := range line {
 			sb.WriteRune(char)
-			if (i+1)%124 == 0 {
+			if char == ',' || char == ';' {
 				sb.WriteRune('\n')
 			}
 		}
@@ -329,7 +271,11 @@ func ExportProcesslist(data []string) {
 		out = sb.String()
 		partition = strings.Index(out, "µ") + 3
 
-		out = " " + out[:partition] + "\n" + "\n" + out[partition:] + "\n\n"
+		if out[len(out)-3] != 'µ' {
+			out = out[:partition] + "\n" + out[partition:] + "\n\n"
+		} else {
+			out = out[:partition] + "\n" + "NO QUERY\n\n"
+		}
 
 		_, err = file.WriteString(out)
 		if err != nil {

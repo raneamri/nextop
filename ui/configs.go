@@ -88,7 +88,8 @@ func DisplayConfigs() {
 	settings_txt, _ := text.New()
 	settings_headers := []string{"refresh-rate",
 		"default-group",
-		"case-sensitive-filters"}
+		"case-sensitive-filters",
+		"export-path"}
 	dir, _ := os.Getwd()
 	settings_txt.Write("\n   "+dir+"/.nextop.conf\n", text.WriteCellOpts(cell.Bold()))
 	for _, header := range settings_headers {

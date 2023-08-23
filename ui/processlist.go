@@ -594,8 +594,8 @@ func writeProcesslist(ctx context.Context,
 				}
 				colorflipper *= -1
 
-				if len(process) > 256 {
-					process = process[:256] + "\n"
+				if len(process) > 1024 {
+					process = process[:1024] + "\n"
 				}
 
 				pl_text.Write(process, color)

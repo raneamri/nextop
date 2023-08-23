@@ -1,13 +1,20 @@
 # TODO
-- Fetch data for donuts.
-- Thread analysis query.
-- Fix txns.
+# Thursday
+- Figure where pl is truncating.
+- Fix locks.
+- Re-assign some keybinds.
 
-- Re-assign refresh keybind.
+# Friday (& weekend possibly)
+- Setup replication w/docker & interface.
+- Setup suite to test replication.
 
-- Setup repl for testing.
-- Setup locks.
-- Simulate trafic.
-
+# Monday - Wednesday
 - Add code of conduct.
 - Set tools for modulation and plugin creation.
+
+# Thursday
+- Record presentation video.
+- Wrap up documentation.
+
+# Friday
+- Bug test and deploy.
