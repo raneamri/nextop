@@ -3,10 +3,17 @@ build:
 	go build -o nextop
 .PHONY:build
 
-# Build and run (quickstart)
+# Build and run
 run:
 	go build -o nextop && ./nextop
 .PHONY:run
+
+# Builds and runs a test suite
+quickstart:
+	cd ./benchmarking &&\
+	./suite1.sh && cd ..
+	go build -o nextop &&\
+	./nextop
 
 # Build Linux executable
 genlinux:
