@@ -71,13 +71,13 @@ func DisplayMemory() {
 		usralloc_labels, usralloc_txt,
 		dballoc_lc,
 		hardwalloc_labels, hardwalloc_txt,
-		alt, 2*time.Second)
+		alt, Interval)
 
 	cont, err := container.New(
 		t,
 		container.ID("memory_dashboard"),
 		container.Border(linestyle.Light),
-		container.BorderTitle("MEMORY (? for help)"),
+		container.BorderTitle("MEMORY (? for help, +/- to change refresh rate)"),
 		container.BorderColor(cell.ColorGray),
 		container.FocusedColor(cell.ColorWhite),
 		container.SplitVertical(
@@ -121,7 +121,7 @@ func DisplayMemory() {
 					),
 					container.Bottom(
 						container.Border(linestyle.Light),
-						container.BorderTitle("Disk / RAM Allocation"),
+						container.BorderTitle("Disk / RAM"),
 						container.SplitVertical(
 							container.Left(
 								container.PlaceWidget(hardwalloc_labels),
@@ -168,6 +168,14 @@ func DisplayMemory() {
 			cancel()
 		case '?':
 			State = types.MENU
+			cancel()
+		case '+':
+			Interval += 100 * time.Millisecond
+			cancel()
+		case '-':
+			if Interval > 100*time.Millisecond {
+				Interval -= 100 * time.Millisecond
+			}
 			cancel()
 		case keyboard.KeyCtrlD:
 			cancel()

@@ -12,9 +12,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Unwrap instance into db pointer
-*/
 func Connect(instance types.Instance) (*sql.DB, error) {
 	var (
 		driver *sql.DB
@@ -31,6 +28,8 @@ func Connect(instance types.Instance) (*sql.DB, error) {
 		driver.SetConnMaxLifetime(time.Minute * 3)
 		driver.SetMaxOpenConns(10)
 		driver.SetMaxIdleConns(10)
+	case types.POSTGRE:
+		//...
 	}
 
 	if err := driver.Ping(); err != nil {

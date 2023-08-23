@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/mum4k/termdash"
@@ -32,11 +33,17 @@ func DisplayTransactions() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var (
+		pause atomic.Value
+	)
+	pause.Store(false)
+
 	txns_text, _ := text.New()
 	txns_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	go dynTransactions(ctx,
 		txns_text,
+		&pause,
 		Interval)
 
 	cont, err := container.New(
@@ -97,6 +104,20 @@ func DisplayTransactions() {
 		case '?':
 			State = types.MENU
 			cancel()
+		case '=':
+			if pause.Load().(bool) {
+				pause.Store(false)
+			} else {
+				pause.Store(true)
+			}
+		case '+':
+			Interval += 100 * time.Millisecond
+			cancel()
+		case '-':
+			if Interval > 100*time.Millisecond {
+				Interval -= 100 * time.Millisecond
+			}
+			cancel()
 		case keyboard.KeyCtrlD:
 			cancel()
 		case keyboard.KeyEsc:
@@ -115,13 +136,14 @@ func DisplayTransactions() {
 
 func dynTransactions(ctx context.Context,
 	txns_text *text.Text,
+	pause *atomic.Value,
 	delay time.Duration) {
 
 	var (
 		txnsChannel chan [][]string = make(chan [][]string)
 	)
 
-	go fetchTransactions(ctx, txnsChannel, delay)
+	go fetchTransactions(ctx, txnsChannel, pause, delay)
 	go writeTransactions(ctx, txns_text, txnsChannel)
 
 	<-ctx.Done()
@@ -129,6 +151,7 @@ func dynTransactions(ctx context.Context,
 
 func fetchTransactions(ctx context.Context,
 	txnsChannel chan<- [][]string,
+	pause *atomic.Value,
 	delay time.Duration) {
 
 	var ticker *time.Ticker = time.NewTicker(delay)
@@ -152,6 +175,9 @@ func fetchTransactions(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
+			if pause.Load().(bool) {
+				continue
+			}
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
 			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["transactions"]())
 

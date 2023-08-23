@@ -480,7 +480,7 @@ func fetchProcesslist(ctx context.Context,
 					/*
 						Line up items & send to channel
 					*/
-					builder.WriteString(fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v ",
+					builder.WriteString(fmt.Sprintf("%-7v %-10v %-10v %-10v %-29v %-20v %-18v %-10v %-10v ",
 						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
 						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime)))
 
@@ -533,7 +533,7 @@ func writeProcesslist(ctx context.Context,
 		select {
 		case message = <-processlistChannel:
 			pl_text.Reset()
-			headers = fmt.Sprintf("%-7v %-5v %-5v %-8v %-25v %-20v %-18v %10v %10v %-15v\n",
+			headers = fmt.Sprintf("%-7v %-10v %-10v %-10v %-29v %-20v %-18v %-10v %-10v %-15v\n",
 				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock-Time", "Query")
 
 			colorflipper = -1

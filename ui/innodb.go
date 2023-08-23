@@ -159,45 +159,49 @@ func DisplayInnoDbDashboard() {
 				),
 			),
 			container.Right(
-				container.SplitVertical(
-					container.Left(
-						container.Border(linestyle.Light),
-						container.BorderTitle("Thread I/O"),
-						container.PlaceWidget(thdio_text),
-					),
-					container.Right(
-						container.SplitHorizontal(
-							container.Top(
-								container.SplitHorizontal(
-									container.Top(
-										container.Border(linestyle.Light),
-										container.PlaceWidget(checkpoint_donut),
-									),
-									container.Bottom(
-										container.Border(linestyle.Light),
-										container.PlaceWidget(pool_donut),
-									),
-									container.SplitPercent(50),
-								),
-							),
-							container.Bottom(
-								container.SplitHorizontal(
-									container.Top(
-										container.Border(linestyle.Light),
-										container.PlaceWidget(ahi_donut),
-									),
-									container.Bottom(
-										container.Border(linestyle.Light),
-										container.PlaceWidget(disk_donut),
-									),
-									container.SplitPercent(50),
-								),
-							),
-							container.SplitPercent(50),
+				container.Border(linestyle.Light),
+				container.BorderTitle("Thread I/O"),
+				container.PlaceWidget(thdio_text),
+				/*
+					container.SplitVertical(
+						container.Left(
+							container.Border(linestyle.Light),
+							container.BorderTitle("Thread I/O"),
+							container.PlaceWidget(thdio_text),
 						),
-					),
-					container.SplitPercent(75),
-				),
+						container.Right(
+							container.SplitHorizontal(
+								container.Top(
+									container.SplitHorizontal(
+										container.Top(
+											container.Border(linestyle.Light),
+											container.PlaceWidget(checkpoint_donut),
+										),
+										container.Bottom(
+											container.Border(linestyle.Light),
+											container.PlaceWidget(pool_donut),
+										),
+										container.SplitPercent(50),
+									),
+								),
+								container.Bottom(
+									container.SplitHorizontal(
+										container.Top(
+											container.Border(linestyle.Light),
+											container.PlaceWidget(ahi_donut),
+										),
+										container.Bottom(
+											container.Border(linestyle.Light),
+											container.PlaceWidget(disk_donut),
+										),
+										container.SplitPercent(50),
+									),
+								),
+								container.SplitPercent(50),
+							),
+						),
+						container.SplitPercent(75),
+					),*/
 			),
 			container.SplitPercent(45),
 		),
