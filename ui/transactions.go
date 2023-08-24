@@ -160,10 +160,6 @@ func fetchTransactions(ctx context.Context,
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
 			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["transactions"]())
 
-			if len(messages) < 1 {
-				messages[0][0] = "No active transactions"
-			}
-
 			txnsChannel <- messages
 			messages = [][]string{}
 

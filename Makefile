@@ -8,10 +8,16 @@ run:
 	go build -o nextop && ./nextop
 .PHONY:run
 
-# Builds and runs a test suite
-quickstart:
+# Test & builds
+test1:
 	cd ./benchmarking &&\
 	./suite1.sh && cd ..
+	go build -o nextop &&\
+	./nextop
+
+test2:
+	cd ./benchmarking &&\
+	./suite2.sh && cd ..
 	go build -o nextop &&\
 	./nextop
 

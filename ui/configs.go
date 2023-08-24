@@ -283,14 +283,11 @@ func instanceDisplay(ctx context.Context,
 		select {
 		case <-ticker.C:
 			io.SyncConfig(Instances)
-			ActiveConns = make([]string, 0)
 			for _, inst := range Instances {
 				if inst.Driver == nil {
-					inst.Driver, _ = queries.Connect(inst)
 					if queries.Ping(inst) {
+						inst.Driver, _ = queries.Connect(inst)
 						ActiveConns = append(ActiveConns, inst.ConnName)
-					} else {
-						utility.PopString(ActiveConns, inst.ConnName)
 					}
 				}
 			}
@@ -307,6 +304,7 @@ func instanceDisplay(ctx context.Context,
 					instlog.Write(" ONLINE", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 				} else {
 					instlog.Write(" OFFLINE", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+					utility.PopString(ActiveConns, inst.ConnName)
 				}
 			}
 

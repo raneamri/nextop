@@ -1,12 +1,10 @@
 # TODO
 # Thursday
-- Figure where pl is truncating.
 - Fix locks.
-- Re-assign some keybinds.
 
 # Friday (& weekend possibly)
-- Setup replication w/docker & interface.
-- Setup suite to test replication.
+- Setup replication w/docker & interface. X
+- Setup suite to test replication. X
 
 # Monday - Wednesday
 - Add code of conduct.

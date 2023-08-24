@@ -49,6 +49,7 @@ func Ping(instance types.Instance) bool {
 		driver *sql.DB
 		err    error
 	)
+
 	driver, err = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
 	if err != nil {
 		return false
