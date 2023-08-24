@@ -80,27 +80,6 @@ func DisplayTransactions() {
 		LastInputTime = time.Now()
 
 		switch k.Key {
-		case 'p', 'P':
-			State = types.PROCESSLIST
-			cancel()
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'm', 'M':
-			State = types.MEM_DASHBOARD
-			cancel()
-		case 'e', 'E':
-			State = types.ERR_LOG
-			cancel()
-		case 'l', 'L':
-			State = types.LOCK_LOG
-			cancel()
-		case 'r', 'R':
-			State = types.REPLICATION
-			cancel()
-		case 'c', 'C':
-			State = types.CONFIGS
-			cancel()
 		case '?':
 			State = types.MENU
 			cancel()
@@ -118,7 +97,7 @@ func DisplayTransactions() {
 				Interval -= 100 * time.Millisecond
 			}
 			cancel()
-		case keyboard.KeyCtrlD:
+		case keyboard.KeyTab:
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
@@ -181,6 +160,10 @@ func fetchTransactions(ctx context.Context,
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
 			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["transactions"]())
 
+			if len(messages) < 1 {
+				messages[0][0] = "No active transactions"
+			}
+
 			txnsChannel <- messages
 			messages = [][]string{}
 
@@ -215,7 +198,7 @@ func writeTransactions(ctx context.Context,
 		case message = <-txnsChannel:
 			txns_text.Reset()
 
-			header = fmt.Sprintf("%-5v %-25v %-15v %-15v %-64v\n", "Thd", "User", "Cmd", "Duration", "Stmt")
+			header = fmt.Sprintf("%-9v %-25v %-15v %-15v %-64v\n", "Thd", "User", "Cmd", "Duration", "Stmt")
 
 			txns_text.Write(header, text.WriteCellOpts(cell.Bold()))
 
@@ -226,7 +209,7 @@ func writeTransactions(ctx context.Context,
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
 				colorflipper *= -1
-				out = fmt.Sprintf("%-5v %-25v %-15v %-15v %-64v\n", line[0], line[1], line[2], line[3], line[4])
+				out = fmt.Sprintf("%-9v %-25v %-15v %-15v %-64v\n", line[0], line[1], line[2], line[3], line[4])
 				txns_text.Write(out, color)
 			}
 

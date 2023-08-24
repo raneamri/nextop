@@ -70,3 +70,13 @@ func Max(slice []int) int {
 	}
 	return max
 }
+
+func PopString(slice []string, value string) []string {
+	for i, v := range slice {
+		if v == value {
+			slice = append(slice[:i], slice[i+1:]...)
+			break
+		}
+	}
+	return slice
+}

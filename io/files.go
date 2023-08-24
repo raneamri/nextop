@@ -1,6 +1,7 @@
 package io
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -231,7 +232,7 @@ func FetchSetting(param string) string {
 /*
 Writes processlist contents to a text file
 */
-func ExportProcesslist(data []string) {
+func ExportProcesslist(data *[]string) {
 	var (
 		fpath     string
 		sb        strings.Builder
@@ -258,7 +259,8 @@ func ExportProcesslist(data []string) {
 		panic(err)
 	}
 
-	for _, line := range data {
+	for _, line := range *data {
+		fmt.Println(len(line))
 		line = re.ReplaceAllString(line, " ")
 
 		for _, char := range line {
@@ -277,7 +279,9 @@ func ExportProcesslist(data []string) {
 			out = out[:partition] + "\n" + "NO QUERY\n\n"
 		}
 
-		_, err = file.WriteString(out)
+		fmt.Println(len(out), "&", len(line))
+		ch := fmt.Sprint(len(out)) + "&" + fmt.Sprint(len(line)) + "\n"
+		_, err = file.WriteString(ch + out)
 		if err != nil {
 			panic(err)
 		}

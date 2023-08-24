@@ -123,6 +123,7 @@ func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 		}
 		result = append(result, resultRow)
 	}
+
 	return cols, result, nil
 }
 

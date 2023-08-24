@@ -66,7 +66,7 @@ func DisplayReplication() {
 		case '?':
 			State = types.MENU
 			cancel()
-		case keyboard.KeyCtrlD:
+		case keyboard.KeyTab:
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate

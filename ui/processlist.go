@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -232,7 +233,7 @@ func DisplayProcesslist() {
 											container.SplitPercent(50),
 										),
 									),
-									container.SplitPercent(33),
+									container.SplitPercent(40),
 								),
 							),
 							container.SplitPercent(30),
@@ -303,18 +304,18 @@ func DisplayProcesslist() {
 		case '?':
 			State = types.MENU
 			cancel()
-		case keyboard.KeyCtrlD:
+		case keyboard.KeyTab:
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
 			cancel()
 		case '\\':
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			search.ReadAndClear()
 			exclude.ReadAndClear()
 			group.ReadAndClear()
 		case '/':
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			group.ReadAndClear()
 		case '+':
 			Interval += 100 * time.Millisecond
@@ -341,11 +342,13 @@ func DisplayProcesslist() {
 			if tokill != "" {
 				lookup := GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
 				queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["kill"](), tokill))
+				time.Sleep(500 * time.Millisecond)
+				cancel()
 			} else if toanalyse != "" {
 				CurrentThread = toanalyse
 				analyse.Store(true)
 
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 
 				State = types.THREAD_ANALYSIS
 				cancel()
@@ -411,7 +414,7 @@ func fetchProcesslist(ctx context.Context,
 			Fetch variables
 		*/
 		lookup      map[string]func() string
-		pldata      [][]string
+		pldata      [][]string = make([][]string, 0, 4096)
 		group_found bool
 		/*
 			Formatting variables
@@ -423,21 +426,26 @@ func fetchProcesslist(ctx context.Context,
 		/*
 			Channel message variable
 		*/
-		messages []string = make([]string, 0, 2048)
+		messages []string = make([]string, 0, 4096)
 	)
 
 	for {
 		select {
 		case <-ticker.C:
+			/*
+				Connection lost guard
+			*/
 			group_found = false
 			if pause.Load().(bool) && !analyse.Load().(bool) {
 				if export.Load().(bool) {
-					io.ExportProcesslist(messages)
+					fmt.Println(messages)
+					os.Exit(1)
+					io.ExportProcesslist(&messages)
 					export.Store(false)
 				}
 				continue
 			}
-			messages = []string{}
+			messages = make([]string, 0, 4096)
 			for i, key := range ActiveConns {
 				/*
 					Handle group filter
@@ -466,8 +474,7 @@ func fetchProcesslist(ctx context.Context,
 					*/
 					ftime, _ = strconv.ParseInt(row[8], 10, 64)
 					flocktime, _ = strconv.ParseInt(row[9], 10, 64)
-					fquery = strings.ReplaceAll(row[7], "\t", " ")
-					fquery = strings.ReplaceAll(fquery, "\n", " ")
+					fquery = strings.ReplaceAll(strings.ReplaceAll(row[7], "\t", " "), "\n", " ")
 
 					if analyse.Load().(bool) {
 						if CurrentThread == row[1] {
@@ -492,6 +499,7 @@ func fetchProcesslist(ctx context.Context,
 			}
 
 			processlistChannel <- messages
+
 		case <-ctx.Done():
 			return
 		}
@@ -593,10 +601,6 @@ func writeProcesslist(ctx context.Context,
 					break
 				}
 				colorflipper *= -1
-
-				if len(process) > 1024 {
-					process = process[:1024] + "\n"
-				}
 
 				pl_text.Write(process, color)
 			}

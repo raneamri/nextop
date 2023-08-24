@@ -77,28 +77,13 @@ func DisplayLocks() {
 		LastInputTime = time.Now()
 
 		switch k.Key {
-		case keyboard.KeyCtrlD:
-			cancel()
-		case 'p', 'P':
-			State = types.PROCESSLIST
-			cancel()
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'm', 'M':
-			State = types.MEM_DASHBOARD
-			cancel()
-		case 'e', 'E':
-			State = types.ERR_LOG
-			cancel()
-		case 'c', 'C':
-			State = types.CONFIGS
-			cancel()
 		case '?':
 			State = types.MENU
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate
+			cancel()
+		case keyboard.KeyTab:
 			cancel()
 		case 'q', 'Q':
 			State = types.QUIT

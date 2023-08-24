@@ -151,21 +151,6 @@ func DisplayMemory() {
 		LastInputTime = time.Now()
 
 		switch k.Key {
-		case 'p', 'P':
-			State = types.PROCESSLIST
-			cancel()
-		case 'd', 'D':
-			State = types.DB_DASHBOARD
-			cancel()
-		case 'e', 'E':
-			State = types.ERR_LOG
-			cancel()
-		case 'l', 'L':
-			State = types.LOCK_LOG
-			cancel()
-		case 'c', 'C':
-			State = types.CONFIGS
-			cancel()
 		case '?':
 			State = types.MENU
 			cancel()
@@ -177,7 +162,7 @@ func DisplayMemory() {
 				Interval -= 100 * time.Millisecond
 			}
 			cancel()
-		case keyboard.KeyCtrlD:
+		case keyboard.KeyTab:
 			cancel()
 		case keyboard.KeyEsc:
 			State = Laststate

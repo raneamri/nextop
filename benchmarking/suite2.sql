@@ -1,7 +1,6 @@
 -- lock simulation test
 
+USE testdb;
 START TRANSACTION;
-SELECT MAX(id) INTO @max_id FROM testtable;
-SET @new_id = @max_id + 1;
-INSERT INTO testtable (id, data) VALUES (@new_id, 'newdata');
+SELECT * FROM testtable WHERE some_column = 'value' FOR UPDATE;
 COMMIT;

@@ -48,7 +48,7 @@ func DisplayConfigs() {
 		widget-2
 	*/
 	instlog, _ := text.New()
-	instanceDisplay(ctx, instlog)
+	go instanceDisplay(ctx, instlog, Interval)
 
 	/*
 		widget-3
@@ -223,7 +223,7 @@ func DisplayConfigs() {
 				errlog.Write("\n   Authenticating...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 				time.Sleep(1 * time.Second)
 				errlog.Reset()
-				log_msg = "\n   Error: Invalid DSN. Connection closed."
+				log_msg = "\n   Error: Invalid DSN or offline connection. Connection closed."
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 				return
 			} else {
@@ -246,23 +246,6 @@ func DisplayConfigs() {
 			Instances[inst.ConnName] = inst
 			io.SyncConfig(Instances)
 
-			/*
-				Update instances display
-			*/
-			instanceDisplay(ctx, instlog)
-
-		case keyboard.KeyCtrlD:
-			io.SyncConfig(Instances)
-			for _, inst := range Instances {
-				if inst.Driver == nil {
-					var err error
-					inst.Driver, err = queries.Connect(inst)
-					if err == nil {
-						ActiveConns = append(ActiveConns, inst.ConnName)
-					}
-				}
-			}
-			cancel()
 		case '?':
 			if len(ActiveConns) > 0 {
 				State = types.MENU
@@ -290,20 +273,45 @@ func DisplayConfigs() {
 }
 
 func instanceDisplay(ctx context.Context,
-	instlog *text.Text) {
+	instlog *text.Text,
+	delay time.Duration) {
 
-	instlog.Reset()
-	for _, inst := range Instances {
-		instlog.Write("\n   dbms", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-		instlog.Write(": " + utility.Strdbms(inst.DBMS))
-		instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-		instlog.Write(": " + string((inst.DSN)))
-		instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-		instlog.Write(": " + string((inst.ConnName)))
-		if inst.Driver != nil {
-			instlog.Write(" ONLINE", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
-		} else {
-			instlog.Write(" OFFLINE", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+	var ticker *time.Ticker = time.NewTicker(delay)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			io.SyncConfig(Instances)
+			ActiveConns = make([]string, 0)
+			for _, inst := range Instances {
+				if inst.Driver == nil {
+					inst.Driver, _ = queries.Connect(inst)
+					if queries.Ping(inst) {
+						ActiveConns = append(ActiveConns, inst.ConnName)
+					} else {
+						utility.PopString(ActiveConns, inst.ConnName)
+					}
+				}
+			}
+
+			instlog.Reset()
+			for _, inst := range Instances {
+				instlog.Write("\n   dbms", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+				instlog.Write(": " + utility.Strdbms(inst.DBMS))
+				instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+				instlog.Write(": " + string((inst.DSN)))
+				instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
+				instlog.Write(": " + string((inst.ConnName)))
+				if queries.Ping(inst) {
+					instlog.Write(" ONLINE", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
+				} else {
+					instlog.Write(" OFFLINE", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+				}
+			}
+
+		case <-ctx.Done():
+			return
 		}
 	}
 }
