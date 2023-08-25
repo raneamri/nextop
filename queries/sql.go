@@ -10,6 +10,7 @@ import (
 	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 func Connect(instance types.Instance) (*sql.DB, error) {
@@ -28,7 +29,7 @@ func Connect(instance types.Instance) (*sql.DB, error) {
 		driver.SetConnMaxLifetime(time.Minute * 3)
 		driver.SetMaxOpenConns(10)
 		driver.SetMaxIdleConns(10)
-	case types.POSTGRE:
+	case types.POSTGRES:
 		//...
 	}
 

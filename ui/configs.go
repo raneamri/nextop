@@ -186,6 +186,7 @@ func DisplayConfigs() {
 				Validate data
 			*/
 			errlog.Reset()
+			errlog.Write("\n   Authenticating...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 			dbms = dbmsin.ReadAndClear()
 			if utility.Dbmsstr(dbms) == -1 {
@@ -208,6 +209,7 @@ func DisplayConfigs() {
 
 			name = namein.ReadAndClear()
 			if name == "" {
+				errlog.Reset()
 				log_msg = "\n   Warning: Blank connection name!"
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorYellow)))
 				name = "<unnamed>"
@@ -219,9 +221,6 @@ func DisplayConfigs() {
 			inst.ConnName = name
 
 			if !queries.Ping(inst) {
-				errlog.Reset()
-				errlog.Write("\n   Authenticating...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
-				time.Sleep(1 * time.Second)
 				errlog.Reset()
 				log_msg = "\n   Error: Invalid DSN or offline connection. Connection closed."
 				errlog.Write(log_msg, text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
@@ -321,7 +320,7 @@ func rollText(ctx context.Context,
 	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
 
-	var message string = fmt.Sprintf("%-64v", "MySQL")
+	var message string = fmt.Sprintf("%-64v", "MySQL Postgres")
 
 	for {
 		select {

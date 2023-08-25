@@ -25,8 +25,8 @@ func MySQLFuncDict() []func() string {
 }
 
 func MapMySQL(MySQLQueries map[string]func() string) {
-	types := QueryTypeDict()
-	funcs := MySQLFuncDict()
+	var types []string = QueryTypeDict()
+	var funcs []func() string = MySQLFuncDict()
 
 	for i, query := range types {
 		MySQLQueries[query] = funcs[i]

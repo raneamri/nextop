@@ -17,7 +17,7 @@ DBMS types
 */
 const (
 	MYSQL DBMS_t = iota
-	POSTGRE
+	POSTGRES
 )
 
 /*
@@ -59,7 +59,6 @@ type Instance struct {
 		SQL driver
 	*/
 	Driver *sql.DB
-	Online bool
 
 	/*
 		Manually assigned connection name

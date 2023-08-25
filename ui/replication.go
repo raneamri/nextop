@@ -95,6 +95,10 @@ func DisplayReplication() {
 		LastInputTime = time.Now()
 
 		switch k.Key {
+		case keyboard.KeyArrowLeft:
+			RotateConnsLeft()
+		case keyboard.KeyArrowRight:
+			RotateConnsRight()
 		case '?':
 			State = types.MENU
 			cancel()

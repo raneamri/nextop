@@ -1,5 +1,5 @@
 # Nextop
-Nextop is a powerful program designed for monitoring MySQL and other Database Management Systems (DBMSs), developed during a summer internship in 2023. This versatile tool provides support for plugin creation, allowing users to extend its functionality according to their specific needs.
+Nextop is a powerful program designed for monitoring MySQL, Postgres and other Database Management Systems (DBMSs), developed during a summer internship in 2023. This versatile tool provides support for plugin creation, allowing users to extend its functionality according to their specific needs.
 
 ## Startup
 To build Nextop, execute the following command:
@@ -25,11 +25,11 @@ Upon establishing a successful connection, Nextop will create an instance in the
 View menu.
 
 ### Configurations
-When running Nextop for the first time, without any arguments, or without any pre-configured connections, you will be directed to the configuration page:
+When running Nextop for the first time, without any arguments, without any pre-configured connections, or with no active configured connection, you will be directed to the configuration page:
 
 ![ConfigPage](https://github.com/raneamri/nextop/blob/main/img/config.png)
 
-We highly recommend naming connections and giving them unique identifiers. Grouping connections facilitates managing them efficiently. Currently, to remove connections or modify configurations, you need to access the nextop.conf file manually. After submitting changes, the program will attempt to connect with the specified DSN.
+We highly recommend naming connections and giving them unique identifiers. Grouping connections facilitates managing them efficiently. Currently, to remove connections or modify configurations, you need to access the .nextop.conf file manually. After submitting changes, the program will attempt to connect with the specified DSN.
 
 *As of Fri 23rd June 2023, Nextop supports MySQL as the only DBMS.
 

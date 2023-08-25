@@ -20,12 +20,6 @@ var (
 		Refresh rate
 	*/
 	Interval time.Duration
-	/*
-		Specific refresh rate for the error log
-		Can be adjusted in config
-		If you believe you will need regular and rapid filter changes, set to higher value
-	*/
-	ErrInterval time.Duration
 
 	/*
 		Map to hold all instances, including drivers, groups & DBMS
@@ -51,8 +45,9 @@ var (
 		Map to hold all queries for ease of selection
 		^ADD MAP FOR PLUGINS HERE
 	*/
-	GlobalQueryMap map[types.DBMS_t]map[string]func() string = make(map[types.DBMS_t]map[string]func() string)
-	MySQLQueries   map[string]func() string                  = make(map[string]func() string)
+	GlobalQueryMap  map[types.DBMS_t]map[string]func() string = make(map[types.DBMS_t]map[string]func() string)
+	MySQLQueries    map[string]func() string                  = make(map[string]func() string)
+	PostgresQueries map[string]func() string                  = make(map[string]func() string)
 )
 
 func InterfaceLoop() {
@@ -76,8 +71,6 @@ func InterfaceLoop() {
 
 	interval_int, _ := strconv.Atoi(io.FetchSetting("refresh-rate"))
 	Interval = time.Duration(interval_int) * time.Millisecond
-	err_interval_int, _ := strconv.Atoi(io.FetchSetting("errlog-refresh-rate"))
-	ErrInterval = time.Duration(err_interval_int) * time.Millisecond
 
 	/*
 		Open & map all connections
@@ -110,6 +103,8 @@ func InterfaceLoop() {
 	*/
 	queries.MapMySQL(MySQLQueries)
 	GlobalQueryMap[types.MYSQL] = MySQLQueries
+	queries.MapPostgres(PostgresQueries)
+	GlobalQueryMap[types.POSTGRES] = PostgresQueries
 
 	for true {
 		switch State {

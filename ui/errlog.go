@@ -85,7 +85,7 @@ func DisplayErrorLog() {
 
 	log.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	go dynErrorLog(ctx, log, search, exclude, frequencies, ErrInterval)
+	go dynErrorLog(ctx, log, search, exclude, frequencies, Interval)
 
 	cont, err := container.New(
 		t,
@@ -258,7 +258,7 @@ func writeErrors(ctx context.Context,
 		case messages = <-errorChannel:
 			log.Reset()
 			for i, row := range messages {
-				msg = fmt.Sprintf("%-20v %-5v %-8v %-55v\n", row[0], row[1], row[2], row[3])
+				msg = fmt.Sprintf("%-20v %-6v %-8v %-55v\n", row[0], row[1], row[2], row[3])
 
 				if i == 0 {
 					log.Write(msg, text.WriteCellOpts(cell.Bold()))

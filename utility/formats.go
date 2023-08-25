@@ -88,8 +88,8 @@ func Strdbms(dbms types.DBMS_t) string {
 	switch dbms {
 	case types.MYSQL:
 		return "mysql"
-	case types.POSTGRE:
-		return "postgre"
+	case types.POSTGRES:
+		return "postgres"
 	default:
 		return "n/a"
 	}
@@ -101,12 +101,11 @@ Takes string and converts to dbms_t
 Returns -1 if dbms is invalid
 */
 func Dbmsstr(dbms string) types.DBMS_t {
-	dbms = Fstr(dbms)
-	switch dbms {
+	switch Fstr(dbms) {
 	case "MYSQL":
 		return types.MYSQL
-	case "POSTGRE":
-		return types.POSTGRE
+	case "POSTGRES":
+		return types.POSTGRES
 	default:
 		return -1
 	}

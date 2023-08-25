@@ -18,7 +18,7 @@ This won't break plugins, but those variables will show up as n/a or blank unles
 Do note that most variables will translate over.
 
 While this program takes constructive feedback from users, plugins cannot fundamentally change the
-program, only add on it. To improve on the program, please make a pull request.
+program, only add to it. To improve on the program, please make a pull request.
 
 # WALKTHROUGH
 Before starting, make sure to consult the CODE OF CONDUCT.
@@ -26,23 +26,9 @@ Before starting, make sure to consult the CODE OF CONDUCT.
 First, establish what type of plugin you're making. Is it adding support for a DBMS? Is it adding
 interface pages?
 
-Visit .nextop.conf and create your plugin, and fill in the afore mentioned:
-```bash
-[plugins]
-[a-name-for-your-plugin]
-dbms=true interface=false
-dbms_t=mariadb
-[/a-name-for-your-plugin]
-
-[another-plugin]
-dbms=true interface=true
-dbms_t=sqlite interface_t=
-[/another-plugin]
-[/plugins]
-```
 
 # DBMS
-Find DBMS_t in types/types.go and insert the dbms you're adding in capitals at the bottom:
+Find DBMS_t in types/types.go and insert the dbms you're adding at the bottom:
 ```bash
 const (
 	MYSQL DBMS_t = iota
@@ -109,9 +95,6 @@ returns a query at the same index.
 
 Lastly, write all your queries in functions matching those named in your function dictionary.
 If this confuses you, visit mysql_queries.go.
-
-## INTERFACE
-Coming soon.
 
 ## CONCLUSION
 After this your plugin should be complete and ready for deployment. Please submit a pull request
