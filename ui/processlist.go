@@ -411,6 +411,10 @@ func fetchProcesslist(ctx context.Context,
 
 	var (
 		/*
+			Fetch headers per DBMS
+		*/
+
+		/*
 			Fetch variables
 		*/
 		lookup      map[string]func() string
@@ -432,9 +436,6 @@ func fetchProcesslist(ctx context.Context,
 	for {
 		select {
 		case <-ticker.C:
-			/*
-				Connection lost guard
-			*/
 			group_found = false
 			if pause.Load().(bool) && !analyse.Load().(bool) {
 				if export.Load().(bool) {
@@ -624,12 +625,6 @@ func fetchProcesslistInfo(ctx context.Context,
 	defer ticker.Stop()
 
 	var (
-		lookup map[string]func() string
-
-		statuses [][]string = make([][]string, 0)
-		qps_int  int
-		uptime   int
-
 		messages   []string  = make([]string, 0)
 		lc_message []float64 = make([]float64, 0)
 	)
@@ -641,11 +636,11 @@ func fetchProcesslistInfo(ctx context.Context,
 				continue
 			}
 			for _, key := range ActiveConns {
-				lookup = GlobalQueryMap[Instances[key].DBMS]
-				statuses = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["uptime"]())
+				lookup := GlobalQueryMap[Instances[key].DBMS]
+				statuses := queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["uptime"]())
 
-				uptime, _ = strconv.Atoi(statuses[1][1])
-				qps_int, _ = strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
+				uptime, _ := strconv.Atoi(statuses[1][1])
+				qps_int, _ := strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
 				if Instances[key].ConnName == Instances[ActiveConns[0]].ConnName {
 					lc_message = append(lc_message, float64(qps_int))
 					if len(lc_message) > 32 {
@@ -659,7 +654,7 @@ func fetchProcesslistInfo(ctx context.Context,
 			}
 
 			infoChannel <- messages
-			messages = []string{}
+			messages = make([]string, 0)
 
 		case <-ctx.Done():
 			return

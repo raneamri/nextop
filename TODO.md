@@ -4,13 +4,17 @@
 - Simulate locks with mysqlslap and shell scripting.
 - Fix locks interface.
 - Figure slave dsn issue.
+- Patch bugs.
 
 # Monday - Wednesday
 - Add code of conduct.
-- Set tools for modulation and plugin creation.
 - Record presentation video.
 - Wrap up documentation.
 - Bug test and deploy.
 
 # Thursday - Friday
 - Final changes
+
+# Future
+- Separate query pulling parsing into separate functions.
+- Plugin system

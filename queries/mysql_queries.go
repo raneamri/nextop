@@ -266,8 +266,7 @@ func MySQLErrorLog() string {
 }
 
 func MySQLLocks() string {
-	return `SELECT
-			r.trx_id waiting_trx_id,
+	return `SELECT r.trx_id waiting_trx_id,
 			r.trx_mysql_thread_id waiting_thread,
 			r.trx_query waiting_query,
 			b.trx_id blocking_trx_id,
@@ -281,7 +280,7 @@ func MySQLLocks() string {
 }
 
 func MySQLReplication() string {
-	return `SHOW REPLICA STATUS\G`
+	return `SHOW REPLICA STATUS;`
 }
 
 func MySQLTransactions() string {
