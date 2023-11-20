@@ -2,6 +2,7 @@ package utility
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -51,33 +52,52 @@ func Ftime(duration int) string {
 /*
 Formats time as int64 picoseconds to string ms
 */
-func FpicoToMs(duration int64) string {
-	/*
-		int64 -> time.Duration
-	*/
-	var ms float32 = float32(duration) / 1e9
+func FormatDuration(microseconds int64) string {
 
-	/*
-		Format and concatenate
-	*/
-	ftime := fmt.Sprintf("%.4fms", ms)
+	var (
+		out  float32 = 0
+		unit string
+	)
+
+	switch {
+	case microseconds <= 1e4:
+		out = float32(microseconds) / 1e3
+		unit = "ns"
+	case microseconds <= 10e7:
+		out = float32(microseconds) / 1e6
+		unit = "μs"
+	case microseconds <= 1e10:
+		out = float32(microseconds) / 1e9
+		unit = "ms"
+	}
+
+	ftime := fmt.Sprintf("%.4f"+unit, out)
 	return ftime
 }
 
-/*
-Same as FpicoToMs but to microseconds (µs)
-*/
-func FpicoToUs(duration int64) string {
-	/*
-		int64 -> time.Duration
-	*/
-	us := duration / int64(time.Microsecond)
+func DeformatDuration(formattedDuration string) int64 {
+	re := regexp.MustCompile(`^(\d+(\.\d+)?)\s*([nμm]s)$`)
+	matches := re.FindStringSubmatch(formattedDuration)
+	if len(matches) != 4 {
+		return 0
+	}
 
-	/*
-		Format and concatenate
-	*/
-	ftime := fmt.Sprintf("%dµs", us)
-	return ftime
+	value, err := strconv.ParseFloat(matches[1], 64)
+	if err != nil {
+		return 0
+	}
+
+	unit := matches[3]
+	switch unit {
+	case "ns":
+		return int64(value * 1e3)
+	case "μs":
+		return int64(value * 1e6)
+	case "ms":
+		return int64(value * 1e9)
+	}
+
+	return 0
 }
 
 /*
@@ -176,4 +196,59 @@ func Statestr(str string) types.State_t {
 	default:
 		return types.MENU
 	}
+}
+
+func ShuffleQuery(query types.Query, order []int) {
+	if len(query.RawData) == 0 {
+		return
+	}
+	maxIndex := len(query.RawData[0]) - 1
+	for i, row := range query.RawData {
+		newRow := make([]string, len(order))
+		for j, idx := range order {
+			if idx >= 0 && idx <= maxIndex && idx < len(row) {
+				newRow[j] = row[idx]
+			} else {
+				newRow[j] = "n/a"
+			}
+		}
+		query.RawData[i] = newRow
+	}
+}
+
+func TrimNSprintf(format string, args ...interface{}) string {
+	re := regexp.MustCompile(`\d+`)
+
+	matches := re.FindAllString(format, -1)
+
+	numbers := make([]int, len(matches))
+	for i, match := range matches {
+		num, err := strconv.Atoi(match)
+		if err != nil {
+			fmt.Printf("Error converting '%s' to int: %v\n", match, err)
+			numbers[i] = 0
+		} else {
+			numbers[i] = num
+		}
+	}
+
+	trimmedArgs := make([]interface{}, len(args))
+
+	for i := 0; i < len(args); i++ {
+		if i < len(numbers) && numbers[i] > 0 {
+			if str, ok := args[i].(string); ok {
+				if len(str) > numbers[i] {
+					trimmedArgs[i] = str[:numbers[i]]
+				} else {
+					trimmedArgs[i] = str
+				}
+			} else {
+				trimmedArgs[i] = args[i]
+			}
+		} else {
+			trimmedArgs[i] = args[i]
+		}
+	}
+
+	return fmt.Sprintf(format, trimmedArgs...)
 }

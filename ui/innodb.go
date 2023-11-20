@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"fmt"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,7 +16,6 @@ import (
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/terminalapi"
-	"github.com/mum4k/termdash/widgets/donut"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/queries"
@@ -26,14 +24,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 )
-
-/*
-Workload:
-	7 goroutines
-	sustaining 22 queries
-	updating 3 read-only widgets
-
-*/
 
 /*
 Format:
@@ -49,63 +39,40 @@ func DisplayInnoDbDashboard() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	infoheader := []string{"\n\n   Buffer Pool Size\n",
-		"   Buffer Pool Instance\n",
-		"   Checkpoint Info\n",
-		"   Checkpoint Age\n",
-		"   InnoDB Logfile Size\n",
-		"   Num InnoDB Logfile\n",
-		"   Redo Log\n\n",
-		"   Adaptive Hash Indexing\n",
-		"   AHI Partitions\n"}
+	var infoheader []interface{} = []interface{}{"Buffer Pool Size",
+		"Buffer Pool Instance",
+		"Checkpoint Info",
+		"Checkpoint Age",
+		"InnoDB Logfile Size",
+		"No. InnoDB Logfile",
+		"Redo Log",
+		"Adapative Hash Indexing",
+		"AHI Partitions"}
+	var infoformat string = "\n\n%-10v\n%-10v\n\n%-10v\n%-15v\n\n%-15v\n%-25v\n%-10v\n\n%-10v\n%-10v"
 	infolabels, _ := text.New()
-	for _, header := range infoheader {
-		infolabels.Write(header, text.WriteCellOpts(cell.Bold()))
-	}
+	infolabels.Write(fmt.Sprintf(infoformat, infoheader...), text.WriteCellOpts(cell.Bold()))
 
-	bfpheader := []string{"\n\n   Read Requests\n",
-		"   Write Requests\n\n",
-		"   Dirty Data\n\n",
-		"   Pending Reads\n",
-		"   Pending Writes\n\n",
-		"   OS Log Pending Writes\n\n",
-		"   Disk Reads\n\n",
-		"   Pending Fsync\n",
-		"   OS Log Pending Fsyncs\n"}
+	var bfpheader []interface{} = []interface{}{"Read Requests",
+		"Write Requests",
+		"Dirty Data",
+		"Pending Reads",
+		"Pending Writes",
+		"OS Log Pending Writes",
+		"Disk Reads",
+		"Pending Fsync",
+		"OS Log Pending Fsync"}
+	var bfpformat string = "\n\n%-10v\n%-10v\n%-10v\n%-15v\n%-15v\n\n%-25v\n%-10v\n\n%-10v\n%-10v"
 	bfplabels, _ := text.New()
-	for _, header := range bfpheader {
-		bfplabels.Write(header, text.WriteCellOpts(cell.Bold()))
-	}
+	bfplabels.Write(fmt.Sprintf(bfpformat, bfpheader...), text.WriteCellOpts(cell.Bold()))
 
 	innodb_text, _ := text.New()
-	innodb_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	innodb_text.Write("\n\n Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	bufferp_text, _ := text.New()
-	bufferp_text.Write("\n\nLoading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	bufferp_text.Write("\n\n Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 	thdio_text, _ := text.New()
-	thdio_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	thdio_text.Write("\n Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	checkpoint_donut, err := donut.New(
-		donut.HolePercent(35),
-		donut.CellOpts(cell.FgColor(cell.ColorNumber(24))),
-		donut.Label("Checkpoint Age %", cell.FgColor(cell.ColorWhite)),
-	)
-	pool_donut, err := donut.New(
-		donut.HolePercent(35),
-		donut.CellOpts(cell.FgColor(cell.ColorNumber(25))),
-		donut.Label("Buffer Pool %", cell.FgColor(cell.ColorWhite)),
-	)
-	ahi_donut, err := donut.New(
-		donut.HolePercent(35),
-		donut.CellOpts(cell.FgColor(cell.ColorNumber(26))),
-		donut.Label("AHI Ratio %", cell.FgColor(cell.ColorWhite)),
-	)
-	disk_donut, err := donut.New(
-		donut.HolePercent(35),
-		donut.CellOpts(cell.FgColor(cell.ColorNumber(27))),
-		donut.Label("Disk Read %", cell.FgColor(cell.ColorWhite)),
-	)
-
-	go dynDbDashboard(ctx, innodb_text, bufferp_text, thdio_text, checkpoint_donut, pool_donut, ahi_donut, disk_donut, Interval)
+	go dynDbDashboard(ctx, innodb_text, bufferp_text, thdio_text, Interval)
 
 	cont, err := container.New(
 		t,
@@ -162,46 +129,6 @@ func DisplayInnoDbDashboard() {
 				container.Border(linestyle.Light),
 				container.BorderTitle("Thread I/O"),
 				container.PlaceWidget(thdio_text),
-				/*
-					container.SplitVertical(
-						container.Left(
-							container.Border(linestyle.Light),
-							container.BorderTitle("Thread I/O"),
-							container.PlaceWidget(thdio_text),
-						),
-						container.Right(
-							container.SplitHorizontal(
-								container.Top(
-									container.SplitHorizontal(
-										container.Top(
-											container.Border(linestyle.Light),
-											container.PlaceWidget(checkpoint_donut),
-										),
-										container.Bottom(
-											container.Border(linestyle.Light),
-											container.PlaceWidget(pool_donut),
-										),
-										container.SplitPercent(50),
-									),
-								),
-								container.Bottom(
-									container.SplitHorizontal(
-										container.Top(
-											container.Border(linestyle.Light),
-											container.PlaceWidget(ahi_donut),
-										),
-										container.Bottom(
-											container.Border(linestyle.Light),
-											container.PlaceWidget(disk_donut),
-										),
-										container.SplitPercent(50),
-									),
-								),
-								container.SplitPercent(50),
-							),
-						),
-						container.SplitPercent(75),
-					),*/
 			),
 			container.SplitPercent(45),
 		),
@@ -242,95 +169,115 @@ func dynDbDashboard(ctx context.Context,
 	innodb_text *text.Text,
 	bufferp_text *text.Text,
 	thdio_text *text.Text,
-	checkpoint_donut *donut.Donut,
-	pool_donut *donut.Donut,
-	ahi_donut *donut.Donut,
-	disk_donut *donut.Donut,
 	delay time.Duration) {
 
 	var (
-		innodbChannel     chan string   = make(chan string)
-		bufferpoolChannel chan string   = make(chan string)
-		donutChannel      chan [4]int   = make(chan [4]int)
-		thdioChannel      chan []string = make(chan []string)
+		innodbChannel     chan types.Query = make(chan types.Query)
+		bufferpoolChannel chan types.Query = make(chan types.Query)
+		thdioChannel      chan types.Query = make(chan types.Query)
 	)
 
-	go fetchInnoDb(ctx, innodbChannel, donutChannel, delay)
-	go writeInnoDb(ctx, innodb_text, innodbChannel)
+	go fetchInnoDb(ctx,
+		innodbChannel)
 
-	go fetchInnoDbBufferPool(ctx, bufferpoolChannel, delay)
-	go writeInnoDbBufferPool(ctx, bufferp_text, bufferpoolChannel)
+	go fetchBufferPool(ctx,
+		bufferpoolChannel)
 
-	go fetchThreadIO(ctx, thdioChannel, delay)
-	go writeThreadIO(ctx, thdio_text, thdioChannel)
+	go fetchThreadIO(ctx,
+		thdioChannel)
 
-	go writeInnoDbDonuts(ctx, checkpoint_donut, pool_donut, ahi_donut, disk_donut, donutChannel)
+	go displayInnoDb(ctx,
+		innodbChannel,
+		innodb_text)
+
+	go displayBufferPool(ctx,
+		bufferpoolChannel,
+		bufferp_text)
+
+	go displayThreadIO(ctx,
+		thdioChannel,
+		thdio_text)
 
 	<-ctx.Done()
 }
 
 func fetchInnoDb(ctx context.Context,
-	innodbChannel chan<- string,
-	donutChannel chan<- [4]int,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+	innodbChannel chan<- types.Query) {
 
 	var (
-		/*
-			Fetch variables
-		*/
-		lookup        map[string]func() string
-		variables     []string = make([]string, 0)
-		ahi_variables []string = make([]string, 0)
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
 
-		/*
-			Channel message variable
-		*/
-		message       string
-		donut_message float64
+		lookup map[string]func() string
+		query  types.Query
+		order  []int = make([]int, 10)
 	)
 
 	for {
 		select {
 		case <-ticker.C:
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
+			}
+
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["innodb"]())[0]
-			ahi_variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["ahi"]())[0]
+			switch Instances[ActiveConns[0]].DBMS {
+			case types.MYSQL:
+				order = []int{0, 1, 2, 3, 4, 5, 6, 7, 8}
 
-			/*
-				Compose message
-			*/
-			variables[2] = strings.TrimLeft(variables[2], " ")
-			message = "\n\n" + strings.Join(variables, "\n") + "\n\n" + strings.Join(ahi_variables[:2], "\n")
-			donut_message, _ = strconv.ParseFloat(ahi_variables[2], 64)
+			case types.POSTGRES:
+				order = nil
 
-			innodbChannel <- message
-			donutChannel <- [4]int{0, 0, int(math.Round(donut_message)), 0}
-			message = ""
+			default:
+				order = nil
+			}
+
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["innodbahi"]())
+
+			utility.ShuffleQuery(query, order)
+
+			for i := range query.RawData {
+				query.RawData[i][2] = strings.TrimLeft(query.RawData[i][2], " ")
+			}
+
+			innodbChannel <- query
+
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func writeInnoDb(ctx context.Context,
-	innodb_text *text.Text,
-	innodbChannel <-chan string) {
+func displayInnoDb(ctx context.Context,
+	innodbChannel <-chan types.Query,
+	widget *text.Text) {
 
 	var (
-		/*
-			Display variables
-		*/
-		message string
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		format string = "\n\n%-10v\n%-10v\n\n%-20v\n%-25v\n\n%-15v\n%-25v\n%-10v\n\n%-10v\n%-10v"
 	)
 
 	for {
 		select {
-		case message = <-innodbChannel:
-			innodb_text.Reset()
-			innodb_text.Write(message)
+		case query = <-innodbChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
+
+		case <-ticker.C:
+			widget.Reset()
+
+			for _, row := range text_buffer {
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...))
+			}
+
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return
@@ -338,90 +285,112 @@ func writeInnoDb(ctx context.Context,
 	}
 }
 
-func fetchInnoDbBufferPool(ctx context.Context,
-	bufferpoolChannel chan<- string,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+func fetchBufferPool(ctx context.Context,
+	bufferpoolChannel chan<- types.Query) {
 
 	var (
-		/*
-			Fetch variables
-		*/
-		lookup    map[string]func() string
-		variables []string = make([]string, 0)
-		/*
-			Formatting variables
-		*/
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
+
+		lookup map[string]func() string
+		query  types.Query
+		order  []int = make([]int, 10)
+
 		read_reqs_int    int
 		write_reqs_int   int
 		dirty_data_bytes int
+		pending_reads    int
+		pending_writes   int
 		os_read_first    int
 		os_read_key      int
 		os_read_next     int
 		os_read_prev     int
 		os_read_rnd      int
 		os_read_rnd_next int
-		/*
-			Channel message variable
-		*/
-		message string
 	)
 
 	for {
 		select {
 		case <-ticker.C:
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
+			}
+
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["bufferpool"]())[0]
+			switch Instances[ActiveConns[0]].DBMS {
+			case types.MYSQL:
+				order = []int{0, 1, 2, 3, 4, 5, 12, 13, 6, 7, 8, 9, 10, 11}
 
-			read_reqs_int, _ = strconv.Atoi(variables[0])
-			write_reqs_int, _ = strconv.Atoi(variables[1])
-			dirty_data_bytes, _ = strconv.Atoi(variables[2])
-			os_read_first, _ = strconv.Atoi(variables[6])
-			os_read_key, _ = strconv.Atoi(variables[7])
-			os_read_next, _ = strconv.Atoi(variables[8])
-			os_read_prev, _ = strconv.Atoi(variables[9])
-			os_read_rnd, _ = strconv.Atoi(variables[10])
-			os_read_rnd_next, _ = strconv.Atoi(variables[11])
+			case types.POSTGRES:
+				order = nil
 
-			/*
-				Note: fix pendings
-			*/
-			message += "\n\n" + utility.Fnum(read_reqs_int) + "\n"
-			message += utility.Fnum(write_reqs_int) + "\n\n"
-			message += utility.BytesToMiB(dirty_data_bytes) + "\n\n"
-			message += variables[3] + "\n"
-			message += variables[4] + "\n\n"
-			message += variables[5] + "\n\n"
-			message += utility.Fnum(os_read_first+os_read_key+os_read_next+os_read_prev+os_read_rnd+os_read_rnd_next) + "\n\n"
-			message += variables[12] + "\n"
-			message += variables[13] + "\n"
+			default:
+				order = nil
+			}
 
-			bufferpoolChannel <- message
-			message = ""
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["bufferpool"]())
+			utility.ShuffleQuery(query, order)
+
+			for i := range query.RawData {
+				read_reqs_int, _ = strconv.Atoi(query.RawData[i][0])
+				write_reqs_int, _ = strconv.Atoi(query.RawData[i][1])
+				dirty_data_bytes, _ = strconv.Atoi(query.RawData[i][2])
+				pending_reads, _ = strconv.Atoi(query.RawData[i][3])
+				pending_writes, _ = strconv.Atoi(query.RawData[i][4])
+				os_read_first, _ = strconv.Atoi(query.RawData[i][8])
+				os_read_key, _ = strconv.Atoi(query.RawData[i][9])
+				os_read_next, _ = strconv.Atoi(query.RawData[i][10])
+				os_read_prev, _ = strconv.Atoi(query.RawData[i][11])
+				os_read_rnd, _ = strconv.Atoi(query.RawData[i][12])
+				os_read_rnd_next, _ = strconv.Atoi(query.RawData[i][13])
+
+				query.RawData[i][0] = utility.Fnum(read_reqs_int)
+				query.RawData[i][1] = utility.Fnum(write_reqs_int)
+				query.RawData[i][2] = utility.BytesToMiB(dirty_data_bytes)
+				query.RawData[i][3] = utility.Fnum(pending_reads)
+				query.RawData[i][4] = utility.Fnum(pending_writes)
+				query.RawData[i][8] = utility.Fnum(os_read_first + os_read_key + os_read_next + os_read_prev + os_read_rnd + os_read_rnd_next)
+				query.RawData[i] = query.RawData[i][:9]
+			}
+
+			bufferpoolChannel <- query
+
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func writeInnoDbBufferPool(ctx context.Context,
-	bufferp_text *text.Text,
-	bufferpoolChannel <-chan string) {
+func displayBufferPool(ctx context.Context,
+	bufferpoolChannel <-chan types.Query,
+	widget *text.Text) {
 
 	var (
-		/*
-			Display variables
-		*/
-		message string
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		format string = "\n\n%-10v\n%-10v\n%-20v\n%-25v\n%-15v\n\n%-25v\n%-10v\n\n%-10v\n%-10v"
 	)
 
 	for {
 		select {
-		case message = <-bufferpoolChannel:
-			bufferp_text.Reset()
-			bufferp_text.Write(message)
+		case query = <-bufferpoolChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
+
+		case <-ticker.C:
+			widget.Reset()
+
+			for _, row := range text_buffer {
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...))
+			}
+
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return
@@ -430,43 +399,46 @@ func writeInnoDbBufferPool(ctx context.Context,
 }
 
 func fetchThreadIO(ctx context.Context,
-	thdioChannel chan<- []string,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+	thdioChannel chan<- types.Query) {
 
 	var (
-		/*
-			Fetch variables
-		*/
-		lookup    map[string]func() string
-		variables string
-		pattern   *regexp.Regexp = regexp.MustCompile(`I/O thread (\d+) state: ([^(]+) \(([^)]*)\)`)
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
 
-		matches [][]string
+		lookup  map[string]func() string
+		query   types.Query
+		matches [][]string = make([][]string, 0)
 
-		/*
-			Channel message variable
-		*/
-		message []string
+		pattern *regexp.Regexp = regexp.MustCompile(`I/O thread (\d+) state: ([^(]+) \(([^)]*)\)`)
 	)
 
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			variables = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["threadio"]())[0][2]
-
-			matches = pattern.FindAllStringSubmatch(variables, -1)
-
-			for _, match := range matches {
-				parts := strings.SplitN(match[0], ":", 2)
-				message = append(message, fmt.Sprintf("\n  %-15v:\n  %-22v\n", parts[0], parts[1]))
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
 			}
 
-			thdioChannel <- message
-			message = []string{}
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			switch Instances[ActiveConns[0]].DBMS {
+			case types.MYSQL:
+				break
+
+			case types.POSTGRES:
+				continue
+
+			default:
+				continue
+			}
+
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["threadio"]())
+
+			matches = pattern.FindAllStringSubmatch(query.RawData[0][2], -1)
+			query.RawData = matches
+
+			thdioChannel <- query
 
 		case <-ctx.Done():
 			return
@@ -474,15 +446,17 @@ func fetchThreadIO(ctx context.Context,
 	}
 }
 
-func writeThreadIO(ctx context.Context,
-	thdio_text *text.Text,
-	thdioChannel <-chan []string) {
+func displayThreadIO(ctx context.Context,
+	thdioChannel <-chan types.Query,
+	widget *text.Text) {
 
 	var (
-		/*
-			Display variables
-		*/
-		message []string
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		format string = "\n   %-0v \n   %-3v %-31v %-12v\n"
 
 		color        text.WriteOption
 		colorflipper int
@@ -490,59 +464,30 @@ func writeThreadIO(ctx context.Context,
 
 	for {
 		select {
-		case message = <-thdioChannel:
-			thdio_text.Reset()
+		case query = <-thdioChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
+
+		case <-ticker.C:
+			widget.Reset()
 
 			colorflipper = 1
-			for _, line := range message {
+			for _, row := range text_buffer {
+				colorflipper *= -1
 				if colorflipper < 0 {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				} else {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 				}
-				colorflipper *= -1
-				thdio_text.Write(line, color)
+				widget.Write(fmt.Sprintf(format, utility.SliceToInterface(row)...), color)
 			}
+
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return
 		}
 	}
-}
 
-func writeInnoDbDonuts(ctx context.Context,
-	checkpoint_donut *donut.Donut,
-	pool_donut *donut.Donut,
-	ahi_donut *donut.Donut,
-	disk_donut *donut.Donut,
-	donutChannel <-chan [4]int) {
-
-	var (
-		/*
-			Display variables
-		*/
-		message [4]int
-	)
-
-	for {
-		select {
-		case message = <-donutChannel:
-
-			if message[0] != 0 {
-				checkpoint_donut.Percent(message[0])
-			}
-			if message[1] != 0 {
-				pool_donut.Percent(message[1])
-			}
-			if message[2] != 0 {
-				ahi_donut.Percent(message[2])
-			}
-			if message[3] != 0 {
-				disk_donut.Percent(message[3])
-			}
-
-		case <-ctx.Done():
-			return
-		}
-	}
 }

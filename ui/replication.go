@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/mum4k/termdash"
@@ -21,14 +20,6 @@ import (
 	"github.com/raneamri/nextop/utility"
 )
 
-/*
-Workload:
-*/
-
-/*
-Formats:
-*/
-
 func DisplayReplication() {
 	t, err := tcell.New()
 	defer t.Close()
@@ -39,22 +30,15 @@ func DisplayReplication() {
 		info_text *text.Text
 	)
 
-	/*
-		widget-1 (top)
-	*/
 	repl_text, _ = text.New()
 	repl_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	/*
-		widget-2 (bottom)
-	*/
 	info_text, _ = text.New()
 	info_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
 	go dynReplication(ctx,
 		repl_text,
-		info_text,
-		Interval)
+		info_text)
 
 	cont, err := container.New(
 		t,
@@ -78,7 +62,7 @@ func DisplayReplication() {
 				container.FocusedColor(cell.ColorWhite),
 				container.PlaceWidget(info_text),
 			),
-			container.SplitPercent(35),
+			container.SplitPercent(70),
 		),
 	)
 
@@ -123,47 +107,60 @@ func DisplayReplication() {
 
 func dynReplication(ctx context.Context,
 	repl_text *text.Text,
-	info_text *text.Text,
-	delay time.Duration) {
+	info_text *text.Text) {
 
 	var (
-		replicationChannel chan []string = make(chan []string)
-		infoChannel        chan []string = make(chan []string)
+		replicationChannel chan types.Query = make(chan types.Query)
+		metricsChannel     chan types.Query = make(chan types.Query)
 	)
 
-	go fetchReplication(ctx, replicationChannel, delay)
-	go writeReplication(ctx, repl_text, replicationChannel)
+	for _, conn := range ActiveConns {
+		go fetchMetrics(ctx,
+			conn,
+			metricsChannel)
+	}
 
-	go fetchInfo(ctx, infoChannel, delay)
-	go writeInfo(ctx, info_text, infoChannel)
+	go displayMetrics(ctx,
+		metricsChannel,
+		info_text,
+		nil,
+		nil)
+
+	go fetchReplication(ctx, replicationChannel)
+	go writeReplication(ctx, repl_text, replicationChannel)
 
 	<-ctx.Done()
 }
 
-func fetchReplication(ctx context.Context, replicationChannel chan<- []string, delay time.Duration) {
-	ticker := time.NewTicker(delay)
-	defer ticker.Stop()
+func fetchReplication(ctx context.Context,
+	replicationChannel chan<- types.Query) {
 
 	var (
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
+
 		lookup map[string]func() string
 
-		messages [][]string
-		message  []string
+		query types.Query
 	)
 
 	for {
 		select {
 		case <-ticker.C:
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
+			}
+
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["replication"]())
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["replication"]())
 
-			if len(messages) == 0 {
-				message = []string{"No ongoing replication. Swap connections in the view below using <-/->."}
-			} else {
-				message = messages[0]
+			if len(query.RawData) == 0 {
+				query.RawData = [][]string{{"NO CURR. REPL", "", "", "", "", "", "", ""}}
 			}
 
-			replicationChannel <- message
+			replicationChannel <- query
 
 		case <-ctx.Done():
 			return
@@ -171,109 +168,41 @@ func fetchReplication(ctx context.Context, replicationChannel chan<- []string, d
 	}
 }
 
-func writeReplication(ctx context.Context, log *text.Text, replicationChannel <-chan []string) {
+func writeReplication(ctx context.Context,
+	widget *text.Text,
+	replicationChannel <-chan types.Query) {
 
 	var (
-		message []string
-		headers string
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		header []interface{} = []interface{}{"Master Host", "Master Port", "Master Log File",
+			"Read Master Log Pos", "Slave IO Running", "Slave SQL Running", "Secs Behind Master",
+			"Last Error"}
+		format string = "%-15v %-16v %-18v %-22v %-24v %-20v %-20v %-20v\n"
 	)
 
 	for {
 		select {
-		case message = <-replicationChannel:
-
-			headers = fmt.Sprintf("%-15v %-16v %-18v %-22v %-24v %-20v %-20v %-20v\n", "Master Host", "Master Port", "Master Log File",
-				"Read Master Log Pos", "Slave IO Running", "Slave SQL Running", "Secs Behind Master",
-				"Last Error")
-
-			log.Reset()
-			log.Write(headers, text.WriteCellOpts(cell.Bold()))
-			for _, msg := range message {
-				log.Write(msg)
+		case query = <-replicationChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
 			}
 
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-/*
-container-2
-*/
-func fetchInfo(ctx context.Context,
-	infoChannel chan<- []string,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
-
-	var (
-		lookup map[string]func() string
-
-		statuses [][]string = make([][]string, 0)
-		qps_int  int
-		uptime   int
-
-		messages []string = make([]string, 0)
-	)
-
-	for {
-		select {
 		case <-ticker.C:
-			for _, key := range ActiveConns {
-				lookup = GlobalQueryMap[Instances[key].DBMS]
-				statuses = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["uptime"]())
+			widget.Reset()
+			widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
 
-				uptime, _ = strconv.Atoi(statuses[1][1])
-				qps_int, _ = strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
-
-				messages = append(messages, fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
-					key, utility.Ftime(uptime), utility.Fnum(qps_int), statuses[0][1]))
+			for _, row := range text_buffer {
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...))
 			}
 
-			infoChannel <- messages
-			messages = []string{}
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return
-		}
-	}
-}
-
-func writeInfo(ctx context.Context,
-	info_text *text.Text,
-	infoChannel <-chan []string) {
-
-	var (
-		message      []string = make([]string, 0)
-		color        text.WriteOption
-		colorflipper int
-	)
-
-	for {
-		select {
-		case message = <-infoChannel:
-			headers := fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
-				"Connection", "Uptime", "Queries", "Threads")
-
-			colorflipper = -1
-
-			info_text.Reset()
-			info_text.Write(headers, text.WriteCellOpts(cell.Bold()))
-			for _, item := range message {
-				key := strings.Split(item, " ")[0]
-				if key == ActiveConns[0] {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorGreen))
-				} else if colorflipper < 0 {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
-				} else {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
-				}
-				colorflipper *= -1
-
-				info_text.Write(item, color)
-			}
 		}
 	}
 }

@@ -63,21 +63,6 @@ func Ping(instance types.Instance) bool {
 }
 
 /*
-Queries a custom query
-Works with any query
-*/
-func GetLongQuery(driver *sql.DB, query string) [][]string {
-	rows, err := Query(driver, query)
-	if err != nil {
-		return nil
-	}
-	_, result, _ := GetData(rows)
-
-	return result
-
-}
-
-/*
 Curtesy of https://github.com/lefred
 */
 func GetData(rows *sql.Rows) ([]string, [][]string, error) {
@@ -133,10 +118,27 @@ func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 Performs a query given a connection and a statement
 Helper function for other query-type functions
 */
-func Query(db *sql.DB, stmt string) (*sql.Rows, error) {
-	rows, err := db.Query(stmt)
+func Query(db *sql.DB, stmt string) (types.Query, error) {
+	var (
+		query types.Query
+		rows  *sql.Rows
+		err   error
+
+		headers []string
+		result  [][]string
+	)
+
+	rows, err = db.Query(stmt)
+
 	if err != nil {
-		return nil, err
+		return query, err
 	}
-	return rows, nil
+	headers, result, err = GetData(rows)
+
+	query.VarNames = headers
+	query.RawData = result
+	if err != nil {
+		return query, err
+	}
+	return query, nil
 }

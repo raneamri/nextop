@@ -1,7 +1,6 @@
 package utility
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -55,7 +54,7 @@ func PopInstance(instances []types.Instance, popping types.Instance) []types.Ins
 
 		instances = newinsts
 	} else {
-		fmt.Println("Instance to pop unfound.")
+		return instances
 	}
 
 	return instances
@@ -79,4 +78,17 @@ func PopString(slice []string, value string) []string {
 		}
 	}
 	return slice
+}
+
+func SliceToInterface(slice []string) []interface{} {
+	var intf []interface{} = make([]interface{}, len(slice))
+
+	for i, v := range slice {
+		if len(v) > 256 {
+			v = v[:256]
+		}
+		intf[i] = v
+	}
+
+	return intf
 }

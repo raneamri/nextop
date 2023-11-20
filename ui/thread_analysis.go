@@ -18,18 +18,15 @@ import (
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Workload:
+var CurrentThread string
+var CurrentQuery string
+var CurrentConn string
 
-*/
-
-/*
-Format:
-*/
 func DisplayThreadAnalysis() {
 	t, err := tcell.New()
 	defer t.Close()
@@ -38,31 +35,39 @@ func DisplayThreadAnalysis() {
 	var (
 		lookup  map[string]func() string
 		message []string
-		fetch   [][]string
+		query   types.Query
+
+		header []interface{} = []interface{}{"ID", "QType", "Table", "Parts", "Type", "Key", "Key Len", "Ref", "Rows", "Filtered", "Extra"}
+		format string        = "%-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v \n"
+
+		order []int = []int{0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11}
+
+		color        text.WriteOption
+		colorflipper int
 	)
 
-	analysis_text, _ := text.New()
+	widget, _ := text.New()
 
 	_, err = strconv.Atoi(CurrentThread)
 	if err != nil {
 		message = append(message, "Non-numeric Thread ID\nESC to return to previous view")
-	} else if len(CurrentQuery) == 0 {
-		message = append(message, "Invalid or inactive thread")
 	} else {
 		lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-		fetch = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["thread_analysis"](), CurrentQuery))
+		query, _ = queries.Query(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["thread_analysis"](), CurrentQuery))
+		utility.ShuffleQuery(query, order)
 	}
 
-	if len(fetch) > 0 {
-		message = fetch[0]
-	}
+	widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
 
-	if len(CurrentQuery) > 0 {
-		analysis_text.Write("Query: " + CurrentQuery + "\n\n")
-	}
+	for _, row := range query.RawData {
+		if colorflipper < 0 {
+			color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+		} else {
+			color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+		}
+		colorflipper *= -1
 
-	for _, line := range message {
-		analysis_text.Write(line + "\n")
+		widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
 	}
 
 	cont, err := container.New(
@@ -72,7 +77,7 @@ func DisplayThreadAnalysis() {
 		container.BorderTitle("THREAD ANALYSIS (ESC to return)"),
 		container.BorderColor(cell.ColorGray),
 		container.FocusedColor(cell.ColorWhite),
-		container.PlaceWidget(analysis_text),
+		container.PlaceWidget(widget),
 	)
 
 	if err != nil {
@@ -89,13 +94,11 @@ func DisplayThreadAnalysis() {
 
 		switch k.Key {
 		case '?':
-			CurrentQuery = ""
 			State = types.MENU
 			cancel()
 		case keyboard.KeyTab:
 			cancel()
 		case keyboard.KeyEsc:
-			CurrentQuery = ""
 			State = Laststate
 			cancel()
 		}

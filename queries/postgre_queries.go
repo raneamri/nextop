@@ -1,27 +1,7 @@
 package queries
 
 func PostgresFuncDict() []func() string {
-	return []func() string{PostgresProcesslist,
-		PostgresUptime,
-		PostgresQueries,
-		PostgresOperationCount,
-		PostgresThreadAnalysis,
-		PostgresKill,
-		PostgresInnoDB,
-		PostgresInnoDBAHI,
-		PostgresBufferpool,
-		PostgresThreadIO,
-		PostgresUserMemory,
-		PostgresGlobalAllocated,
-		PostgresSpecificAllocated,
-		PostgresRamNDisk,
-		PostgresCheckpointInfo,
-		PostgresCheckpointAgePct,
-		PostgresErrorLog,
-		PostgresLocks,
-		PostgresReplication,
-		PostgresTransactions,
-	}
+	return []func() string{}
 }
 
 func MapPostgres(PostgresQueries map[string]func() string) {

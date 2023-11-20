@@ -70,3 +70,8 @@ type Instance struct {
 	*/
 	Group string
 }
+
+type Query struct {
+	VarNames []string
+	RawData  [][]string
+}

@@ -2,21 +2,16 @@ package queries
 
 func MySQLFuncDict() []func() string {
 	return []func() string{MySQLProcesslist,
-		MySQLUptime,
-		MySQLQueries,
-		MySQLOperationCount,
+		MySQLMetrics,
 		MySQLThreadAnalysis,
 		MySQLKill,
-		MySQLInnoDB,
 		MySQLInnoDBAHI,
 		MySQLBufferpool,
 		MySQLThreadIO,
-		MySQLUserMemory,
+		MySQLMalloc,
 		MySQLGlobalAllocated,
 		MySQLSpecificAllocated,
 		MySQLRamNDisk,
-		MySQLCheckpointInfo,
-		MySQLCheckpointAgePct,
 		MySQLErrorLog,
 		MySQLLocks,
 		MySQLReplication,
@@ -65,22 +60,35 @@ func MySQLProcesslist() string {
 			`
 }
 
-func MySQLUptime() string {
-	return `SHOW STATUS WHERE Variable_name IN ('uptime', 'threads_connected');`
-}
-
-func MySQLQueries() string {
-	return `SELECT COUNT(*) AS ongoing_query_count
-			FROM information_schema.processlist
-			WHERE COMMAND <> 'Sleep';`
-}
-
-func MySQLOperationCount() string {
+func MySQLMetrics() string {
 	return `SELECT
-		    (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'SELECT%' AND thread_id IS NOT NULL) AS ongoing_select_count,
-			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'INSERT%' AND thread_id IS NOT NULL) AS ongoing_insert_count,
-			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'UPDATE%' AND thread_id IS NOT NULL) AS ongoing_update_count,
-			(SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'DELETE%' AND thread_id IS NOT NULL) AS ongoing_delete_count;`
+				(SELECT VARIABLE_VALUE
+				FROM performance_schema.global_status
+				WHERE VARIABLE_NAME = 'Uptime') AS "Uptime",
+				MAX(CASE WHEN Metric = 'Threads Connected' THEN Value END) AS "Threads Connected",
+				MAX(CASE WHEN Metric = 'Ongoing Query Count' THEN Value END) AS "Ongoing Query Count",
+				MAX(CASE WHEN Metric = 'Ongoing Select Count' THEN Value END) AS "Ongoing Select Count",
+				MAX(CASE WHEN Metric = 'Ongoing Insert Count' THEN Value END) AS "Ongoing Insert Count",
+				MAX(CASE WHEN Metric = 'Ongoing Update Count' THEN Value END) AS "Ongoing Update Count",
+				MAX(CASE WHEN Metric = 'Ongoing Delete Count' THEN Value END) AS "Ongoing Delete Count"
+			FROM (
+				SELECT 'Threads Connected' AS Metric, VARIABLE_VALUE AS Value
+				FROM performance_schema.global_status
+				WHERE VARIABLE_NAME = 'Threads_connected'
+				UNION ALL
+				SELECT 'Ongoing Query Count' AS Metric, COUNT(*) AS Value
+				FROM information_schema.processlist
+				WHERE COMMAND <> 'Sleep'
+				UNION ALL
+				SELECT 'Ongoing Select Count' AS Metric, (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'SELECT%' AND thread_id IS NOT NULL) AS Value
+				UNION ALL
+				SELECT 'Ongoing Insert Count' AS Metric, (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'INSERT%' AND thread_id IS NOT NULL) AS Value
+				UNION ALL
+				SELECT 'Ongoing Update Count' AS Metric, (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'UPDATE%' AND thread_id IS NOT NULL) AS Value
+				UNION ALL
+				SELECT 'Ongoing Delete Count' AS Metric, (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'DELETE%' AND thread_id IS NOT NULL) AS Value
+			) AS subquery;
+			`
 }
 
 func MySQLThreadAnalysis() string {
@@ -91,76 +99,42 @@ func MySQLKill() string {
 	return `KILL %s;`
 }
 
-func MySQLInnoDB() string {
-	return `SELECT
-			FORMAT_BYTES((
-			SELECT variable_value
-			FROM performance_schema.global_variables
-			WHERE variable_name = 'innodb_buffer_pool_size'
-			)) AS BP_Size,
-			(
-			SELECT variable_value
-			FROM performance_schema.global_variables
-			WHERE variable_name = 'innodb_buffer_pool_instances'
-			) AS BP_instances,
-			CONCAT(
-			FORMAT_BYTES(STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'),
-			' / ',
-			FORMAT_BYTES(
-				(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size')
-				* (SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group')
-			)
-			) AS CheckpointInfo,
-			ROUND(
-			(
-			(
-			(SELECT STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"' FROM performance_schema.log_status)
-			/ ((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size') * (SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group'))
-			) * 100
-			),
-			2
-			) AS CheckpointAge,
-			FORMAT_BYTES((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE variable_name = 'innodb_log_file_size')) AS InnoDBLogFileSize,
-			(
-			SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE variable_name = 'innodb_log_files_in_group'
-			) AS NbFiles,
-			(
-			SELECT VARIABLE_VALUE
-			FROM performance_schema.global_status
-			WHERE VARIABLE_NAME = 'Innodb_redo_log_enabled'
-			) AS RedoEnabled
-			FROM performance_schema.log_status;`
-}
-
 func MySQLInnoDBAHI() string {
 	return `SELECT
-			(SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE VARIABLE_NAME = 'innodb_adaptive_hash_index'
-			) AS AHIEnabled,
-			(
-			SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE VARIABLE_NAME = 'innodb_adaptive_hash_index_parts'
-			) AS AHIParts,
-			ROUND(
-			((SELECT VARIABLE_VALUE
-			FROM sys.metrics
-			WHERE VARIABLE_NAME = 'adaptive_hash_searches'
-			) /
-			((SELECT VARIABLE_VALUE
-			FROM sys.metrics
-			WHERE VARIABLE_NAME = 'adaptive_hash_searches_btree'
-			) + (
-			SELECT VARIABLE_VALUE
-			FROM sys.metrics
-			WHERE VARIABLE_NAME = 'adaptive_hash_searches'
-			))
-			) * 100,
-			2
-			) AS AHIRatio;`
+				FORMAT_BYTES((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_buffer_pool_size')) AS BP_Size,
+				(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_buffer_pool_instances') AS BP_instances,
+				CONCAT(
+					FORMAT_BYTES(STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'),
+					' / ',
+					FORMAT_BYTES(
+						(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size') *
+						(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group')
+					)
+				) AS CheckpointInfo,
+				ROUND(
+					(
+						(
+							(SELECT
+								STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'
+							FROM performance_schema.log_status)
+							/ ((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size') *
+								(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group'))
+						) * 100
+					),
+					2
+				) AS CheckpointAge,
+				FORMAT_BYTES((SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_file_size')) AS InnoDBLogFileSize,
+				(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_log_files_in_group') AS NbFiles,
+				(SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Innodb_redo_log_enabled') AS RedoEnabled,
+				(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_adaptive_hash_index') AS AHIEnabled,
+				(SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'innodb_adaptive_hash_index_parts') AS AHIParts,
+				ROUND(
+					(
+						(SELECT VARIABLE_VALUE FROM sys.metrics WHERE VARIABLE_NAME = 'adaptive_hash_searches') /
+						((SELECT VARIABLE_VALUE FROM sys.metrics WHERE VARIABLE_NAME = 'adaptive_hash_searches_btree') + (SELECT VARIABLE_VALUE FROM sys.metrics WHERE VARIABLE_NAME = 'adaptive_hash_searches'))
+					) * 100, 2
+				) AS AHIRatio
+			FROM performance_schema.log_status;`
 }
 
 func MySQLBufferpool() string {
@@ -202,7 +176,7 @@ func MySQLThreadIO() string {
 	return `Show engine innodb status;`
 }
 
-func MySQLUserMemory() string {
+func MySQLMalloc() string {
 	return `SELECT user, current_allocated, current_max_alloc
 			FROM sys.memory_by_user_by_current_bytes
 			WHERE user != "background";`
@@ -213,11 +187,10 @@ func MySQLGlobalAllocated() string {
 }
 
 func MySQLSpecificAllocated() string {
-	return `SELECT SUBSTRING_INDEX(event_name,'/',2) AS code_area,
-			format_bytes(SUM(current_alloc)) AS current_alloc,
-			sum(current_alloc) current_alloc_num
+	return `SELECT SUBSTRING_INDEX(event_name, '/', 2) AS code_area,
+				FORMAT_BYTES(SUM(current_alloc)) AS current_alloc
 			FROM sys.x$memory_global_by_current_bytes
-			GROUP BY SUBSTRING_INDEX(event_name,'/',2)
+			GROUP BY SUBSTRING_INDEX(event_name, '/', 2)
 			ORDER BY SUM(current_alloc) DESC;`
 }
 
@@ -227,38 +200,6 @@ func MySQLRamNDisk() string {
 			format_bytes(HIGH_NUMBER_OF_BYTES_USED) AS high_alloc
 			FROM performance_schema.memory_summary_global_by_event_name
 			WHERE event_name LIKE 'memory/temptable/%';`
-}
-
-func MySQLCheckpointInfo() string {
-	return `SELECT CONCAT(
-			(
-			SELECT FORMAT_BYTES(
-			STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'
-			)
-			FROM performance_schema.log_status),
-			" / ",
-			format_bytes(
-			(SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE VARIABLE_NAME = 'innodb_log_file_size'
-			)  * (
-			SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE VARIABLE_NAME = 'innodb_log_files_in_group'))
-			) CheckpointInfo;`
-}
-
-func MySQLCheckpointAgePct() string {
-	return `SELECT ROUND(((
-			SELECT STORAGE_ENGINES->>'$."InnoDB"."LSN"' - STORAGE_ENGINES->>'$."InnoDB"."LSN_checkpoint"'
-			FROM performance_schema.log_status) / ((
-			SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE VARIABLE_NAME = 'innodb_log_file_size'
-			) * (
-			SELECT VARIABLE_VALUE
-			FROM performance_schema.global_variables
-			WHERE VARIABLE_NAME = 'innodb_log_files_in_group')) * 100));`
 }
 
 func MySQLErrorLog() string {
@@ -276,7 +217,8 @@ func MySQLLocks() string {
 			INNER JOIN information_schema.innodb_trx b
 			ON b.trx_id = w.blocking_engine_transaction_id
 			INNER JOIN information_schema.innodb_trx r
-			ON r.trx_id = w.requesting_engine_transaction_id;`
+			ON r.trx_id = w.requesting_engine_transaction_id;
+			`
 }
 
 func MySQLReplication() string {

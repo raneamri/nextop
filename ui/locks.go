@@ -17,23 +17,11 @@ import (
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Workload:
-
-	1 query
-	across 3 goroutines
-*/
-
-/*
-Format:
-
-	widget-1 (top): blank
-	widget-2 (bottom): locks
-*/
 func DisplayLocks() {
 	t, err := tcell.New()
 	defer t.Close()
@@ -42,7 +30,7 @@ func DisplayLocks() {
 	active_txt, _ := text.New()
 	log, _ := text.New()
 
-	go dynLockLog(ctx, log, Interval)
+	go dynLockLog(ctx, log)
 
 	cont, err := container.New(
 		t,
@@ -97,41 +85,40 @@ func DisplayLocks() {
 }
 
 func dynLockLog(ctx context.Context,
-	log *text.Text,
-	delay time.Duration) {
+	log *text.Text) {
 
 	var (
-		lockChannel chan string = make(chan string)
+		lockChannel chan types.Query = make(chan types.Query)
 	)
 
-	go fetchLocks(ctx, lockChannel, delay)
+	go fetchLocks(ctx, lockChannel)
 	go writeLocks(ctx, log, lockChannel)
 }
 
-func fetchLocks(ctx context.Context, lockChannel chan<- string, delay time.Duration) {
-	ticker := time.NewTicker(delay)
-	defer ticker.Stop()
+func fetchLocks(ctx context.Context,
+	lockChannel chan<- types.Query) {
 
 	var (
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
 		lookup map[string]func() string
 
-		messages [][]string
-		message  string
+		query types.Query
 	)
 
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["locks"]())
-
-			if len(messages) == 0 || len(messages[0]) == 0 {
-				message = "No active locks"
-			} else {
-				message = messages[0][0]
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
 			}
 
-			lockChannel <- message
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["locks"]())
+
+			lockChannel <- query
 
 		case <-ctx.Done():
 			return
@@ -139,18 +126,43 @@ func fetchLocks(ctx context.Context, lockChannel chan<- string, delay time.Durat
 	}
 }
 
-func writeLocks(ctx context.Context, log *text.Text, lockChannel <-chan string) {
+func writeLocks(ctx context.Context,
+	widget *text.Text,
+	lockChannel <-chan types.Query) {
 
 	var (
-		message string
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		//header []interface{} = []interface{}{"Timestamp", "Thd", "Type", "Message"}
+		format string = "%-200v\n"
+
+		color        text.WriteOption
+		colorflipper int = -1
 	)
 
 	for {
 		select {
-		case message = <-lockChannel:
+		case query = <-lockChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
 
-			log.Reset()
-			log.Write(message)
+		case <-ticker.C:
+			widget.Reset()
+
+			for _, row := range text_buffer {
+				if colorflipper > 0 {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+				}
+				colorflipper *= -1
+
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
+			}
 
 		case <-ctx.Done():
 			return

@@ -90,7 +90,7 @@ func InterfaceLoop() {
 
 	/*
 		If no config found, force config state
-		Else, processlist
+		Else, startup-view
 	*/
 	if len(ActiveConns) == 0 {
 		State = types.CONFIGS
@@ -103,8 +103,6 @@ func InterfaceLoop() {
 	*/
 	queries.MapMySQL(MySQLQueries)
 	GlobalQueryMap[types.MYSQL] = MySQLQueries
-	queries.MapPostgres(PostgresQueries)
-	GlobalQueryMap[types.POSTGRES] = PostgresQueries
 
 	for true {
 		switch State {
@@ -154,7 +152,9 @@ func InterfaceLoop() {
 				Perform cleanup and close program
 			*/
 			for _, inst := range Instances {
-				inst.Driver.Close()
+				if queries.Ping(inst) {
+					inst.Driver.Close()
+				}
 			}
 			return
 		default:

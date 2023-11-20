@@ -39,12 +39,12 @@ func DisplayMenu() {
 
 	help_table1, _ := text.New()
 	help_table1.Write(
-		"\n P Processlist\n D DB Dashboard\n M Memory Dashboard\n E Error Log\n L Lock Log\n R Replication\n T Transactions\n C Configs\n ? Help\n ESC Previous Page\n Q Quit",
+		"\n P Processlist\n D InnoDB Dashboard\n M Memory Dashboard\n E Error Log\n L Lock Log\n R Replication\n T Transactions\n C Configs\n ? Help\n ESC Previous Page\n Q Quit",
 		text.WriteCellOpts(cell.Bold()))
 
 	help_table2, _ := text.New()
 	help_table2.Write(
-		"\n CTRL/CMD+D Reload page\n -> Cycle to next connection\n <- Cycle to previous connection\n \\ Clear all filters\n / Clear group filters\n = Pause\n + Increase refresh rate by 100ms\n - Decrease refresh rate by 100ms\n",
+		"\n TAB Reload page\n -> Cycle to next connection\n <- Cycle to previous connection\n \\ Clear all filters\n / Clear group filters\n = Pause\n + Increase refresh rate by 100ms\n - Decrease refresh rate by 100ms\n _ Export Processlist\n",
 		text.WriteCellOpts(cell.Bold()),
 	)
 

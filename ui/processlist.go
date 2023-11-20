@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,25 +29,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-/*
-Workload:
-	6 separate queries
-	across 8 goroutines
-	updating 4 widgets (3 read only)
-*/
-
-/*
-Format:
-
-	widget-1 (bottom): processlist
-	widget-2 (top-left): uptime & qps
-	widget-3 (top-mid): barchart showing sel/ins/del/upd
-	widget-4 (top-right): query lifeline
-	widget-5 (lower-bottom): kill/thread info
-*/
-var CurrentThread string
-var CurrentQuery string
-
 func DisplayProcesslist() {
 	t, err := tcell.New()
 	defer t.Close()
@@ -73,16 +53,10 @@ func DisplayProcesslist() {
 		queries_lc *linechart.LineChart
 	)
 
-	/*
-		Flags
-	*/
 	pause.Store(false)
 	export.Store(false)
 	analyse.Store(false)
 
-	/*
-		widget-1
-	*/
 	pl_text, _ = text.New()
 	pl_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
@@ -114,15 +88,9 @@ func DisplayProcesslist() {
 		textinput.PlaceHolder(" Group name"),
 	)
 
-	/*
-		widget-2
-	*/
 	info_text, _ = text.New()
 	info_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	/*
-		widget-3
-	*/
 	acts_bc, _ = barchart.New(
 		barchart.BarColors([]cell.Color{
 			cell.ColorNumber(24),
@@ -152,9 +120,6 @@ func DisplayProcesslist() {
 		}),
 	)
 
-	/*
-		widget-4
-	*/
 	queries_lc, _ = linechart.New(
 		linechart.YAxisAdaptive(),
 		linechart.YAxisFormattedValues(linechart.ValueFormatterRoundWithSuffix("")),
@@ -163,9 +128,18 @@ func DisplayProcesslist() {
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 	)
 
-	/*
-		widget-5
-	*/
+	go dynProcesslist(ctx,
+		pl_text,
+		info_text,
+		acts_bc,
+		queries_lc,
+		search,
+		exclude,
+		group,
+		&pause,
+		&export,
+		&analyse)
+
 	thread, _ = textinput.New(
 		textinput.Label("Analyse  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
@@ -184,19 +158,6 @@ func DisplayProcesslist() {
 		textinput.BorderColor(cell.Color(cell.ColorAqua)),
 		textinput.PlaceHolder(" Conn ID"),
 	)
-
-	go dynProcesslist(ctx,
-		pl_text,
-		info_text,
-		acts_bc,
-		queries_lc,
-		search,
-		exclude,
-		group,
-		Interval,
-		&pause,
-		&export,
-		&analyse)
 
 	cont, err := container.New(
 		t,
@@ -286,9 +247,6 @@ func DisplayProcesslist() {
 	}
 
 	var keyreader func(k *terminalapi.Keyboard) = func(k *terminalapi.Keyboard) {
-		/*
-			Rate limiter
-		*/
 		elapsed := time.Since(LastInputTime)
 		ratelim, _ := strconv.Atoi(io.FetchSetting("rate-limiter"))
 		if elapsed < time.Duration(ratelim)*time.Millisecond {
@@ -337,13 +295,11 @@ func DisplayProcesslist() {
 			}
 		case keyboard.KeyEnter:
 			tokill := kill.ReadAndClear()
-			toanalyse := thread.ReadAndClear()
+			toanalyse := thread.Read()
 
 			if tokill != "" {
 				lookup := GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-				queries.GetLongQuery(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["kill"](), tokill))
-				time.Sleep(500 * time.Millisecond)
-				cancel()
+				queries.Query(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["kill"](), tokill))
 			} else if toanalyse != "" {
 				CurrentThread = toanalyse
 				analyse.Store(true)
@@ -351,6 +307,7 @@ func DisplayProcesslist() {
 				time.Sleep(100 * time.Millisecond)
 
 				State = types.THREAD_ANALYSIS
+
 				cancel()
 			}
 		}
@@ -369,137 +326,110 @@ func dynProcesslist(ctx context.Context,
 	search *textinput.TextInput,
 	exclude *textinput.TextInput,
 	group *textinput.TextInput,
-	delay time.Duration,
 	pause *atomic.Value,
 	export *atomic.Value,
 	analyse *atomic.Value) {
 
 	var (
-		processlistChannel chan []string  = make(chan []string)
-		infoChannel        chan []string  = make(chan []string)
-		barchartChannel    chan [4]int    = make(chan [4]int)
-		linechartChannel   chan []float64 = make(chan []float64)
+		processlistChannel chan types.Query = make(chan types.Query)
+		metricsChannel     chan types.Query = make(chan types.Query)
 	)
 
-	go fetchProcesslist(ctx, processlistChannel, group, pause, export, analyse, delay)
-	go writeProcesslist(ctx, pl_text, processlistChannel, search, exclude)
+	/*
+		Launch goroutine for each connection
+	*/
+	for _, conn := range ActiveConns {
+		go fetchProcesslist(ctx,
+			conn,
+			processlistChannel,
+			group,
+			pause,
+			export,
+			analyse)
 
-	go fetchProcesslistInfo(ctx, infoChannel, linechartChannel, delay, pause)
-	go writeProcesslistInfo(ctx, info_text, infoChannel)
+		go fetchMetrics(ctx,
+			conn,
+			metricsChannel)
+	}
 
-	go fetchProcesslistBarchart(ctx, barchartChannel, delay, pause)
-	go writeProcesslistBarchart(ctx, acts_bc, barchartChannel)
+	go displayProcesslist(ctx,
+		processlistChannel,
+		pl_text,
+		pause,
+		search,
+		exclude,
+		analyse)
 
-	go writeProcesslistLinechart(ctx, queries_lc, linechartChannel)
+	go displayMetrics(ctx,
+		metricsChannel,
+		info_text,
+		acts_bc,
+		queries_lc)
 
 	<-ctx.Done()
 }
 
-/*
-container-1
-*/
 func fetchProcesslist(ctx context.Context,
-	processlistChannel chan<- []string,
+	conn string,
+	processlistChannel chan<- types.Query,
 	group *textinput.TextInput,
 	pause *atomic.Value,
 	export *atomic.Value,
-	analyse *atomic.Value,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+	analyse *atomic.Value) {
 
 	var (
-		/*
-			Fetch headers per DBMS
-		*/
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
 
-		/*
-			Fetch variables
-		*/
-		lookup      map[string]func() string
-		pldata      [][]string = make([][]string, 0, 4096)
-		group_found bool
-		/*
-			Formatting variables
-		*/
+		lookup map[string]func() string = GlobalQueryMap[Instances[conn].DBMS]
+		query  types.Query
+		order  []int = make([]int, 10)
+
 		ftime     int64
 		flocktime int64
 		fquery    string
-		builder   strings.Builder = strings.Builder{}
-		/*
-			Channel message variable
-		*/
-		messages []string = make([]string, 0, 4096)
 	)
+
+	switch Instances[conn].DBMS {
+	case types.MYSQL:
+		order = []int{0, 1, 2, 3, 4, 5, 6, 8, 9, 7}
+
+	case types.POSTGRES:
+		order = nil
+
+	default:
+		order = nil
+	}
 
 	for {
 		select {
 		case <-ticker.C:
-			group_found = false
-			if pause.Load().(bool) && !analyse.Load().(bool) {
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
+			}
+
+			if pause.Load().(bool) {
 				if export.Load().(bool) {
-					fmt.Println(messages)
-					os.Exit(1)
-					io.ExportProcesslist(&messages)
 					export.Store(false)
+					io.ExportProcesslist(query.RawData)
 				}
 				continue
 			}
-			messages = make([]string, 0, 4096)
-			for i, key := range ActiveConns {
-				/*
-					Handle group filter
-				*/
-				if group.Read() != "" {
-					if Instances[key].Group != group.Read() {
-						if i == len(ActiveConns)-1 && !group_found {
-							messages = nil
-							processlistChannel <- messages
-						}
-						continue
-					} else {
-						group_found = true
-					}
-				}
+			query, _ = queries.Query(Instances[conn].Driver, lookup["processlist"]())
+			utility.ShuffleQuery(query, order)
 
-				/*
-					Fetch query using DBMS and keyword
-				*/
-				lookup = GlobalQueryMap[Instances[key].DBMS]
-				pldata = queries.GetLongQuery(Instances[key].Driver, lookup["processlist"]())
-
-				for _, row := range pldata {
-					/*
-						Formatting
-					*/
-					ftime, _ = strconv.ParseInt(row[8], 10, 64)
-					flocktime, _ = strconv.ParseInt(row[9], 10, 64)
-					fquery = strings.ReplaceAll(strings.ReplaceAll(row[7], "\t", " "), "\n", " ")
-
-					if analyse.Load().(bool) {
-						if CurrentThread == row[1] {
-							CurrentQuery = fquery
-							analyse.Store(false)
-							return
-						}
-					}
-
-					/*
-						Line up items & send to channel
-					*/
-					builder.WriteString(fmt.Sprintf("%-7v %-10v %-10v %-10v %-29v %-20v %-18v %-10v %-10v ",
-						row[0], row[1], row[2], row[3], row[4], row[5], row[6],
-						utility.FpicoToMs(ftime), utility.FpicoToUs(flocktime)))
-
-					builder.WriteString(fquery + "\n")
-
-					messages = append(messages, builder.String())
-					builder.Reset()
-				}
+			for i := range query.RawData {
+				ftime, _ = strconv.ParseInt(query.RawData[i][7], 10, 64)
+				query.RawData[i][7] = utility.FormatDuration(ftime)
+				flocktime, _ = strconv.ParseInt(query.RawData[i][8], 10, 64)
+				query.RawData[i][8] = utility.FormatDuration(flocktime)
+				fquery = strings.Join(strings.Fields(strings.ReplaceAll(strings.ReplaceAll(query.RawData[i][9], "\t", " "), "\n", " ")), " ")
+				query.RawData[i][9] = fquery
 			}
 
-			processlistChannel <- messages
+			processlistChannel <- query
 
 		case <-ctx.Done():
 			return
@@ -507,27 +437,30 @@ func fetchProcesslist(ctx context.Context,
 	}
 }
 
-func writeProcesslist(ctx context.Context,
-	pl_text *text.Text,
-	processlistChannel <-chan []string,
+func displayProcesslist(ctx context.Context,
+	processlistChannel <-chan types.Query,
+	widget *text.Text,
+	pause *atomic.Value,
 	search *textinput.TextInput,
-	exclude *textinput.TextInput) {
+	exclude *textinput.TextInput,
+	analyse *atomic.Value) {
 
 	var (
-		/*
-			Parse variables
-		*/
-		re            *regexp.Regexp = regexp.MustCompile(`(\d+\.\d+)ms`)
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		header []interface{} = []interface{}{"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock-Time", "Query"}
+		format string        = "%-10v %-10v %-10v %-5v %-15v %-15v %-20v %-10v %-10v %-99v\n"
+
+		re            *regexp.Regexp = regexp.MustCompile(`(\d+\.\d+)(.)s`)
 		match         []string       = make([]string, 0)
-		ms            float64
+		ps            int64
 		sens_filters  bool
 		include_regex *regexp.Regexp
 		exclude_regex *regexp.Regexp
-		/*
-			Display variables
-		*/
-		message      []string = make([]string, 0)
-		headers      string
+
 		color        text.WriteOption
 		colorflipper int
 	)
@@ -540,16 +473,29 @@ func writeProcesslist(ctx context.Context,
 
 	for {
 		select {
-		case message = <-processlistChannel:
-			pl_text.Reset()
-			headers = fmt.Sprintf("%-7v %-10v %-10v %-10v %-29v %-20v %-18v %-10v %-10v %-15v\n",
-				"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock-Time", "Query")
+		case query = <-processlistChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
+
+		case <-ticker.C:
+			if analyse.Load().(bool) {
+				for _, row := range text_buffer {
+					if row[1] == CurrentThread {
+						CurrentQuery = row[9]
+					}
+				}
+			}
+			if pause.Load().(bool) {
+				continue
+			}
+			widget.Reset()
+			widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
 
 			colorflipper = -1
 
-			pl_text.Write(headers, text.WriteCellOpts(cell.Bold()))
-			for _, process := range message {
-				t := strings.Split(search.Read(), ",")
+			for _, row := range text_buffer {
+				var t []string = strings.Split(search.Read(), ",")
 				for i, word := range t {
 					t[i] = strings.TrimSpace(word)
 				}
@@ -572,26 +518,26 @@ func writeProcesslist(ctx context.Context,
 				}
 				exclude_regex = regexp.MustCompile(pattern)
 
-				if (search.Read() != "" && !include_regex.MatchString(process)) ||
-					(exclude.Read() != "" && exclude_regex.MatchString(process)) {
+				if (search.Read() != "" && !include_regex.MatchString(strings.Join(row, ""))) ||
+					(exclude.Read() != "" && exclude_regex.MatchString(strings.Join(row, ""))) {
 					continue
 				}
 
-				match = re.FindStringSubmatch(process)
-				ms, _ = strconv.ParseFloat(match[1], 64)
+				match = re.FindStringSubmatch(strings.Join(row, " "))
+				ps = utility.DeformatDuration(match[0])
 
 				switch {
-				case ms >= 5 && ms < 10:
+				case ps >= 5e9 && ps < 1e10:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
 					break
-				case ms >= 10 && ms < 50:
+				case ps >= 1e10 && ps < 5e10:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
 					break
-				case ms >= 50 && ms < 100:
+				case ps >= 5e10 && ps < 1e11:
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorMaroon))
 					break
-				case ms >= 100:
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorBlack))
+				case ps >= 1e11:
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorMagenta))
 					break
 				default:
 					if colorflipper < 0 {
@@ -603,8 +549,10 @@ func writeProcesslist(ctx context.Context,
 				}
 				colorflipper *= -1
 
-				pl_text.Write(process, color)
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
 			}
+
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return
@@ -612,49 +560,51 @@ func writeProcesslist(ctx context.Context,
 	}
 }
 
-/*
-container-2
-*/
-func fetchProcesslistInfo(ctx context.Context,
-	infoChannel chan<- []string,
-	linechartChannel chan<- []float64,
-	delay time.Duration,
-	pause *atomic.Value) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+func fetchMetrics(ctx context.Context,
+	conn string,
+	metricsChannel chan<- types.Query) {
 
 	var (
-		messages   []string  = make([]string, 0)
-		lc_message []float64 = make([]float64, 0)
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
+
+		lookup map[string]func() string = GlobalQueryMap[Instances[conn].DBMS]
+		query  types.Query
+		order  []int = make([]int, 10)
+
+		ftime int64
 	)
+
+	switch Instances[conn].DBMS {
+	case types.MYSQL:
+		order = []int{0, 1, 2, 3, 4, 5, 6}
+
+	case types.POSTGRES:
+		order = nil
+
+	default:
+		order = nil
+	}
 
 	for {
 		select {
 		case <-ticker.C:
-			if pause.Load().(bool) {
-				continue
-			}
-			for _, key := range ActiveConns {
-				lookup := GlobalQueryMap[Instances[key].DBMS]
-				statuses := queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["uptime"]())
-
-				uptime, _ := strconv.Atoi(statuses[1][1])
-				qps_int, _ := strconv.Atoi(queries.GetLongQuery(Instances[key].Driver, lookup["queries"]())[0][0])
-				if Instances[key].ConnName == Instances[ActiveConns[0]].ConnName {
-					lc_message = append(lc_message, float64(qps_int))
-					if len(lc_message) > 32 {
-						lc_message = lc_message[1:]
-					}
-					linechartChannel <- lc_message
-				}
-
-				messages = append(messages, fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
-					key, utility.Ftime(uptime), utility.Fnum(qps_int), statuses[0][1]))
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
 			}
 
-			infoChannel <- messages
-			messages = make([]string, 0)
+			query, _ = queries.Query(Instances[conn].Driver, lookup["metrics"]())
+			utility.ShuffleQuery(query, order)
+
+			for i := range query.RawData {
+				ftime, _ = strconv.ParseInt(query.RawData[i][0], 10, 64)
+				query.RawData[i][0] = utility.Ftime(int(ftime))
+				query.RawData[i] = append([]string{conn}, query.RawData[i]...)
+			}
+
+			metricsChannel <- query
 
 		case <-ctx.Done():
 			return
@@ -662,126 +612,96 @@ func fetchProcesslistInfo(ctx context.Context,
 	}
 }
 
-func writeProcesslistInfo(ctx context.Context,
-	info_text *text.Text,
-	infoChannel <-chan []string) {
+func displayMetrics(ctx context.Context,
+	metricsChannel <-chan types.Query,
+	widget *text.Text,
+	bc *barchart.BarChart,
+	lc *linechart.LineChart) {
+
+	var ticker *time.Ticker = time.NewTicker(Interval)
+	defer ticker.Stop()
 
 	var (
-		message      []string = make([]string, 0)
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		header []interface{} = []interface{}{"Conn", "Uptime", "Queries", "Threads"}
+		format string        = "%-10v %-20v %-10v %-10v\n"
+
 		color        text.WriteOption
 		colorflipper int
+
+		qpi_history []float64
+		qpi_int     float64
 	)
 
 	for {
 		select {
-		case message = <-infoChannel:
-			headers := fmt.Sprintf("%-13v %-22v %-10v %-5v\n",
-				"Connection", "Uptime", "Queries", "Threads")
+		case query = <-metricsChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
+
+		case <-ticker.C:
+			widget.Reset()
+			widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
 
 			colorflipper = -1
 
-			info_text.Reset()
-			info_text.Write(headers, text.WriteCellOpts(cell.Bold()))
-			for _, item := range message {
-				key := strings.Split(item, " ")[0]
-				if key == ActiveConns[0] {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorGreen))
-				} else if colorflipper < 0 {
-					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
-				} else {
+			var cumulative_qpi float64 = 0
+			for _, row := range text_buffer {
+				qpi_int, _ = strconv.ParseFloat(row[2], 64)
+				cumulative_qpi += qpi_int
+
+				if colorflipper < 0 {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 				}
+
+				if row[0] == ActiveConns[0] {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGreen))
+				}
+
 				colorflipper *= -1
 
-				info_text.Write(item, color)
+				widget.Write(fmt.Sprintf(format, utility.SliceToInterface(row[:4])...), color)
+
+				if bc != nil {
+					if row[0] == ActiveConns[0] {
+						var (
+							selects int
+							inserts int
+							updates int
+							deletes int
+						)
+
+						selects, _ = strconv.Atoi(row[4])
+						inserts, _ = strconv.Atoi(row[5])
+						updates, _ = strconv.Atoi(row[6])
+						deletes, _ = strconv.Atoi(row[7])
+
+						bc.Values([]int{selects, inserts, updates, deletes}[:],
+							utility.Max([]int{selects, inserts, updates, deletes}[:])+15)
+					}
+				}
 			}
-		}
-	}
-}
 
-/*
-container-3
-*/
-func fetchProcesslistBarchart(ctx context.Context,
-	barchartChannel chan<- [4]int,
-	delay time.Duration,
-	pause *atomic.Value) {
+			if lc != nil {
+				qpi_history = append(qpi_history, cumulative_qpi)
 
-	ticker := time.NewTicker(delay)
-	defer ticker.Stop()
-
-	var (
-		lookup map[string]func() string
-
-		operations [][]string
-		selects    int
-		inserts    int
-		updates    int
-		deletes    int
-		messages   [4]int
-	)
-
-	for {
-		select {
-		case <-ticker.C:
-			if pause.Load().(bool) {
-				continue
+				lc.Series("first", qpi_history,
+					linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
+					linechart.SeriesXLabels(map[int]string{
+						0: "0",
+					}),
+				)
 			}
-			/*
-				Format data
-			*/
-			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			operations = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["operations"]())
-			selects, _ = strconv.Atoi(operations[0][0])
-			inserts, _ = strconv.Atoi(operations[0][1])
-			updates, _ = strconv.Atoi(operations[0][2])
-			deletes, _ = strconv.Atoi(operations[0][3])
-			messages = [4]int{selects, inserts, updates, deletes}
 
-			barchartChannel <- messages
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return
-		}
-	}
-
-}
-
-func writeProcesslistBarchart(ctx context.Context,
-	acts_bc *barchart.BarChart,
-	barchartChannel <-chan [4]int) {
-
-	var (
-		message [4]int
-	)
-
-	for {
-		select {
-		case message = <-barchartChannel:
-
-			acts_bc.Values(message[:], utility.Max(message[:])+15)
-		}
-	}
-}
-
-func writeProcesslistLinechart(ctx context.Context,
-	queries_lc *linechart.LineChart,
-	linechartChannel <-chan []float64) {
-
-	var (
-		message []float64 = make([]float64, 0)
-	)
-
-	for {
-		select {
-		case message = <-linechartChannel:
-
-			queries_lc.Series("first", message,
-				linechart.SeriesCellOpts(cell.FgColor(cell.ColorNumber(33))),
-				linechart.SeriesXLabels(map[int]string{
-					0: "0",
-				}),
-			)
 		}
 	}
 }

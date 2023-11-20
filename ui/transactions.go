@@ -18,15 +18,8 @@ import (
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 )
-
-/*
-Workload:
-*/
-
-/*
-Formats:
-*/
 
 func DisplayTransactions() {
 	t, err := tcell.New()
@@ -41,10 +34,13 @@ func DisplayTransactions() {
 	txns_text, _ := text.New()
 	txns_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
+	info_text, _ := text.New()
+	info_text.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+
 	go dynTransactions(ctx,
 		txns_text,
-		&pause,
-		Interval)
+		info_text,
+		&pause)
 
 	cont, err := container.New(
 		t,
@@ -62,8 +58,9 @@ func DisplayTransactions() {
 			container.Bottom(
 				container.Border(linestyle.Light),
 				container.BorderTitle(""),
+				container.PlaceWidget(info_text),
 			),
-			container.SplitPercent(90),
+			container.SplitPercent(70),
 		),
 	)
 
@@ -115,53 +112,76 @@ func DisplayTransactions() {
 
 func dynTransactions(ctx context.Context,
 	txns_text *text.Text,
-	pause *atomic.Value,
-	delay time.Duration) {
+	info_text *text.Text,
+	pause *atomic.Value) {
 
 	var (
-		txnsChannel chan [][]string = make(chan [][]string)
+		txnsChannel    chan types.Query = make(chan types.Query)
+		metricsChannel chan types.Query = make(chan types.Query)
 	)
 
-	go fetchTransactions(ctx, txnsChannel, pause, delay)
+	for _, conn := range ActiveConns {
+		go fetchMetrics(ctx,
+			conn,
+			metricsChannel)
+	}
+
+	go displayMetrics(ctx,
+		metricsChannel,
+		info_text,
+		nil,
+		nil)
+
+	go fetchTransactions(ctx, txnsChannel, pause)
 	go writeTransactions(ctx, txns_text, txnsChannel)
 
 	<-ctx.Done()
 }
 
 func fetchTransactions(ctx context.Context,
-	txnsChannel chan<- [][]string,
-	pause *atomic.Value,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+	txnsChannel chan<- types.Query,
+	pause *atomic.Value) {
 
 	var (
-		/*
-			Fetch variables
-		*/
-		lookup map[string]func() string
-		/*
-			Formatting variables
-		*/
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
 
-		/*
-			Channel message variable
-		*/
-		messages [][]string = make([][]string, 0)
+		lookup map[string]func() string
+
+		query types.Query
+
+		order []int = make([]int, 10)
 	)
+
+	switch Instances[ActiveConns[0]].DBMS {
+	case types.MYSQL:
+		order = []int{0, 1, 2, 3, 4}
+
+	case types.POSTGRES:
+		order = nil
+
+	default:
+		order = nil
+	}
 
 	for {
 		select {
 		case <-ticker.C:
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
+			}
+
 			if pause.Load().(bool) {
 				continue
 			}
 			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			messages = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["transactions"]())
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["transactions"]())
 
-			txnsChannel <- messages
-			messages = [][]string{}
+			utility.ShuffleQuery(query, order)
+
+			txnsChannel <- query
 
 		case <-ctx.Done():
 			return
@@ -171,43 +191,48 @@ func fetchTransactions(ctx context.Context,
 }
 
 func writeTransactions(ctx context.Context,
-	txns_text *text.Text,
-	txnsChannel <-chan [][]string) {
+	widget *text.Text,
+	txnsChannel <-chan types.Query) {
 
 	var (
-		/*
-			Parse variables
-		*/
+		ticker *time.Ticker = time.NewTicker(Interval)
 
-		/*
-			Display variables
-		*/
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		header []interface{} = []interface{}{"Thd", "User", "Cmd", "Duration", "Stmt"}
+		format string        = "%-9v %-25v %-15v %-15v %-64v\n"
+
 		color        text.WriteOption
-		colorflipper int = 1
-		header       string
-		message      [][]string = make([][]string, 0)
-		out          string
+		colorflipper int
 	)
 
 	for {
 		select {
-		case message = <-txnsChannel:
-			txns_text.Reset()
+		case query = <-txnsChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
 
-			header = fmt.Sprintf("%-9v %-25v %-15v %-15v %-64v\n", "Thd", "User", "Cmd", "Duration", "Stmt")
+		case <-ticker.C:
+			widget.Reset()
 
-			txns_text.Write(header, text.WriteCellOpts(cell.Bold()))
+			widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
 
-			for _, line := range message {
+			colorflipper = 1
+
+			for _, row := range text_buffer {
 				if colorflipper < 0 {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
 				} else {
 					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
 				}
 				colorflipper *= -1
-				out = fmt.Sprintf("%-9v %-25v %-15v %-15v %-64v\n", line[0], line[1], line[2], line[3], line[4])
-				txns_text.Write(out, color)
+
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
 			}
+
+			text_buffer = make([][]string, 0)
 
 		case <-ctx.Done():
 			return

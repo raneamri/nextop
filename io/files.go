@@ -2,7 +2,6 @@ package io
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -30,7 +29,7 @@ func WriteConfig(instance types.Instance) {
 	)
 
 	const fpath string = ".nextop.conf"
-	parser, _ = ioutil.ReadFile(fpath)
+	parser, _ = os.ReadFile(fpath)
 
 	connStart = strings.Index(string(parser), "[/connections]")
 	connEnd = strings.Index(string(parser), "[/connections]")
@@ -46,7 +45,7 @@ func WriteConfig(instance types.Instance) {
 		parsed []byte = []byte(beforeSection + fdbms + fdsn + fdbname + fgroup + "\n" + afterSection)
 	)
 
-	ioutil.WriteFile(fpath, parsed, 0644)
+	os.WriteFile(fpath, parsed, 0644)
 }
 
 /*
@@ -60,10 +59,17 @@ func ReadInstances(Instances map[string]types.Instance) {
 	)
 
 	const fpath string = ".nextop.conf"
-	contents, _ := ioutil.ReadFile(fpath)
+	contents, err := os.ReadFile(fpath)
+	if err != nil {
+		panic("Error reading file: " + err.Error())
+	}
 
 	connStart = strings.Index(string(contents), "[connections]")
 	connEnd = strings.Index(string(contents), "[/connections]")
+	if connStart == -1 || connEnd == -1 {
+		// Handle the error and panic with a custom message
+		panic("File format error: [connections] or [/connections] not found")
+	}
 	config = string(contents[connStart+13 : connEnd-1])
 
 	var lines []string = strings.Split(config, "\n")
@@ -90,7 +96,7 @@ func ReadInstances(Instances map[string]types.Instance) {
 
 			parts = strings.Split(pair, "=")
 			if len(parts) != 2 {
-				continue
+				panic("Invalid line format: " + line)
 			}
 
 			key = strings.TrimSpace(parts[0])
@@ -105,6 +111,8 @@ func ReadInstances(Instances map[string]types.Instance) {
 				inst.ConnName = value
 			case "group":
 				inst.Group = value
+			default:
+				panic("Unknown key: " + key)
 			}
 		}
 
@@ -125,7 +133,7 @@ func CleanConfig() {
 	)
 
 	const fpath string = ".nextop.conf"
-	parser, err := ioutil.ReadFile(fpath)
+	parser, err := os.ReadFile(fpath)
 	if err != nil {
 		panic(err)
 	}
@@ -150,7 +158,7 @@ func CleanConfig() {
 
 	output = strings.Join(ordered, "\n")
 
-	err = ioutil.WriteFile(fpath, []byte(output), 0644)
+	err = os.WriteFile(fpath, []byte(output), 0644)
 	if err != nil {
 		panic(err)
 	}
@@ -183,7 +191,7 @@ func FetchSetting(param string) string {
 	)
 
 	const fpath string = ".nextop.conf"
-	contents, err := ioutil.ReadFile(fpath)
+	contents, err := os.ReadFile(fpath)
 	if err != nil {
 		panic(err)
 	}
@@ -232,60 +240,47 @@ func FetchSetting(param string) string {
 /*
 Writes processlist contents to a text file
 */
-func ExportProcesslist(data *[]string) {
-	var (
-		fpath     string
-		sb        strings.Builder
-		re        *regexp.Regexp
-		err       error
-		out       string
-		partition int
-	)
-
-	fpath = FetchSetting("export-path")
-	re = regexp.MustCompile(`\s+`)
-	curr := time.Now()
-
-	out += "-- " + curr.Format("2006-01-02 15:04:05") + ":\n"
-
+func ExportProcesslist(rawdata [][]string) error {
+	fpath := FetchSetting("export-path")
 	file, err := os.OpenFile(fpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer file.Close()
 
+	curr := time.Now()
+	out := "\n-- " + curr.Format("2006-01-02 15:04:05") + ":\n"
 	_, err = file.WriteString(out)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	for _, line := range *data {
-		fmt.Println(len(line))
-		line = re.ReplaceAllString(line, " ")
+	re := regexp.MustCompile(`[\s,;]+`)
 
-		for _, char := range line {
-			sb.WriteRune(char)
-			if char == ',' || char == ';' {
-				sb.WriteRune('\n')
-			}
-		}
+	for _, subSlice := range rawdata {
+		data := strings.Join(subSlice, " ")
+		data = re.ReplaceAllString(data, " ")
 
-		out = sb.String()
-		partition = strings.Index(out, "µ") + 3
-
-		if out[len(out)-3] != 'µ' {
-			out = out[:partition] + "\n" + out[partition:] + "\n\n"
+		partition := strings.Index(data, "µ")
+		if partition == -1 {
+			partition = len(data)
 		} else {
-			out = out[:partition] + "\n" + "NO QUERY\n\n"
+			partition += 3
 		}
 
-		fmt.Println(len(out), "&", len(line))
-		ch := fmt.Sprint(len(out)) + "&" + fmt.Sprint(len(line)) + "\n"
+		out = data[:partition] + "\n"
+		if partition < len(data) {
+			out += data[partition:] + "\n"
+		} else {
+			out += "NO QUERY\n"
+		}
+
+		ch := fmt.Sprintf("%d&%d\n", len(out), len(data))
 		_, err = file.WriteString(ch + out)
 		if err != nil {
-			panic(err)
+			return err
 		}
-
-		sb.Reset()
 	}
+
+	return nil
 }

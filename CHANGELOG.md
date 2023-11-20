@@ -150,3 +150,8 @@
 - Code cleanup.
 - New thread analysis interface.
 - Thread io section added in innodb.
+
+
+## Mon 20 Nov 2023: (v0.0.3)
+- Complete rework of back-end. More reliable fetching, optimisations and some UI reworks.
+- Still requires testing for other DBMS, then code injection.

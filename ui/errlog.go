@@ -21,39 +21,20 @@ import (
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/queries"
 	"github.com/raneamri/nextop/types"
+	"github.com/raneamri/nextop/utility"
 
 	_ "github.com/go-sql-driver/mysql"
 )
-
-/*
-Workload:
-	3 goroutines
-	managing 1 query
-	and medium duty formatting
-*/
-
-/*
-Format:
-	widget-1 (top-left): filters
-	widget-2 (bottom): error log
-	widget-3 (top right): linegraphs
-*/
 
 func DisplayErrorLog() {
 	t, err := tcell.New()
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	/*
-		Error log (widget-1)
-	*/
 	log, _ := text.New(
 		text.WrapAtRunes(),
 	)
 
-	/*
-		Error-type frequencies linechart (widget-2)
-	*/
 	frequencies, _ := linechart.New(
 		linechart.YAxisAdaptive(),
 		linechart.AxesCellOpts(cell.FgColor(cell.ColorRed)),
@@ -61,9 +42,6 @@ func DisplayErrorLog() {
 		linechart.YLabelCellOpts(cell.FgColor(cell.ColorOlive)),
 	)
 
-	/*
-		Filters (widget-3)
-	*/
 	search, err := textinput.New(
 		textinput.Label("Search  ", cell.Bold(), cell.FgColor(cell.ColorNumber(33))),
 		textinput.TextColor(cell.ColorWhite),
@@ -83,9 +61,9 @@ func DisplayErrorLog() {
 		textinput.PlaceHolder(" Suggested: "+io.FetchSetting("err-exclude-suggestion")),
 	)
 
-	log.Write("\n   Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
+	log.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	go dynErrorLog(ctx, log, search, exclude, frequencies, Interval)
+	go dynErrorLog(ctx, log, search, exclude, frequencies)
 
 	cont, err := container.New(
 		t,
@@ -168,58 +146,61 @@ func dynErrorLog(ctx context.Context,
 	log *text.Text,
 	search *textinput.TextInput,
 	exclude *textinput.TextInput,
-	freqs *linechart.LineChart,
-	delay time.Duration) {
+	freqs *linechart.LineChart) {
 
 	var (
-		errorChannel chan [][4]string = make(chan [][4]string)
+		errorChannel chan types.Query = make(chan types.Query)
 	)
 
-	go fetchErrors(ctx, errorChannel, delay)
+	go fetchErrors(ctx, errorChannel)
 	go writeErrors(ctx, log, search, exclude, freqs, errorChannel)
 
 	<-ctx.Done()
 }
 
 func fetchErrors(ctx context.Context,
-	errorChannel chan<- [][4]string,
-	delay time.Duration) {
-
-	var ticker *time.Ticker = time.NewTicker(delay)
-	defer ticker.Stop()
+	errorChannel chan<- types.Query) {
 
 	var (
-		lookup    map[string]func() string = make(map[string]func() string)
-		error_log [][]string               = make([][]string, 0)
-		/*
-			Channel message variable
-		*/
-		messages [][4]string
+		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		istIte bool         = false
+
+		lookup map[string]func() string = make(map[string]func() string)
+		query  types.Query
+
+		order []int = make([]int, 10)
 	)
+
+	switch Instances[ActiveConns[0]].DBMS {
+	case types.MYSQL:
+		order = []int{0, 1, 2, 5}
+
+	case types.POSTGRES:
+		order = nil
+
+	default:
+		order = nil
+	}
 
 	for {
 		select {
 		case <-ticker.C:
-			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
-			error_log = queries.GetLongQuery(Instances[ActiveConns[0]].Driver, lookup["err"]())
-
-			//fmt.Sprintf("%-20v %-5v %-55v\n",
-
-			messages = make([][4]string, len(error_log)+1)
-
-			messages[0][0] = "Timestamp"
-			messages[0][1] = "Thd"
-			messages[0][2] = "Message"
-			messages[0][3] = " "
-
-			for i, msg := range error_log {
-				messages[i+1][0] = msg[0][:strings.Index(msg[0], ".")]
-				messages[i+1][1] = msg[1]
-				messages[i+1][2] = msg[2]
-				messages[i+1][3] = msg[5]
+			if !istIte {
+				istIte = true
+				ticker = time.NewTicker(Interval)
+				defer ticker.Stop()
 			}
 
-			errorChannel <- messages
+			lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
+			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["err"]())
+
+			utility.ShuffleQuery(query, order)
+
+			for i, row := range query.RawData {
+				query.RawData[i][0] = row[0][:strings.Index(row[0], ".")]
+			}
+
+			errorChannel <- query
 		case <-ctx.Done():
 			return
 		}
@@ -227,20 +208,23 @@ func fetchErrors(ctx context.Context,
 }
 
 func writeErrors(ctx context.Context,
-	log *text.Text,
+	widget *text.Text,
 	search *textinput.TextInput,
 	exclude *textinput.TextInput,
 	freqs *linechart.LineChart,
-	errorChannel <-chan [][4]string) {
+	errorChannel <-chan types.Query) {
 
 	var (
-		msg          string
-		lc_msg       [3]float64
+		ticker *time.Ticker = time.NewTicker(Interval)
+
+		query       types.Query
+		text_buffer [][]string = make([][]string, 0)
+
+		header []interface{} = []interface{}{"Timestamp", "Thd", "Type", "Message"}
+		format string        = "%-20v %-5v %-10v %-100v\n"
+
 		sens_filters bool
-		/*
-			Display variables
-		*/
-		messages    [][4]string = make([][4]string, 0)
+
 		lc_messages [3][]float64
 
 		color        text.WriteOption
@@ -255,52 +239,64 @@ func writeErrors(ctx context.Context,
 
 	for {
 		select {
-		case messages = <-errorChannel:
-			log.Reset()
-			for i, row := range messages {
-				msg = fmt.Sprintf("%-20v %-6v %-8v %-55v\n", row[0], row[1], row[2], row[3])
+		case query = <-errorChannel:
+			for _, row := range query.RawData {
+				text_buffer = append(text_buffer, row)
+			}
 
-				if i == 0 {
-					log.Write(msg, text.WriteCellOpts(cell.Bold()))
+		case <-ticker.C:
+			widget.Reset()
+			widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
+
+			var (
+				err_count  float64 = 0
+				warn_count float64 = 0
+				sys_count  float64 = 0
+			)
+
+			for _, row := range text_buffer {
+				var (
+					conc_row string = strings.Join(row, " ")
+				)
+
+				if sens_filters {
+					if !strings.Contains(conc_row, search.Read()) || (strings.Contains(conc_row, exclude.Read()) && exclude.Read() != "") {
+						continue
+					}
 				} else {
-					if sens_filters {
-						if !strings.Contains(msg, search.Read()) || (strings.Contains(msg, exclude.Read()) && exclude.Read() != "") {
-							continue
-						}
-					} else {
-						if !strings.Contains(strings.ToLower(msg), strings.ToLower(search.Read())) ||
-							(strings.Contains(strings.ToLower(msg), strings.ToLower(exclude.Read())) && exclude.Read() != "") {
-							continue
-						}
+					if !strings.Contains(strings.ToLower(conc_row), strings.ToLower(search.Read())) ||
+						(strings.Contains(strings.ToLower(conc_row), strings.ToLower(exclude.Read())) && exclude.Read() != "") {
+						continue
 					}
-
-					if colorflipper > 0 {
-						color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
-					} else {
-						color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
-					}
-
-					switch row[2] {
-					case "Error":
-						color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
-						lc_msg[0]++
-					case "Warning":
-						color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
-						lc_msg[1]++
-					case "System":
-						color = text.WriteCellOpts(cell.FgColor(cell.ColorBlue))
-						lc_msg[2]++
-					default:
-						break
-					}
-
-					log.Write(msg, color)
 				}
+
+				if colorflipper > 0 {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+				} else {
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+				}
+				colorflipper *= -1
+
+				switch row[2] {
+				case "Error":
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorRed))
+					err_count++
+				case "Warning":
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorYellow))
+					warn_count++
+				case "System":
+					color = text.WriteCellOpts(cell.FgColor(cell.ColorBlue))
+					sys_count++
+				default:
+					break
+				}
+
+				widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
 			}
 
-			for i, t := range lc_msg {
-				lc_messages[i] = append(lc_messages[i], t)
-			}
+			lc_messages[0] = append(lc_messages[0], err_count)
+			lc_messages[1] = append(lc_messages[1], warn_count)
+			lc_messages[2] = append(lc_messages[2], sys_count)
 
 			if err := freqs.Series("Errors", lc_messages[0],
 				linechart.SeriesCellOpts(cell.FgColor(cell.ColorRed)),
@@ -328,8 +324,6 @@ func writeErrors(ctx context.Context,
 			); err != nil {
 				panic(err)
 			}
-
-			lc_msg = [3]float64{0, 0, 0}
 
 		case <-ctx.Done():
 			return
