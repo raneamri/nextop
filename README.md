@@ -131,6 +131,8 @@ The `Processlist` can be paused & exported to a self contained .sql file.
 
 ### Thread Analysis
 
+`Thread Analysis` will `EXPLAIN` any query running in a given thread and display the details.
+
 ![ThreadAnalysis](https://github.com/raneamri/nextop/blob/main/img/thread_analysis.png)
 
 ### InnoDB Dashboard
