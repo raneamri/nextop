@@ -2,7 +2,9 @@ package ui
 
 import (
 	"context"
+	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -13,6 +15,7 @@ import (
 	"github.com/mum4k/termdash/linestyle"
 	"github.com/mum4k/termdash/terminal/tcell"
 	"github.com/mum4k/termdash/terminal/terminalapi"
+	"github.com/mum4k/termdash/widgets/segmentdisplay"
 	"github.com/mum4k/termdash/widgets/text"
 	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/types"
@@ -54,8 +57,12 @@ func DisplayMenu() {
 		text.WriteCellOpts(cell.Bold()),
 	)
 
-	logo_text, _ := text.New()
-	logo_text.Write(logo())
+	logo_sd, _ := segmentdisplay.New()
+
+	clock_sd, err := segmentdisplay.New()
+
+	go animateLogo(logo_sd)
+	go clock(ctx, clock_sd)
 
 	cont, err := container.New(
 		t,
@@ -92,7 +99,15 @@ func DisplayMenu() {
 			),
 			container.Right(
 				container.Border(linestyle.Light),
-				container.PlaceWidget(logo_text),
+				container.SplitHorizontal(
+					container.Top(
+						container.PlaceWidget(logo_sd),
+					),
+					container.Bottom(
+						container.PlaceWidget(clock_sd),
+					),
+					container.SplitPercent(75),
+				),
 			),
 			container.SplitPercent(65),
 		),
@@ -150,6 +165,61 @@ func DisplayMenu() {
 	}
 }
 
-func logo() string {
-	return `![]()`
+func animateLogo(sd *segmentdisplay.SegmentDisplay) {
+	var (
+		logo string = " NEXTOP"
+		out  string
+		rndc []string = []string{"$", "%", "&", "*", "@", ":", "/", "?", "<", ">"}
+	)
+
+	for _, char := range logo {
+		out += string(char)
+
+		for range rndc {
+			out += rndc[rand.Intn(len(rndc)-1)]
+			chunks := []*segmentdisplay.TextChunk{
+				segmentdisplay.NewChunk(out, segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorGray)), segmentdisplay.WriteCellOpts(cell.Bold())),
+			}
+
+			sd.Write(chunks)
+			out = out[:len(out)-1]
+			time.Sleep(25 * time.Millisecond)
+			sd.Reset()
+		}
+	}
+
+	chunks := []*segmentdisplay.TextChunk{
+		segmentdisplay.NewChunk(out, segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorWhite)), segmentdisplay.WriteCellOpts(cell.Bold())),
+	}
+	sd.Write(chunks)
+	return
+}
+
+func clock(ctx context.Context, sd *segmentdisplay.SegmentDisplay) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			now := time.Now()
+			nowStr := now.Format("15 04")
+			parts := strings.Split(nowStr, " ")
+
+			spacer := " "
+			if now.Second()%2 == 0 {
+				spacer = ":"
+			}
+			chunks := []*segmentdisplay.TextChunk{
+				segmentdisplay.NewChunk(parts[0], segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorGray)), segmentdisplay.WriteCellOpts(cell.Bold())),
+				segmentdisplay.NewChunk(spacer),
+				segmentdisplay.NewChunk(parts[1], segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorGray)), segmentdisplay.WriteCellOpts(cell.Bold())),
+			}
+			if err := sd.Write(chunks); err != nil {
+				panic(err)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
 }

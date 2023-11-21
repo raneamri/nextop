@@ -2,7 +2,7 @@
 Nextop is a lightweight program designed for monitoring MySQL, PostgreSQL and other Database Management Systems (DBMSs), developed during a summer internship in 2023. This versatile tool aims to provide support for plugin creation, allowing users to extend its functionality according to their specific needs.
 
 ---------------------------------------
-    * [Startup](#startup)
+* [Startup](#startup)
     * [Parameters](#parameters)
     * [Interface](#interface)
         * [Controls](#controls)
