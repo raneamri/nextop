@@ -100,13 +100,11 @@ func DisplayMenu() {
 			container.Right(
 				container.Border(linestyle.Light),
 				container.SplitHorizontal(
-					container.Top(
-						container.PlaceWidget(logo_sd),
-					),
+					container.Top(),
 					container.Bottom(
 						container.PlaceWidget(clock_sd),
 					),
-					container.SplitPercent(75),
+					container.SplitPercent(15),
 				),
 			),
 			container.SplitPercent(65),
@@ -196,6 +194,7 @@ func animateLogo(sd *segmentdisplay.SegmentDisplay) {
 }
 
 func clock(ctx context.Context, sd *segmentdisplay.SegmentDisplay) {
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -210,9 +209,9 @@ func clock(ctx context.Context, sd *segmentdisplay.SegmentDisplay) {
 				spacer = ":"
 			}
 			chunks := []*segmentdisplay.TextChunk{
-				segmentdisplay.NewChunk(parts[0], segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorGray)), segmentdisplay.WriteCellOpts(cell.Bold())),
+				segmentdisplay.NewChunk(parts[0], segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorLime)), segmentdisplay.WriteCellOpts(cell.Bold())),
 				segmentdisplay.NewChunk(spacer),
-				segmentdisplay.NewChunk(parts[1], segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorGray)), segmentdisplay.WriteCellOpts(cell.Bold())),
+				segmentdisplay.NewChunk(parts[1], segmentdisplay.WriteCellOpts(cell.FgColor(cell.ColorLime)), segmentdisplay.WriteCellOpts(cell.Bold())),
 			}
 			if err := sd.Write(chunks); err != nil {
 				panic(err)

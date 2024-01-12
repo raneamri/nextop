@@ -63,10 +63,8 @@ func InterfaceLoop() {
 
 		If user specifies wrong number of arguments, exit with code 1
 	*/
-	if len(Instances) == 0 {
-		io.ReadArgs(Instances)
-	}
 
+	io.ReadArgs(Instances)
 	io.SyncConfig(Instances)
 
 	interval_int, _ := strconv.Atoi(io.FetchSetting("refresh-rate"))

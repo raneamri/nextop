@@ -13,7 +13,9 @@ import (
 */
 
 func ReadArgs(Instances map[string]types.Instance) {
-	if len(os.Args) > 2 && len(os.Args) < 6 {
+	if len(os.Args) == 1 {
+		return
+	} else if len(os.Args) > 2 && len(os.Args) < 6 {
 		var inst types.Instance
 
 		inst.DBMS = utility.Dbmsstr(os.Args[1])

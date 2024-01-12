@@ -1,5 +1,11 @@
 # Nextop
-Nextop is a lightweight program designed for monitoring MySQL, PostgreSQL and other Database Management Systems (DBMSs), developed during a summer internship in 2023. This versatile tool aims to provide support for plugin creation, allowing users to extend its functionality according to their specific needs.
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/raneamri/nextop)
+![Static Badge](https://img.shields.io/badge/interface-termdash-red)
+![Static Badge](https://img.shields.io/badge/version-0.0.3-yellow)
+![Static Badge](https://img.shields.io/badge/development-active-blue)
+![GitHub repo size](https://img.shields.io/github/repo-size/raneamri/nextop)
+![GitHub Repo stars](https://img.shields.io/github/stars/raneamri/nextop)
+Nextop is a lightweight program designed for monitoring MySQL, (and in the future) PostgreSQL and other Database Management Systems (DBMS). This versatile tool aims to provide support for plugin creation, allowing users to extend its functionality according to their specific needs.
 
 ---------------------------------------
 * [Startup](#startup)
@@ -8,7 +14,7 @@ Nextop is a lightweight program designed for monitoring MySQL, PostgreSQL and ot
         * [Controls](#controls)
         * [Configurations](#configurations)
         * [Processlist](#processlist)
-        * [Thread Analysis](#thread-analysis) (coming soon)
+        * [Thread Analysis](#thread-analysis)
         * [InnoDB Dashboard](#innodb-dashboard)
         * [Memory Dashboard](#memory-dashboard)
         * [Error Log](#error-log)
@@ -44,6 +50,7 @@ Some parameters are more important than others. These are the ones I believe wei
 `startup-view`
 ```
 Type:           type.State_t
+
 Valid Values: 	MENU
                 PROCESSLIST
                 THREAD_ANALYSIS
@@ -54,7 +61,7 @@ Valid Values: 	MENU
                 REPLICATION
                 TRANSACTIONS
                 CONFIGS
-                QUIT
+
 Default:        PROCESSLIST
 ```
 startup-view chooses what you see the moment you launch nextop (as long as a valid connection is provided).
@@ -62,7 +69,9 @@ startup-view chooses what you see the moment you launch nextop (as long as a val
 `refresh-rate`
 ```
 Type:         time.Milliseconds
+
 Valid Values: [10, ∞)
+
 Default:      1,000
 ```
 Tested with a locally hosted database, `Nextop` manages >10ms well.
