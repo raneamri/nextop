@@ -5,6 +5,7 @@
 ![Static Badge](https://img.shields.io/badge/development-active-blue)
 ![GitHub repo size](https://img.shields.io/github/repo-size/raneamri/nextop)
 ![GitHub Repo stars](https://img.shields.io/github/stars/raneamri/nextop)
+
 Nextop is a lightweight program designed for monitoring MySQL, (and in the future) PostgreSQL and other Database Management Systems (DBMS). This versatile tool aims to provide support for plugin creation, allowing users to extend its functionality according to their specific needs.
 
 ---------------------------------------
