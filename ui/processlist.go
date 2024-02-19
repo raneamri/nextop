@@ -34,6 +34,8 @@ func DisplayProcesslist() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	var (
 		pause   atomic.Value
 		export  atomic.Value
@@ -454,8 +456,9 @@ func displayProcesslist(ctx context.Context,
 		header []interface{} = []interface{}{"Cmd", "Thd", "Conn", "PID", "State", "User", "Db", "Time", "Lock-Time", "Query"}
 		format string        = "%-10v %-10v %-10v %-5v %-15v %-15v %-20v %-10v %-10v %-99v\n"
 
-		re            *regexp.Regexp = regexp.MustCompile(`(\d+\.\d+)(.)s`)
-		match         []string       = make([]string, 0)
+		re *regexp.Regexp = regexp.MustCompile(`(\d+\.\d+)(.)s`) /*` Intellisense fix */
+
+		match         []string = make([]string, 0)
 		ps            int64
 		sens_filters  bool
 		include_regex *regexp.Regexp

@@ -63,13 +63,13 @@ func Ping(instance types.Instance) bool {
 }
 
 /*
-Curtesy of https://github.com/lefred
+Curtesy of https://github.com/lefred (altered method)
 */
 func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 	var result [][]string
 	defer rows.Close()
 
-	colTypes, err := rows.ColumnTypes()
+	_, err := rows.ColumnTypes()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -87,23 +87,12 @@ func GetData(rows *sql.Rows) ([]string, [][]string, error) {
 			return nil, nil, err
 		}
 		var resultRow []string
-		for i, col := range vals {
+		for _, col := range vals {
 			var value string
 			if col == nil {
 				value = "NULL"
 			} else {
-				switch colTypes[i].DatabaseTypeName() {
-				case "VARCHAR", "CHAR", "TEXT":
-					value = fmt.Sprintf("%s", col)
-				case "BIGINT":
-					value = fmt.Sprintf("%s", col)
-				case "INT":
-					value = fmt.Sprintf("%d", col)
-				case "DECIMAL":
-					value = fmt.Sprintf("%s", col)
-				default:
-					value = fmt.Sprintf("%s", col)
-				}
+				value = fmt.Sprintf("%s", col)
 			}
 			value = strings.Replace(value, "&", "", 1)
 			resultRow = append(resultRow, value)

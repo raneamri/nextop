@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -159,6 +160,50 @@ func InterfaceLoop() {
 			DisplayMenu()
 			Laststate = types.MENU
 			break
+		}
+	}
+}
+
+/*
+Smart connection pooling system
+*/
+func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
+	var (
+		ticker *time.Ticker = time.NewTicker(50)
+	)
+
+	for {
+		select {
+		case <-ticker.C:
+			/*
+				Clean up active connections
+			*/
+			for _, key := range ActiveConns {
+				if !queries.Ping(Instances[key]) {
+					ActiveConns = utility.PopString(ActiveConns, key)
+					IdleConns = append(IdleConns, key)
+				}
+			}
+
+			/*
+				Update idle connections
+			*/
+			for _, key := range IdleConns {
+				if queries.Ping(Instances[key]) {
+					ActiveConns = append(ActiveConns, key)
+				}
+			}
+
+			/*
+				Send back to config if no pingable connections
+			*/
+			if len(ActiveConns) == 0 {
+				State = types.CONFIGS
+				cancel()
+			}
+
+		case <-ctx.Done():
+			cancel()
 		}
 	}
 }

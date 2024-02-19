@@ -22,7 +22,7 @@ func ThrowKeybindError(duplicate string) {
 }
 
 func CatchConfigReadError(err error, instances map[string]types.Instance) {
-	fmt.Println("Config file broken. Read error.")
+	fmt.Println("Config file broken. Read error:")
 	panic(err)
 }
 

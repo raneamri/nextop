@@ -285,8 +285,14 @@ func instanceDisplay(ctx context.Context,
 			for _, inst := range Instances {
 				if inst.Driver == nil {
 					if queries.Ping(inst) {
-						inst.Driver, _ = queries.Connect(inst)
-						ActiveConns = append(ActiveConns, inst.ConnName)
+						newInst := types.Instance{
+							ConnName: inst.ConnName,
+							Group:    inst.Group,
+							DBMS:     inst.DBMS,
+							DSN:      inst.DSN,
+						}
+						newInst.Driver, _ = queries.Connect(newInst)
+						ActiveConns = append(ActiveConns, newInst.ConnName)
 					}
 				}
 			}
@@ -327,7 +333,7 @@ func rollText(ctx context.Context,
 		case <-ticker.C:
 			roll_text.Reset()
 
-			roll_text.Write("       " + message)
+			roll_text.Write("       "+message, text.WriteCellOpts(cell.FgColor(cell.ColorGray)))
 			message = message[1:] + message[:1]
 
 		case <-ctx.Done():
