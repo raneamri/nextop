@@ -341,6 +341,9 @@ func dynProcesslist(ctx context.Context,
 		Launch goroutine for each connection
 	*/
 	for _, conn := range ActiveConns {
+		if len(ActiveConns) == 0 {
+			continue
+		}
 		go fetchProcesslist(ctx,
 			conn,
 			processlistChannel,
@@ -639,6 +642,10 @@ func displayMetrics(ctx context.Context,
 	)
 
 	for {
+		if len(ActiveConns) == 0 {
+			continue
+		}
+
 		select {
 		case query = <-metricsChannel:
 			for _, row := range query.RawData {

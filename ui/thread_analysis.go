@@ -32,6 +32,8 @@ func DisplayThreadAnalysis() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	var (
 		lookup  map[string]func() string
 		message []string

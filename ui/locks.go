@@ -27,6 +27,8 @@ func DisplayLocks() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	active_txt, _ := text.New()
 	log, _ := text.New()
 

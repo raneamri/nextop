@@ -30,6 +30,8 @@ func DisplayMemory() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	dballoc_txt, _ := text.New()
 	dballoc_txt.Write("Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 

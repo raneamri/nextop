@@ -25,6 +25,8 @@ func DisplayReplication() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	var (
 		repl_text *text.Text
 		info_text *text.Text

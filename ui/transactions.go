@@ -26,6 +26,8 @@ func DisplayTransactions() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	var (
 		pause atomic.Value
 	)

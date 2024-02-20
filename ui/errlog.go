@@ -31,6 +31,8 @@ func DisplayErrorLog() {
 	defer t.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	log, _ := text.New(
 		text.WrapAtRunes(),
 	)

@@ -83,6 +83,8 @@ func InterfaceLoop() {
 			Instances[key] = inst
 			if err == nil {
 				ActiveConns = append(ActiveConns, key)
+			} else {
+				IdleConns = append(IdleConns, key)
 			}
 		}
 	}
@@ -169,12 +171,20 @@ Smart connection pooling system
 */
 func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
 	var (
-		ticker *time.Ticker = time.NewTicker(50)
+		ticker *time.Ticker = time.NewTicker(Interval)
 	)
 
 	for {
 		select {
 		case <-ticker.C:
+			/*
+				Send back to config if no pingable connections
+			*/
+			if len(ActiveConns) == 0 && State != types.CONFIGS {
+				State = types.CONFIGS
+				cancel()
+			}
+
 			/*
 				Clean up active connections
 			*/
@@ -190,16 +200,10 @@ func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
 			*/
 			for _, key := range IdleConns {
 				if queries.Ping(Instances[key]) {
+					IdleConns = utility.PopString(IdleConns, key)
+					queries.Connect(Instances[key])
 					ActiveConns = append(ActiveConns, key)
 				}
-			}
-
-			/*
-				Send back to config if no pingable connections
-			*/
-			if len(ActiveConns) == 0 {
-				State = types.CONFIGS
-				cancel()
 			}
 
 		case <-ctx.Done():

@@ -31,6 +31,8 @@ func DisplayConfigs() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	var (
 		dbms    string
 		dsn     string
@@ -275,40 +277,20 @@ func instanceDisplay(ctx context.Context,
 	instlog *text.Text,
 	delay time.Duration) {
 
-	var ticker *time.Ticker = time.NewTicker(delay)
+	var ticker *time.Ticker = time.NewTicker(delay * 2)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			io.SyncConfig(Instances)
-			for _, inst := range Instances {
-				if inst.Driver == nil {
-					if queries.Ping(inst) {
-						newInst := types.Instance{
-							ConnName: inst.ConnName,
-							Group:    inst.Group,
-							DBMS:     inst.DBMS,
-							DSN:      inst.DSN,
-						}
-						newInst.Driver, _ = queries.Connect(newInst)
-						ActiveConns = append(ActiveConns, newInst.ConnName)
-					}
-				}
-			}
-
 			instlog.Reset()
 			for _, inst := range Instances {
-				instlog.Write("\n   dbms", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-				instlog.Write(": " + utility.Strdbms(inst.DBMS))
-				instlog.Write("   dsn", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
-				instlog.Write(": " + string((inst.DSN)))
 				instlog.Write("   conn-name", text.WriteCellOpts(cell.FgColor(cell.ColorBlue)))
 				instlog.Write(": " + string((inst.ConnName)))
 				if queries.Ping(inst) {
-					instlog.Write(" ONLINE", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
+					instlog.Write(" ONLINE\n", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
 				} else {
-					instlog.Write(" OFFLINE", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
+					instlog.Write(" OFFLINE\n", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
 					utility.PopString(ActiveConns, inst.ConnName)
 				}
 			}
@@ -326,7 +308,7 @@ func rollText(ctx context.Context,
 	var ticker *time.Ticker = time.NewTicker(delay)
 	defer ticker.Stop()
 
-	var message string = fmt.Sprintf("%-64v", "MySQL Postgres")
+	var message string = fmt.Sprintf("%-64v", "MySQL  Postgres  (& more to come!)")
 
 	for {
 		select {

@@ -39,6 +39,8 @@ func DisplayInnoDbDashboard() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	go connectionSanitiser(ctx, cancel)
+
 	var infoheader []interface{} = []interface{}{"Buffer Pool Size",
 		"Buffer Pool Instance",
 		"Checkpoint Info",
