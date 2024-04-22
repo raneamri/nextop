@@ -148,6 +148,11 @@ func dynMemoryDashboard(ctx context.Context,
 		specallocChannel   chan types.Query = make(chan types.Query)
 	)
 
+	defer close(mallocChannel)
+	defer close(globalallocChannel)
+	defer close(ramndiskChannel)
+	defer close(specallocChannel)
+
 	go fetchMemoryAlloc(ctx,
 		mallocChannel,
 		globalallocChannel,

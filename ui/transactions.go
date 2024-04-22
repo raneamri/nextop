@@ -122,6 +122,9 @@ func dynTransactions(ctx context.Context,
 		metricsChannel chan types.Query = make(chan types.Query)
 	)
 
+	defer close(txnsChannel)
+	defer close(metricsChannel)
+
 	for _, conn := range ActiveConns {
 		go fetchMetrics(ctx,
 			conn,

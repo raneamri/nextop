@@ -74,7 +74,7 @@ func DisplayInnoDbDashboard() {
 	thdio_text, _ := text.New()
 	thdio_text.Write("\n Loading...", text.WriteCellOpts(cell.FgColor(cell.ColorNavy)))
 
-	go dynDbDashboard(ctx, innodb_text, bufferp_text, thdio_text, Interval)
+	go dynDbDashboard(ctx, innodb_text, bufferp_text, thdio_text)
 
 	cont, err := container.New(
 		t,
@@ -170,14 +170,17 @@ func DisplayInnoDbDashboard() {
 func dynDbDashboard(ctx context.Context,
 	innodb_text *text.Text,
 	bufferp_text *text.Text,
-	thdio_text *text.Text,
-	delay time.Duration) {
+	thdio_text *text.Text) {
 
 	var (
 		innodbChannel     chan types.Query = make(chan types.Query)
 		bufferpoolChannel chan types.Query = make(chan types.Query)
 		thdioChannel      chan types.Query = make(chan types.Query)
 	)
+
+	defer close(innodbChannel)
+	defer close(bufferpoolChannel)
+	defer close(thdioChannel)
 
 	go fetchInnoDb(ctx,
 		innodbChannel)

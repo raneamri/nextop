@@ -154,6 +154,8 @@ func dynErrorLog(ctx context.Context,
 		errorChannel chan types.Query = make(chan types.Query)
 	)
 
+	defer close(errorChannel)
+
 	go fetchErrors(ctx, errorChannel)
 	go writeErrors(ctx, log, search, exclude, freqs, errorChannel)
 

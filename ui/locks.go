@@ -93,6 +93,8 @@ func dynLockLog(ctx context.Context,
 		lockChannel chan types.Query = make(chan types.Query)
 	)
 
+	defer close(lockChannel)
+
 	go fetchLocks(ctx, lockChannel)
 	go writeLocks(ctx, log, lockChannel)
 }

@@ -337,6 +337,9 @@ func dynProcesslist(ctx context.Context,
 		metricsChannel     chan types.Query = make(chan types.Query)
 	)
 
+	defer close(processlistChannel)
+	defer close(metricsChannel)
+
 	/*
 		Launch goroutine for each connection
 	*/
