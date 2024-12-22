@@ -21,8 +21,10 @@ func ClearTerminal() {
 		cmd = exec.Command("clear")
 	}
 
+	tout := cmd.Stdout
 	cmd.Stdout = os.Stdout
 	cmd.Run()
+	cmd.Stdout = tout
 }
 
 /*

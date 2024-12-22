@@ -93,8 +93,6 @@ func dynLockLog(ctx context.Context,
 		lockChannel chan types.Query = make(chan types.Query)
 	)
 
-	defer close(lockChannel)
-
 	go fetchLocks(ctx, lockChannel)
 	go writeLocks(ctx, log, lockChannel)
 }
@@ -103,7 +101,7 @@ func fetchLocks(ctx context.Context,
 	lockChannel chan<- types.Query) {
 
 	var (
-		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		ticker *time.Ticker = time.NewTicker(Interval)
 		istIte bool         = false
 		lookup map[string]func() string
 
@@ -125,6 +123,7 @@ func fetchLocks(ctx context.Context,
 			lockChannel <- query
 
 		case <-ctx.Done():
+			close(lockChannel)
 			return
 		}
 	}

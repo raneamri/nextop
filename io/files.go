@@ -284,3 +284,20 @@ func ExportProcesslist(rawdata [][]string) error {
 
 	return nil
 }
+
+func HealConfig() error {
+	file, err := os.Create(".nextop.conf")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	text := "[injects]\n[/injects]\n\n[settings]\nstartup-view=PROCESSLIST\n\nrefresh-rate=500\nrate-limiter=100\n\ndefault-group=none\n\nexport-path=exports/exports.sql\n\npl-include-suggestion=Awaiting pl-exclude-suggestion=Sleep\nerr-include-suggestion=Error err-exclude-suggestion=System\n\ncase-sensitive-filters=false\n[/settings]\n\n[connections]\n[/connections]"
+
+	_, err = file.WriteString(text)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -178,10 +178,6 @@ func dynDbDashboard(ctx context.Context,
 		thdioChannel      chan types.Query = make(chan types.Query)
 	)
 
-	defer close(innodbChannel)
-	defer close(bufferpoolChannel)
-	defer close(thdioChannel)
-
 	go fetchInnoDb(ctx,
 		innodbChannel)
 

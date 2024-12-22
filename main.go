@@ -6,6 +6,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/raneamri/nextop/dev"
+	"github.com/raneamri/nextop/io"
 	"github.com/raneamri/nextop/ui"
 )
 
@@ -20,6 +21,17 @@ func main() {
 			dev.InjectDBMS()
 			return
 		}
+	}
+
+	if _, err := os.Stat(".nextop.conf"); err == nil {
+	} else if os.IsNotExist(err) {
+		fmt.Println("Configuration file doesn't exist. Healing")
+		err := io.HealConfig()
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		fmt.Println("Error accessing configuration file: ", err)
 	}
 
 	ui.InterfaceLoop()

@@ -337,9 +337,6 @@ func dynProcesslist(ctx context.Context,
 		metricsChannel     chan types.Query = make(chan types.Query)
 	)
 
-	defer close(processlistChannel)
-	defer close(metricsChannel)
-
 	/*
 		Launch goroutine for each connection
 	*/
@@ -347,6 +344,7 @@ func dynProcesslist(ctx context.Context,
 		if len(ActiveConns) == 0 {
 			continue
 		}
+
 		go fetchProcesslist(ctx,
 			conn,
 			processlistChannel,
@@ -386,7 +384,7 @@ func fetchProcesslist(ctx context.Context,
 	analyse *atomic.Value) {
 
 	var (
-		ticker *time.Ticker = time.NewTicker(1 * time.Nanosecond)
+		ticker *time.Ticker = time.NewTicker(Interval)
 		istIte bool         = false
 
 		lookup map[string]func() string = GlobalQueryMap[Instances[conn].DBMS]

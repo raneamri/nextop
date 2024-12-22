@@ -171,7 +171,7 @@ Smart connection pooling system
 */
 func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
 	var (
-		ticker *time.Ticker = time.NewTicker(Interval)
+		ticker *time.Ticker = time.NewTicker(Interval * 10)
 	)
 
 	for {
