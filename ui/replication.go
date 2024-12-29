@@ -159,7 +159,7 @@ func fetchReplication(ctx context.Context,
 			query, _ = queries.Query(Instances[ActiveConns[0]].Driver, lookup["replication"]())
 
 			if len(query.RawData) == 0 {
-				query.RawData = [][]string{{"NO CURR. REPL", "", "", "", "", "", "", ""}}
+				query.RawData = [][]string{{"NONE", "", "", "", "", "", "", ""}}
 			}
 
 			replicationChannel <- query

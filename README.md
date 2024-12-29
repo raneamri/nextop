@@ -140,10 +140,7 @@ The `Analyse` textbox accepts a thread ID, which it'll then explain the query in
 The `Processlist` can be paused & exported to a self contained .sql file.
 
 ### Thread Analysis
-
 `Thread Analysis` will `EXPLAIN` any query running in a given thread and display the details.
-
-![ThreadAnalysis](https://github.com/raneamri/nextop/blob/main/img/thread_analysis.png)
 
 ### InnoDB Dashboard
 The `InnoDB Dashboard` provides essential data from the InnoDB engine.
@@ -174,21 +171,6 @@ The number of each type of error on-screen is presented on a linechart.
 
 ![ErrorLog](https://github.com/raneamri/nextop/blob/main/img/error.png)
 
-### Lock Log
-Yet to be tested.
-
-![LockLog](https://github.com/raneamri/nextop/blob/main/img/lock_log.png)
-
-### Replication
-`Replication` will display the active replication status of a database in a slave-master setup.
-
-![Replication](https://github.com/raneamri/nextop/blob/main/img/replication.png)
-
-### Transactions
-The `Transactions` interface displays active transactions if any.
-
-![Transactions](https://github.com/raneamri/nextop/blob/main/img/transactions.png)
-
 ## Back-End
 Nextop uses a best-effort periodic collect and display at interval system, meaning the program will attempt to fetch data from all connections, and all data that has been fetched within a customisable "refresh-rate" period will be displayed at the end of it. This means the end user may have to adjust the refresh rate if some connections aren't pinged in time.
 
@@ -210,6 +192,3 @@ This system also facilitates the implementation of new DBMSs, by simply allowing
 To overcome the hurdle of non-homogenous cardinality in otherwise equivalent schemas among DBMSs, nextop uses ordinality to describe synonymy. Every return from a query is bound to a slice of unique indexes, which bind values to a field, enabling union of these schemas. Nextop was designed in the image of MySQL, and so fields that may not exist for other DBMSs are managed by this system also, where any blank field is replaced with "n/a" if unfetchable.
 
 The interface is managed by a "simple C++ game"-type state machine and the display is managed by the github.com/termdash library.
-
-## License
-Soon to be licensed
