@@ -53,7 +53,7 @@ func DisplayMenu() {
 
 	help_table3, _ := text.New()
 	help_table3.Write(
-		"\n Trying to fix the aspect ratio? Adjust this page's size until the logo on the right is correctly\n in frame. (164x54)\n\n REPO https://github.com/raneamri/nextop\n AUTHOR Imrane AMRI\n LICENSE ...\n",
+		"\n Trying to fix the aspect ratio? Adjust this page's size until the logo on the right is correctly\n in frame. (164x54)\n\n REPO https://github.com/raneamri/nextop\n AUTHOR Imrane AMRI\n LICENSE MIT\n",
 		text.WriteCellOpts(cell.Bold()),
 	)
 
