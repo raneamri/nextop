@@ -131,3 +131,26 @@ func Query(db *sql.DB, stmt string) (types.Query, error) {
 	}
 	return query, nil
 }
+
+func PromoteConnection(active_pool *[]string, idle_pool *[]string, conn string, instances map[string]types.Instance) {
+	*idle_pool = utility.PopString(*idle_pool, conn)
+	*active_pool = append(*active_pool, conn)
+
+	/*
+		Re-open connection to avoid a null dereference
+	*/
+	var inst types.Instance = types.Instance{
+		DBMS:     instances[conn].DBMS,
+		DSN:      instances[conn].DSN,
+		ConnName: instances[conn].ConnName,
+		Group:    instances[conn].Group,
+	}
+
+	inst.Driver, _ = Connect(inst)
+	instances[conn] = inst
+}
+
+func DemoteConnection(active_pool *[]string, idle_pool *[]string, conn string) {
+	*active_pool = utility.PopString(*active_pool, conn)
+	*idle_pool = append(*idle_pool, conn)
+}

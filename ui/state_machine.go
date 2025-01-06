@@ -171,7 +171,7 @@ Smart connection pooling system
 */
 func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
 	var (
-		ticker *time.Ticker = time.NewTicker(Interval * 10)
+		ticker *time.Ticker = time.NewTicker(Interval / 3)
 	)
 
 	for {
@@ -190,8 +190,7 @@ func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
 			*/
 			for _, key := range ActiveConns {
 				if !queries.Ping(Instances[key]) {
-					ActiveConns = utility.PopString(ActiveConns, key)
-					IdleConns = append(IdleConns, key)
+					queries.DemoteConnection(&ActiveConns, &IdleConns, key)
 				}
 			}
 
@@ -200,9 +199,7 @@ func connectionSanitiser(ctx context.Context, cancel context.CancelFunc) {
 			*/
 			for _, key := range IdleConns {
 				if queries.Ping(Instances[key]) {
-					IdleConns = utility.PopString(IdleConns, key)
-					queries.Connect(Instances[key])
-					ActiveConns = append(ActiveConns, key)
+					queries.PromoteConnection(&ActiveConns, &IdleConns, key, Instances)
 				}
 			}
 

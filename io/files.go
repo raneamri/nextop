@@ -68,7 +68,10 @@ func ReadInstances(Instances map[string]types.Instance) {
 	connEnd = strings.Index(string(contents), "[/connections]")
 	if connStart == -1 || connEnd == -1 {
 		// Handle the error and panic with a custom message
-		panic("File format error: [connections] or [/connections] not found")
+		err := HealConfig()
+		if err != nil {
+			panic("File format error: [connections] or [/connections] not found")
+		}
 	}
 	config = string(contents[connStart+13 : connEnd-1])
 

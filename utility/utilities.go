@@ -94,3 +94,11 @@ func SliceToInterface(slice []string) []interface{} {
 
 	return intf
 }
+
+func LogError(e string) {
+	const fpath string = "errors/.error.log"
+	f, _ := os.OpenFile(fpath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	defer f.Close()
+
+	_, _ = f.WriteString(e + "\n")
+}

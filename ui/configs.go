@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -31,7 +32,7 @@ func DisplayConfigs() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go connectionSanitiser(ctx, cancel)
+	//go connectionSanitiser(ctx, cancel)
 
 	var (
 		dbms    string
@@ -289,9 +290,14 @@ func instanceDisplay(ctx context.Context,
 				instlog.Write(": " + string((inst.ConnName)))
 				if queries.Ping(inst) {
 					instlog.Write(" ONLINE\n", text.WriteCellOpts(cell.FgColor(cell.ColorGreen)))
+					if slices.Contains(IdleConns, inst.ConnName) {
+						queries.PromoteConnection(&ActiveConns, &IdleConns, inst.ConnName, Instances)
+					}
 				} else {
 					instlog.Write(" OFFLINE\n", text.WriteCellOpts(cell.FgColor(cell.ColorRed)))
-					utility.PopString(ActiveConns, inst.ConnName)
+					if slices.Contains(ActiveConns, inst.ConnName) {
+						queries.DemoteConnection(&ActiveConns, &IdleConns, inst.ConnName)
+					}
 				}
 			}
 
