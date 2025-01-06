@@ -3,6 +3,7 @@ package queries
 func MySQLFuncDict() []func() string {
 	return []func() string{MySQLProcesslist,
 		MySQLMetrics,
+		MySQLCurrentQuery,
 		MySQLThreadAnalysis,
 		MySQLKill,
 		MySQLInnoDBAHI,
@@ -89,6 +90,10 @@ func MySQLMetrics() string {
 				SELECT 'Ongoing Delete Count' AS Metric, (SELECT COUNT(*) FROM performance_schema.events_statements_current WHERE digest_text LIKE 'DELETE%' AND thread_id IS NOT NULL) AS Value
 			) AS subquery;
 			`
+}
+
+func MySQLCurrentQuery() string {
+	return `SELECT INFO FROM information_schema.PROCESSLIST WHERE ID = %s;`
 }
 
 func MySQLThreadAnalysis() string {

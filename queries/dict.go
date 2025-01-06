@@ -8,6 +8,7 @@ as this program was designed around MySQL
 func QueryTypeDict() []string {
 	return []string{"processlist",
 		"metrics",
+		"current_query",
 		"thread_analysis",
 		"kill",
 		"innodbahi",

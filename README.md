@@ -121,10 +121,10 @@ Naming connections and giving them unique identifiers facilitates managing them 
 The processlist dynamically displays ongoing processes, with different colors indicating their latency:
 
 --------------------------
-- `5 seconds -> blue`
-- `10 seconds -> yellow`
-- `30 seconds -> red`
-- `1 minute -> dark red`
+- `5ms  -> blue`
+- `10ms -> yellow`
+- `50ms -> red`
+- `1ms  -> dark red`
 --------------------------
 
 ![Processlist](https://github.com/raneamri/nextop/blob/main/img/processlist.png)

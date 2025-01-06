@@ -38,6 +38,7 @@ func DisplayThreadAnalysis() {
 		lookup  map[string]func() string
 		message []string
 		query   types.Query
+		abort   bool = false
 
 		header []interface{} = []interface{}{"ID", "QType", "Table", "Parts", "Type", "Key", "Key Len", "Ref", "Rows", "Filtered", "Extra"}
 		format string        = "%-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v %-10v \n"
@@ -53,23 +54,30 @@ func DisplayThreadAnalysis() {
 	_, err = strconv.Atoi(CurrentThread)
 	if err != nil {
 		message = append(message, "Non-numeric Thread ID\nESC to return to previous view")
+		abort = true
 	} else {
 		lookup = GlobalQueryMap[Instances[ActiveConns[0]].DBMS]
 		query, _ = queries.Query(Instances[ActiveConns[0]].Driver, fmt.Sprintf(lookup["thread_analysis"](), CurrentQuery))
 		utility.ShuffleQuery(query, order)
 	}
 
+	CurrentQuery = ""
+
 	widget.Write(fmt.Sprintf(format, header...), text.WriteCellOpts(cell.Bold()))
 
-	for _, row := range query.RawData {
-		if colorflipper < 0 {
-			color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
-		} else {
-			color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
-		}
-		colorflipper *= -1
+	if abort {
+		widget.Write(message[0], text.WriteCellOpts(cell.FgColor(cell.ColorYellow)))
+	} else {
+		for _, row := range query.RawData {
+			if colorflipper < 0 {
+				color = text.WriteCellOpts(cell.FgColor(cell.ColorWhite))
+			} else {
+				color = text.WriteCellOpts(cell.FgColor(cell.ColorGray))
+			}
+			colorflipper *= -1
 
-		widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
+			widget.Write(utility.TrimNSprintf(format, utility.SliceToInterface(row)...), color)
+		}
 	}
 
 	cont, err := container.New(

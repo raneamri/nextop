@@ -18,7 +18,7 @@ func Connect(instance types.Instance) (*sql.DB, error) {
 		driver *sql.DB
 		err    error
 	)
-	driver, err = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN))
+	driver, err = sql.Open(utility.Strdbms(instance.DBMS), string(instance.DSN)+"?maxAllowedPacket=67108864")
 	if err != nil {
 		driver.Close()
 		return nil, err

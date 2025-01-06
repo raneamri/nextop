@@ -308,6 +308,10 @@ func DisplayProcesslist() {
 
 				time.Sleep(100 * time.Millisecond)
 
+				for CurrentQuery == "" {
+					time.Sleep(100 * time.Millisecond)
+				}
+
 				State = types.THREAD_ANALYSIS
 
 				cancel()
