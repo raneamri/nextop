@@ -19,9 +19,6 @@ Nextop is a lightweight program designed for monitoring MySQL, (and in the futur
         * [InnoDB Dashboard](#innodb-dashboard)
         * [Memory Dashboard](#memory-dashboard)
         * [Error Log](#error-log)
-        * [Lock Log](#lock-log)
-        * [Replication](#replication)
-        * [Transactions](#transactions)
     * [Backend](#back-end)
     * [License](#license)
 
@@ -121,10 +118,10 @@ Naming connections and giving them unique identifiers facilitates managing them 
 The processlist dynamically displays ongoing processes, with different colors indicating their latency:
 
 --------------------------
-- `5ms  -> blue`
-- `10ms -> yellow`
-- `50ms -> red`
-- `1ms  -> dark red`
+- `5ms   -> yellow`
+- `10ms  -> red`
+- `50ms  -> dark red`
+- `100ms -> magenta`
 --------------------------
 
 ![Processlist](https://github.com/raneamri/nextop/blob/main/img/processlist.png)
